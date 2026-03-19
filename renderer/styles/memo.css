@@ -588,7 +588,27 @@
   flex: 1;
   min-width: 0;
   justify-content: flex-end;
-  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+/* 반응형: 창이 좁을 때 우선순위 낮은 버튼 숨김 */
+.action-bar.compact .action-icon-btn.reply,
+.action-bar.compact .action-icon-btn.text-color {
+  display: none;
+}
+.action-bar.very-compact .action-icon-btn.reply,
+.action-bar.very-compact .action-icon-btn.text-color,
+.action-bar.very-compact .action-icon-btn.link,
+.action-bar.very-compact .action-icon-btn.image {
+  display: none;
+}
+.action-bar.ultra-compact .action-icon-btn.reply,
+.action-bar.ultra-compact .action-icon-btn.text-color,
+.action-bar.ultra-compact .action-icon-btn.link,
+.action-bar.ultra-compact .action-icon-btn.image,
+.action-bar.ultra-compact .action-icon-btn.new-memo,
+.action-bar.ultra-compact .action-icon-btn.capture {
+  display: none;
 }
 
 /* 액션 아이콘 버튼 */

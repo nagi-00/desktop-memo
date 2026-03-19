@@ -584,18 +584,41 @@ function bindEvents() {
         let node = sel.getRangeAt(0).startContainer;
         if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
 
-        // 체크박스 아이템 안에서 Enter → 밖으로 탈출
+        // 체크박스 아이템 안에서 Enter
         const cbItem = node.closest?.('.cb-item');
         if (cbItem) {
           e.preventDefault();
-          const newP = document.createElement('div');
-          newP.innerHTML = '<br>';
-          cbItem.parentNode.insertBefore(newP, cbItem.nextSibling);
-          const r = document.createRange();
-          r.setStart(newP, 0);
-          r.collapse(true);
-          sel.removeAllRanges();
-          sel.addRange(r);
+          const span = cbItem.querySelector('span');
+          const text = span ? span.textContent.replace(/\u00A0/g, '').trim() : '';
+
+          if (text === '') {
+            // 빈 체크박스에서 Enter → 체크박스 삭제, 일반 텍스트로 전환
+            const newP = document.createElement('div');
+            newP.innerHTML = '<br>';
+            cbItem.parentNode.insertBefore(newP, cbItem.nextSibling);
+            cbItem.remove();
+            const r = document.createRange();
+            r.setStart(newP, 0);
+            r.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          } else {
+            // 내용이 있는 체크박스에서 Enter → 새 체크박스 생성
+            const newCb = document.createElement('div');
+            newCb.className = 'cb-item';
+            const newInput = document.createElement('input');
+            newInput.type = 'checkbox';
+            const newSpan = document.createElement('span');
+            newSpan.textContent = '\u00A0';
+            newCb.appendChild(newInput);
+            newCb.appendChild(newSpan);
+            cbItem.parentNode.insertBefore(newCb, cbItem.nextSibling);
+            const r = document.createRange();
+            r.selectNodeContents(newSpan);
+            r.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(r);
+          }
           scheduleSave();
           return;
         }
@@ -890,6 +913,18 @@ function bindEvents() {
       api.createMemo();
     }
   });
+
+  // 반응형 액션바: 창 너비에 따라 버튼 숨김
+  const actionBar = document.querySelector('.action-bar');
+  if (actionBar && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      actionBar.classList.remove('compact', 'very-compact', 'ultra-compact');
+      if (w < 200)      actionBar.classList.add('ultra-compact');
+      else if (w < 280)  actionBar.classList.add('very-compact');
+      else if (w < 340)  actionBar.classList.add('compact');
+    }).observe(actionBar);
+  }
 }
 
 // ── 실행 ──────────────────────────────────────
