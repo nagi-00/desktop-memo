@@ -22,10 +22,10 @@
   --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.32);
   --shadow-float: 0 2px 8px  rgba(0, 0, 0, 0.30);
 
-  /* Radii — 직각 스타일 */
-  --radius-card: 2px;
-  --radius-pill: 2px;
-  --radius-sm:   2px;
+  /* Radii */
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --radius-sm:   8px;
 
   /* Transitions */
   --transition-fast: 150ms ease-out;

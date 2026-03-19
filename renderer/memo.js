@@ -99,6 +99,9 @@ async function init() {
     memoContent.textContent = memoData.content;
   }
 
+  // 저장된 미디어 그리드에 래퍼/이벤트 재적용
+  initMediaGrids();
+
   // 프로필
   const profile = memoData.profile || {};
   displayName.textContent = profile.name   || '메모';
@@ -277,6 +280,107 @@ function saveMemoChanges(changes) {
   api.updateMemo(changes).catch(console.error);
 }
 
+// ── 미디어 그리드 (트위터 스타일) ──────────────
+function getOrCreateGrid() {
+  let grid = memoContent.querySelector('.media-grid');
+  if (!grid) {
+    grid = document.createElement('div');
+    grid.className = 'media-grid';
+    grid.contentEditable = 'false';
+    memoContent.appendChild(grid);
+  }
+  return grid;
+}
+
+function updateGridCount(grid) {
+  const count = grid.querySelectorAll('.img-wrap').length;
+  if (count === 0) { grid.remove(); return; }
+  grid.setAttribute('data-count', Math.min(count, 4));
+  scheduleSave();
+}
+
+function setupImgWrap(wrap, grid) {
+  wrap.draggable = true;
+
+  // 기존 삭제 버튼이 없으면 추가
+  if (!wrap.querySelector('.img-remove')) {
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'img-remove';
+    removeBtn.textContent = '×';
+    wrap.appendChild(removeBtn);
+  }
+
+  // 삭제 버튼 이벤트
+  wrap.querySelector('.img-remove').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    wrap.remove();
+    updateGridCount(grid);
+  });
+
+  // 드래그 순서 변경
+  wrap.addEventListener('dragstart', (ev) => {
+    wrap.classList.add('dragging');
+    ev.dataTransfer.effectAllowed = 'move';
+    grid._dragSrc = wrap;
+  });
+  wrap.addEventListener('dragend', () => {
+    wrap.classList.remove('dragging');
+    grid.querySelectorAll('.img-wrap').forEach(w => w.classList.remove('drag-over'));
+    grid._dragSrc = null;
+    updateGridCount(grid);
+  });
+  wrap.addEventListener('dragover', (ev) => {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+    if (grid._dragSrc && grid._dragSrc !== wrap) wrap.classList.add('drag-over');
+  });
+  wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+  wrap.addEventListener('drop', (ev) => {
+    ev.preventDefault();
+    wrap.classList.remove('drag-over');
+    if (grid._dragSrc && grid._dragSrc !== wrap) {
+      const allWraps = [...grid.querySelectorAll('.img-wrap')];
+      const fromIdx = allWraps.indexOf(grid._dragSrc);
+      const toIdx   = allWraps.indexOf(wrap);
+      if (fromIdx < toIdx) grid.insertBefore(grid._dragSrc, wrap.nextSibling);
+      else grid.insertBefore(grid._dragSrc, wrap);
+    }
+  });
+}
+
+function addImageToGrid(grid, src) {
+  const wrap = document.createElement('div');
+  wrap.className = 'img-wrap';
+  const img = document.createElement('img');
+  img.src = src;
+  wrap.appendChild(img);
+  grid.appendChild(wrap);
+  setupImgWrap(wrap, grid);
+}
+
+/** 저장된 HTML에서 복원된 그리드에 래퍼/이벤트 재적용 */
+function initMediaGrids() {
+  memoContent.querySelectorAll('.media-grid').forEach(grid => {
+    grid.contentEditable = 'false';
+
+    // bare <img> → .img-wrap으로 감싸기
+    grid.querySelectorAll(':scope > img').forEach(img => {
+      const wrap = document.createElement('div');
+      wrap.className = 'img-wrap';
+      grid.insertBefore(wrap, img);
+      wrap.appendChild(img);
+    });
+
+    // 모든 img-wrap에 이벤트 연결
+    grid.querySelectorAll('.img-wrap').forEach(wrap => setupImgWrap(wrap, grid));
+
+    // data-count 갱신
+    const count = grid.querySelectorAll('.img-wrap').length;
+    if (count === 0) grid.remove();
+    else grid.setAttribute('data-count', Math.min(count, 4));
+  });
+}
+
 // ── 텍스트 서식 ──────────────────────────────
 function fmt(command, value = null) {
   memoContent.focus();
@@ -333,19 +437,37 @@ function handleAutoConvert(e) {
   if (textBefore === '[]' || textBefore === '[ ]') {
     e.preventDefault();
     const len = textBefore.length;
-    // 트리거 문자 제거
-    const before = node.textContent.slice(0, range.startOffset - len);
-    const after  = node.textContent.slice(range.startOffset);
-    node.textContent = before + after;
-    // 커서 위치 보정
-    const r2 = document.createRange();
-    r2.setStart(node, before.length);
-    r2.collapse(true);
+    const offset = range.startOffset;
+
+    // 텍스트 노드를 분리: 트리거 문자 앞 | 체크박스 위치 | 나머지
+    const parentEl = node.parentNode;
+    const textAfter = node.splitText(offset);            // 커서 뒤 텍스트
+    node.textContent = node.textContent.slice(0, offset - len); // 트리거 제거
+
+    // 체크박스 요소 생성
+    const cb = document.createElement('div');
+    cb.className = 'cb-item';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    const span = document.createElement('span');
+    span.textContent = '\u00A0'; // non-breaking space placeholder
+    cb.appendChild(input);
+    cb.appendChild(span);
+
+    // 트리거 텍스트 노드와 나머지 사이에 삽입
+    parentEl.insertBefore(cb, textAfter);
+
+    // 빈 텍스트 노드 정리
+    if (!node.textContent) node.remove();
+    if (!textAfter.textContent) textAfter.remove();
+
+    // 커서를 span 안에 배치
+    const nr = document.createRange();
+    nr.selectNodeContents(span);
+    nr.collapse(false);
     sel.removeAllRanges();
-    sel.addRange(r2);
-    // 체크박스 삽입 (div — 박스만 클릭해야 토글, 텍스트 편집 가능)
-    document.execCommand('insertHTML', false,
-      '<div class="cb-item"><input type="checkbox"><span contenteditable="true">&ZeroWidthSpace;</span></div><br>');
+    sel.addRange(nr);
+
     scheduleSave();
     return;
   }
@@ -529,84 +651,6 @@ function bindEvents() {
 
   // 링크 버튼
   btnLink.addEventListener('click', insertLink);
-
-  // ── 미디어 그리드 헬퍼 ──────────────────────
-  function getOrCreateGrid() {
-    let grid = memoContent.querySelector('.media-grid');
-    if (!grid) {
-      grid = document.createElement('div');
-      grid.className = 'media-grid';
-      grid.contentEditable = 'false';
-      memoContent.appendChild(grid);
-    }
-    return grid;
-  }
-
-  function updateGridCount(grid) {
-    const count = grid.querySelectorAll('.img-wrap').length;
-    if (count === 0) { grid.remove(); }
-    else { grid.setAttribute('data-count', Math.min(count, 4)); }
-    scheduleSave();
-  }
-
-  function addImageToGrid(grid, src) {
-    const wrap = document.createElement('div');
-    wrap.className = 'img-wrap';
-    wrap.draggable = true;
-
-    const img = document.createElement('img');
-    img.src = src;
-    wrap.appendChild(img);
-
-    // 삭제 버튼
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'img-remove';
-    removeBtn.textContent = '×';
-    removeBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      wrap.remove();
-      updateGridCount(grid);
-    });
-    wrap.appendChild(removeBtn);
-
-    // 드래그 순서 변경
-    wrap.addEventListener('dragstart', (ev) => {
-      wrap.classList.add('dragging');
-      ev.dataTransfer.effectAllowed = 'move';
-      grid._dragSrc = wrap;
-    });
-    wrap.addEventListener('dragend', () => {
-      wrap.classList.remove('dragging');
-      grid.querySelectorAll('.img-wrap').forEach(w => w.classList.remove('drag-over'));
-      grid._dragSrc = null;
-      updateGridCount(grid);
-    });
-    wrap.addEventListener('dragover', (ev) => {
-      ev.preventDefault();
-      ev.dataTransfer.dropEffect = 'move';
-      if (grid._dragSrc && grid._dragSrc !== wrap) {
-        wrap.classList.add('drag-over');
-      }
-    });
-    wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
-    wrap.addEventListener('drop', (ev) => {
-      ev.preventDefault();
-      wrap.classList.remove('drag-over');
-      if (grid._dragSrc && grid._dragSrc !== wrap) {
-        // 위치 교환
-        const allWraps = [...grid.querySelectorAll('.img-wrap')];
-        const fromIdx = allWraps.indexOf(grid._dragSrc);
-        const toIdx   = allWraps.indexOf(wrap);
-        if (fromIdx < toIdx) {
-          grid.insertBefore(grid._dragSrc, wrap.nextSibling);
-        } else {
-          grid.insertBefore(grid._dragSrc, wrap);
-        }
-      }
-    });
-
-    grid.appendChild(wrap);
-  }
 
   // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
