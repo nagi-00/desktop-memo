@@ -217,8 +217,6 @@
     </div>
     <div class="img-editor-controls">
       <div class="img-editor-row">
-        <button class="img-editor-btn" id="imgRotateCCW" title="반시계 회전">↺</button>
-        <button class="img-editor-btn" id="imgRotateCW"  title="시계 회전">↻</button>
         <button class="img-editor-btn" id="imgFlipH"     title="좌우 반전">↔</button>
         <button class="img-editor-btn" id="imgFlipV"     title="상하 반전">↕</button>
         <button class="img-editor-btn" id="imgResetTransform" title="초기화" style="margin-left:auto">↩</button>
@@ -229,14 +227,9 @@
         <span id="imgScaleVal">100%</span>
       </div>
       <div class="img-editor-row slider-row">
-        <label>X</label>
-        <input type="range" id="imgOffsetX" min="-300" max="300" value="0">
-        <span id="imgOffsetXVal">0</span>
-      </div>
-      <div class="img-editor-row slider-row">
-        <label>Y</label>
-        <input type="range" id="imgOffsetY" min="-300" max="300" value="0">
-        <span id="imgOffsetYVal">0</span>
+        <label>회전</label>
+        <input type="range" id="imgRotateSlider" min="-180" max="180" value="0" step="1">
+        <span id="imgRotateVal">0°</span>
       </div>
     </div>
     <div class="img-editor-footer">

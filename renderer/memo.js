@@ -662,12 +662,10 @@ const imgEditorState = { rotation: 0, flipH: false, flipV: false, scale: 100, of
 function openImageEditor(imgEl) {
   imgEditorTarget = imgEl;
   Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
-  document.getElementById('imgScale').value    = 100;
-  document.getElementById('imgOffsetX').value  = 0;
-  document.getElementById('imgOffsetY').value  = 0;
-  document.getElementById('imgScaleVal').textContent   = '100%';
-  document.getElementById('imgOffsetXVal').textContent = '0';
-  document.getElementById('imgOffsetYVal').textContent = '0';
+  document.getElementById('imgScale').value        = 100;
+  document.getElementById('imgRotateSlider').value = 0;
+  document.getElementById('imgScaleVal').textContent  = '100%';
+  document.getElementById('imgRotateVal').textContent = '0°';
 
   imgEditorSrc = new Image();
   imgEditorSrc.onload = () => {
@@ -685,19 +683,22 @@ function redrawEditorCanvas() {
   canvas.height = CANVAS_H;
 
   const img = imgEditorSrc;
-  const rot = imgEditorState.rotation;
-  const rotated = rot === 90 || rot === 270;
+  const rot = imgEditorState.rotation; // 임의 각도 (도)
   const nw = img.naturalWidth, nh = img.naturalHeight;
-  const iw = rotated ? nh : nw, ih = rotated ? nw : nh;
 
-  // 캔버스에 꼭 맞는 기본 스케일에 사용자 스케일 적용
-  const fitScale  = Math.min(CANVAS_W / iw, CANVAS_H / ih);
+  // 회전된 이미지의 바운딩 박스 기준으로 fit 스케일 계산
+  const rotRad = rot * Math.PI / 180;
+  const absCos = Math.abs(Math.cos(rotRad));
+  const absSin = Math.abs(Math.sin(rotRad));
+  const rotW   = nw * absCos + nh * absSin;
+  const rotH   = nw * absSin + nh * absCos;
+  const fitScale  = Math.min(CANVAS_W / rotW, CANVAS_H / rotH);
   const drawScale = fitScale * (imgEditorState.scale / 100);
 
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   ctx.save();
   ctx.translate(CANVAS_W / 2 + imgEditorState.offsetX, CANVAS_H / 2 + imgEditorState.offsetY);
-  ctx.rotate((rot * Math.PI) / 180);
+  ctx.rotate(rotRad);
   if (imgEditorState.flipH) ctx.scale(-1, 1);
   if (imgEditorState.flipV) ctx.scale(1, -1);
   ctx.drawImage(img, -nw * drawScale / 2, -nh * drawScale / 2, nw * drawScale, nh * drawScale);
@@ -709,11 +710,14 @@ function applyImageEdit() {
   const CANVAS_W = 380, CANVAS_H = 260, DPR = 2;
   const img = imgEditorSrc;
   const rot = imgEditorState.rotation;
-  const rotated = rot === 90 || rot === 270;
   const nw = img.naturalWidth, nh = img.naturalHeight;
-  const iw = rotated ? nh : nw, ih = rotated ? nw : nh;
 
-  const fitScale  = Math.min(CANVAS_W / iw, CANVAS_H / ih);
+  const rotRad = rot * Math.PI / 180;
+  const absCos = Math.abs(Math.cos(rotRad));
+  const absSin = Math.abs(Math.sin(rotRad));
+  const rotW   = nw * absCos + nh * absSin;
+  const rotH   = nw * absSin + nh * absCos;
+  const fitScale  = Math.min(CANVAS_W / rotW, CANVAS_H / rotH);
   const drawScale = fitScale * (imgEditorState.scale / 100) * DPR;
 
   const offscreen = document.createElement('canvas');
@@ -725,7 +729,7 @@ function applyImageEdit() {
     CANVAS_W * DPR / 2 + imgEditorState.offsetX * DPR,
     CANVAS_H * DPR / 2 + imgEditorState.offsetY * DPR
   );
-  ctx.rotate((rot * Math.PI) / 180);
+  ctx.rotate(rotRad);
   if (imgEditorState.flipH) ctx.scale(-1, 1);
   if (imgEditorState.flipV) ctx.scale(1, -1);
   ctx.drawImage(img, -nw * drawScale / 2, -nh * drawScale / 2, nw * drawScale, nh * drawScale);
@@ -831,7 +835,7 @@ function bindEvents() {
         while (el && el.parentNode !== memoContent) el = el.parentNode;
         if (el) {
           const prev = el.previousElementSibling;
-          if (prev?.tagName === 'HR') {
+          if (prev?.tagName === 'HR' || prev?.classList.contains('hr-block')) {
             e.preventDefault();
             prev.remove();
             scheduleSave();
@@ -932,7 +936,7 @@ function bindEvents() {
             const r2 = document.createRange();
             r2.setStart(node, 0); r2.collapse(true);
             sel.removeAllRanges(); sel.addRange(r2);
-            document.execCommand('insertHTML', false, '<hr>');
+            document.execCommand('insertHTML', false, '<div class="hr-block" contenteditable="false"><hr></div>');
             scheduleSave();
           }
         }
@@ -1259,14 +1263,6 @@ function bindEvents() {
   });
   document.getElementById('imgEditorApply').addEventListener('click', applyImageEdit);
 
-  document.getElementById('imgRotateCCW').addEventListener('click', () => {
-    imgEditorState.rotation = (imgEditorState.rotation + 270) % 360;
-    redrawEditorCanvas();
-  });
-  document.getElementById('imgRotateCW').addEventListener('click', () => {
-    imgEditorState.rotation = (imgEditorState.rotation + 90) % 360;
-    redrawEditorCanvas();
-  });
   document.getElementById('imgFlipH').addEventListener('click', () => {
     imgEditorState.flipH = !imgEditorState.flipH;
     redrawEditorCanvas();
@@ -1280,26 +1276,41 @@ function bindEvents() {
     document.getElementById('imgScaleVal').textContent = `${imgEditorState.scale}%`;
     redrawEditorCanvas();
   });
-  document.getElementById('imgOffsetX').addEventListener('input', (e) => {
-    imgEditorState.offsetX = parseInt(e.target.value);
-    document.getElementById('imgOffsetXVal').textContent = `${imgEditorState.offsetX}`;
-    redrawEditorCanvas();
-  });
-  document.getElementById('imgOffsetY').addEventListener('input', (e) => {
-    imgEditorState.offsetY = parseInt(e.target.value);
-    document.getElementById('imgOffsetYVal').textContent = `${imgEditorState.offsetY}`;
+  document.getElementById('imgRotateSlider').addEventListener('input', (e) => {
+    imgEditorState.rotation = parseInt(e.target.value);
+    document.getElementById('imgRotateVal').textContent = `${imgEditorState.rotation}°`;
     redrawEditorCanvas();
   });
   document.getElementById('imgResetTransform').addEventListener('click', () => {
     Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
-    document.getElementById('imgScale').value    = 100;
-    document.getElementById('imgOffsetX').value  = 0;
-    document.getElementById('imgOffsetY').value  = 0;
-    document.getElementById('imgScaleVal').textContent   = '100%';
-    document.getElementById('imgOffsetXVal').textContent = '0';
-    document.getElementById('imgOffsetYVal').textContent = '0';
+    document.getElementById('imgScale').value        = 100;
+    document.getElementById('imgRotateSlider').value = 0;
+    document.getElementById('imgScaleVal').textContent  = '100%';
+    document.getElementById('imgRotateVal').textContent = '0°';
     redrawEditorCanvas();
   });
+
+  // 캔버스 드래그로 이미지 이동 (pan)
+  {
+    const editorCanvas = document.getElementById('imgEditorCanvas');
+    let _drag = null;
+    editorCanvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      _drag = { x: e.clientX - imgEditorState.offsetX, y: e.clientY - imgEditorState.offsetY };
+      editorCanvas.style.cursor = 'grabbing';
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!_drag) return;
+      imgEditorState.offsetX = e.clientX - _drag.x;
+      imgEditorState.offsetY = e.clientY - _drag.y;
+      redrawEditorCanvas();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!_drag) return;
+      _drag = null;
+      editorCanvas.style.cursor = 'grab';
+    });
+  }
 
   // 외부 클릭 시 팝업 닫기
   document.addEventListener('click', (e) => {
@@ -1321,16 +1332,29 @@ function bindEvents() {
     }
   });
 
-  // 반응형 액션바: 창 너비에 따라 버튼 숨김
-  const actionBar = document.querySelector('.action-bar');
-  if (actionBar && typeof ResizeObserver !== 'undefined') {
+  // 반응형 액션바: action-icons 너비에 따라 버튼 동적 숨김
+  const actionIcons = document.querySelector('.action-icons');
+  if (actionIcons && typeof ResizeObserver !== 'undefined') {
+    const BTN = 32;
+    // 낮은 우선순위(숨기기 먼저)부터 높은 우선순위 순서
+    const hideOrder = [
+      '.action-icon-btn.reply',
+      '.action-icon-btn.text-color',
+      '.action-icon-btn.highlight',
+      '.action-icon-btn.link',
+      '.action-icon-btn.image',
+      '.action-icon-btn.like',
+      '.action-icon-btn.bookmark',
+      '.action-icon-btn.new-memo',
+    ];
     new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      actionBar.classList.remove('compact', 'very-compact', 'ultra-compact');
-      if (w < 200)      actionBar.classList.add('ultra-compact');
-      else if (w < 280)  actionBar.classList.add('very-compact');
-      else if (w < 340)  actionBar.classList.add('compact');
-    }).observe(actionBar);
+      const slots  = Math.floor(entry.contentRect.width / BTN);
+      const toHide = Math.max(0, hideOrder.length - slots);
+      hideOrder.forEach((sel, i) => {
+        const btn = actionIcons.querySelector(sel);
+        if (btn) btn.style.display = i < toHide ? 'none' : '';
+      });
+    }).observe(actionIcons);
   }
 }
 

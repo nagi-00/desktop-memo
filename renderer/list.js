@@ -299,6 +299,8 @@ function renderPreview(memo, isTrash = false) {
   const contentEl = document.createElement('div');
   contentEl.className = 'preview-content';
   contentEl.innerHTML = content;
+  if (memo.font?.family) contentEl.style.fontFamily = memo.font.family;
+  if (memo.font?.size)   contentEl.style.fontSize   = `${memo.font.size}px`;
 
   // 이미지 미리보기
   if (memo.images && memo.images.length > 0) {
@@ -388,10 +390,8 @@ function renderPreview(memo, isTrash = false) {
       api.createMemo();
     });
     actions.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      if (confirm(`"${memo.profile?.name || '메모'}"를 삭제할까요?`)) {
-        await api.deleteById(memo.id);
-        selectedId = null;
-      }
+      await api.deleteById(memo.id);
+      selectedId = null;
     });
   }
 

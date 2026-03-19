@@ -704,28 +704,7 @@
   overflow: hidden; /* 초과 버튼 클리핑 — 팝업 없는 버튼만 여기에 위치 */
 }
 
-/* 반응형: 창이 좁을 때 우선순위 낮은 버튼 숨김 */
-.action-bar.compact .action-icon-btn.reply,
-.action-bar.compact .action-icon-btn.text-color,
-.action-bar.compact .action-icon-btn.highlight {
-  display: none;
-}
-.action-bar.very-compact .action-icon-btn.reply,
-.action-bar.very-compact .action-icon-btn.text-color,
-.action-bar.very-compact .action-icon-btn.highlight,
-.action-bar.very-compact .action-icon-btn.link,
-.action-bar.very-compact .action-icon-btn.image {
-  display: none;
-}
-.action-bar.ultra-compact .action-icon-btn.reply,
-.action-bar.ultra-compact .action-icon-btn.text-color,
-.action-bar.ultra-compact .action-icon-btn.highlight,
-.action-bar.ultra-compact .action-icon-btn.link,
-.action-bar.ultra-compact .action-icon-btn.image,
-.action-bar.ultra-compact .action-icon-btn.new-memo {
-  display: none;
-}
-.action-bar.ultra-compact #captureWrap { display: none; }
+/* 반응형: ResizeObserver가 JS에서 동적으로 처리 */
 
 /* 액션 아이콘 버튼 */
 .action-icon-btn {
@@ -738,6 +717,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition:
     background var(--transition-fast),
     transform var(--transition-fast);
@@ -1117,6 +1097,17 @@
 .memo-content hr {
   border: none;
   border-top: 1px solid var(--color-border);
-  margin: 10px 0;
+  margin: 0;
   transition: border-color var(--transition-base);
 }
+.memo-content .hr-block {
+  display: block;
+  margin: 10px 0;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* ── 이미지 에디터 캔버스 커서 ── */
+#imgEditorCanvas { cursor: grab; }
+#imgEditorCanvas:active { cursor: grabbing; }
