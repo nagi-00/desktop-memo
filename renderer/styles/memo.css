@@ -50,14 +50,15 @@
 }
 .bubble-btn:active { transform: scale(0.97); }
 
-/* 버블 아이콘 편집 버튼 */
+/* 버블 아이콘 편집 버튼 (bubble-btn 안에 중첩) */
+.bubble-btn { position: relative; }
 .bubble-edit-btn {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
+  bottom: -3px;
+  right: -3px;
   width: 20px;
   height: 20px;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.60);
   border: none;
   border-radius: 50%;
   color: #fff;
@@ -68,13 +69,14 @@
   -webkit-app-region: no-drag;
   z-index: 10;
 }
-.bubble-view:hover .bubble-edit-btn { display: flex; }
+.bubble-btn:hover .bubble-edit-btn { display: flex; }
 
 /* ══════════════════════════════════════════════
    CARD VIEW
    ══════════════════════════════════════════════ */
 .card-view {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -83,6 +85,7 @@
 /* ── 카드 본체 ── */
 .memo-card {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
@@ -369,6 +372,7 @@
    ══════════════════════════════════════════════ */
 .memo-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -377,6 +381,7 @@
 
 .memo-content {
   flex: 1;
+  min-height: 0;
   outline: none;
   font-size: var(--memo-font-size, 14px);
   font-family: var(--memo-font-family, system-ui);
@@ -384,7 +389,6 @@
   color: var(--color-text);
   word-break: break-word;
   overflow-y: auto;
-  min-height: 48px;
   transition: color var(--transition-base);
 }
 .memo-content:empty::before {
@@ -559,12 +563,62 @@
 
 /* 이미지 */
 .memo-content img {
-  max-width: 100%;
+  max-width: 75%;
+  max-height: 180px;
   border-radius: 6px;
   margin: 4px 0;
   display: block;
   cursor: pointer;
+  object-fit: contain;
 }
+
+/* ══════════════════════════════════════════════
+   ACTION BAR POPUP (캡처 등)
+   ══════════════════════════════════════════════ */
+.action-popup-wrap { position: relative; }
+
+.action-popup {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  z-index: 300;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  white-space: nowrap;
+  min-width: 130px;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base);
+}
+.action-popup.visible { display: flex; }
+
+.capture-opt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.capture-opt:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+/* 캡처 버튼 색상 */
+.action-icon-btn.capture { color: var(--color-text-muted); }
+.action-icon-btn.capture:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 /* ── 구분선 ── */
 .memo-content hr {

@@ -45,6 +45,9 @@ export function generatePalette(accentHex, mode = 'dark') {
   const [h, s, l] = hexToHsl(accentHex);
   const isDark = mode === 'dark';
 
+  // 채도가 0에 가까우면 (무채색 선택) 액션 버튼도 무채색으로
+  const isAchromatic = s <= 5;
+
   return {
     accent:        accentHex,
     accentHover:   hslToHex(h, s, Math.min(l + 8, 92)),
@@ -56,11 +59,11 @@ export function generatePalette(accentHex, mode = 'dark') {
     text:          isDark ? hslToHex(h, 10, 92) : hslToHex(h, 8,  8),
     textMuted:     isDark ? hslToHex(h, 8,  52) : hslToHex(h, 8,  44),
     textPlaceholder: isDark ? hslToHex(h, 8, 30) : hslToHex(h, 8, 65),
-    // 액션 버튼 4색 — 테마색 기반, 채도 높여 테마 반영 강화
-    actionReply:    hslToHex(h,               42, 62),
-    actionLink:     hslToHex((h + 30)  % 360, 50, 58),
-    actionBookmark: hslToHex(h,               55, 60), // 테마색과 동일 hue
-    actionLike:     hslToHex((h + 180) % 360, 55, 65),
+    // 액션 버튼 4색 — 낮은 채도(뮤트 톤), 무채색 선택 시 그레이스케일
+    actionReply:    isAchromatic ? hslToHex(0, 0, 55) : hslToHex(h,               26, 62),
+    actionLink:     isAchromatic ? hslToHex(0, 0, 62) : hslToHex((h + 30)  % 360, 32, 60),
+    actionBookmark: isAchromatic ? hslToHex(0, 0, 58) : hslToHex(h,               32, 62),
+    actionLike:     isAchromatic ? hslToHex(0, 0, 66) : hslToHex(h,               38, 66),
   };
 }
 
@@ -113,6 +116,8 @@ const PRESET_DEFS = [
   { name: 'Dusk',    h: 270, s: 30, l: 65 }, // 페일 라벤더
   { name: 'Sand',    h: 35,  s: 40, l: 68 }, // 페일 베이지
   { name: 'Rose',    h: 340, s: 35, l: 68 }, // 페일 로즈
+  { name: '노랑',    h: 50,  s: 58, l: 65 }, // 노랑
+  { name: '분홍',    h: 345, s: 50, l: 70 }, // 분홍
 ];
 
 export const PRESETS = PRESET_DEFS.map(p =>

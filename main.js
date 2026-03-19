@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
@@ -273,6 +274,29 @@ function registerIpcHandlers() {
       listWindow.webContents.send('theme:modeChanged', mode);
     }
     return true;
+  });
+
+  // 메모 카드 캡처 (상태바 제외 영역 → PNG 저장 or 클립보드)
+  ipcMain.handle('memo:captureCard', async (_e, { id, rect, action }) => {
+    const win = memoWindows.get(id);
+    if (!win || win.isDestroyed()) return { success: false };
+
+    const image = await win.webContents.capturePage(rect);
+
+    if (action === 'clipboard') {
+      clipboard.writeImage(image);
+      return { success: true };
+    } else {
+      const { filePath } = await dialog.showSaveDialog(win, {
+        defaultPath: `memo-${Date.now()}.png`,
+        filters: [{ name: 'PNG 이미지', extensions: ['png'] }],
+      });
+      if (filePath) {
+        fs.writeFileSync(filePath, image.toPNG());
+        return { success: true, filePath };
+      }
+      return { success: false };
+    }
   });
 
   // 메모 복원 (숨김 → 보임)

@@ -40,6 +40,9 @@ contextBridge.exposeInMainWorld('memoAPI', {
     return () => ipcRenderer.removeListener('theme:modeChanged', handler);
   },
 
+  // ── 캡처 (이미지 저장 / 클립보드) ──
+  captureCard: ({ rect, action }) => ipcRenderer.invoke('memo:captureCard', { id: memoId, rect, action }),
+
   onMemoListUpdated: (callback) => {
     const handler = () => callback();
     ipcRenderer.on('memo:listUpdated', handler);

@@ -18,10 +18,10 @@
   <div class="bubble-view" id="bubbleView">
     <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
       <span class="bubble-icon" id="bubbleIcon">📝</span>
+      <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
+        <i data-lucide="pencil" width="10" height="10"></i>
+      </button>
     </div>
-    <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
-      <i data-lucide="pencil" width="10" height="10"></i>
-    </button>
   </div>
 
   <!-- ══════════════════════════════════
@@ -152,6 +152,22 @@
           <button class="action-icon-btn new-memo"   id="btnNewMemo"    title="새 메모 (Ctrl+N)">
             <i data-lucide="plus" width="15" height="15"></i>
           </button>
+          <!-- 캡처 팝업 래퍼 -->
+          <div class="action-popup-wrap" id="captureWrap">
+            <button class="action-icon-btn capture" id="btnCapture" title="이미지로 내보내기">
+              <i data-lucide="camera" width="15" height="15"></i>
+            </button>
+            <div class="action-popup capture-popup" id="capturePopup">
+              <button class="capture-opt" id="btnCaptureClipboard">
+                <i data-lucide="clipboard" width="13" height="13"></i>
+                클립보드 복사
+              </button>
+              <button class="capture-opt" id="btnCaptureSave">
+                <i data-lucide="download" width="13" height="13"></i>
+                파일로 저장
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

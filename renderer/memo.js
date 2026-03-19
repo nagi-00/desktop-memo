@@ -53,6 +53,10 @@ const imageFileInput  = document.getElementById('imageFileInput');
 const avatarFileInput = document.getElementById('avatarFileInput');
 const textColorInput  = document.getElementById('textColorInput');
 const bubbleEditBtn   = document.getElementById('bubbleEditBtn');
+const btnCapture      = document.getElementById('btnCapture');
+const capturePopup    = document.getElementById('capturePopup');
+const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
+const btnCaptureSave      = document.getElementById('btnCaptureSave');
 
 let savedTextRange = null; // 텍스트 색상 적용 전 선택 범위 저장
 
@@ -199,7 +203,10 @@ function renderColorSwatches() {
   defBtn.style.background = 'conic-gradient(#888 0deg 180deg, #fff 180deg)';
   defBtn.title = 'Default (테마 없음)';
   if (currentAccent === null) defBtn.classList.add('selected');
-  defBtn.addEventListener('click', () => selectAccentColor(null));
+  defBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    selectAccentColor(null);
+  });
   colorSwatches.appendChild(defBtn);
 
   PRESETS.filter(p => p.accent !== null).forEach(({ name, accent }) => {
@@ -208,7 +215,10 @@ function renderColorSwatches() {
     btn.style.background = accent;
     btn.title = name;
     if (currentAccent === accent) btn.classList.add('selected');
-    btn.addEventListener('click', () => selectAccentColor(accent));
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectAccentColor(accent);
+    });
     colorSwatches.appendChild(btn);
   });
 }
@@ -475,7 +485,7 @@ function bindEvents() {
     reader.onload = (ev) => {
       memoContent.focus();
       document.execCommand('insertHTML', false,
-        `<img src="${ev.target.result}" style="max-width:100%;border-radius:6px;margin:4px 0;display:block">`
+        `<img src="${ev.target.result}" style="max-width:75%;max-height:180px;border-radius:6px;margin:4px 0;display:block;object-fit:contain">`
       );
       scheduleSave();
     };
@@ -565,12 +575,44 @@ function bindEvents() {
     saveMemoChanges({ profile: memoData.profile });
   });
 
+  // 캡처 팝업 토글
+  btnCapture.addEventListener('click', (e) => {
+    e.stopPropagation();
+    capturePopup.classList.toggle('visible');
+  });
+
+  // 캡처 — 상태바 제외 카드 영역 계산 후 IPC
+  async function doCapture(action) {
+    capturePopup.classList.remove('visible');
+    const statusBar = document.getElementById('statusBar');
+    const cardView  = document.getElementById('cardView');
+    const sbH   = statusBar.getBoundingClientRect().height;
+    const rect  = cardView.getBoundingClientRect();
+    const dpr   = window.devicePixelRatio || 1;
+    const captureRect = {
+      x:      Math.round(rect.x      * dpr),
+      y:      Math.round((rect.y + sbH) * dpr),
+      width:  Math.round(rect.width  * dpr),
+      height: Math.round((rect.height - sbH) * dpr),
+    };
+    try {
+      await api.captureCard({ rect: captureRect, action });
+    } catch (err) {
+      console.error('캡처 실패:', err);
+    }
+  }
+
+  btnCaptureClipboard.addEventListener('click', () => doCapture('clipboard'));
+  btnCaptureSave.addEventListener('click',      () => doCapture('save'));
+
   // 외부 클릭 시 팝업 닫기
   document.addEventListener('click', (e) => {
-    const opWrap    = document.getElementById('opacityWrap');
-    const colWrap   = document.getElementById('colorWrap');
+    const opWrap  = document.getElementById('opacityWrap');
+    const colWrap = document.getElementById('colorWrap');
+    const capWrap = document.getElementById('captureWrap');
     if (!opWrap?.contains(e.target))  opacityPopup.classList.remove('visible');
     if (!colWrap?.contains(e.target)) colorPopup.classList.remove('visible');
+    if (!capWrap?.contains(e.target)) capturePopup.classList.remove('visible');
   });
 
   // 전역 단축키
