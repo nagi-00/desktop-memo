@@ -1,10 +1,9 @@
 /**
  * theme.js — HSL 기반 팔레트 자동 생성 + CSS custom properties 주입
+ * Spec v2: 뉴트럴 디폴트, 페일 프리셋, 액션 버튼 색상 파생
  */
 
-/**
- * HEX → HSL 변환
- */
+/** HEX → HSL */
 function hexToHsl(hex) {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -25,9 +24,7 @@ function hexToHsl(hex) {
   return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
 }
 
-/**
- * HSL → HEX 변환
- */
+/** HSL → HEX */
 function hslToHex(h, s, l) {
   s /= 100; l /= 100;
   const a = s * Math.min(l, 1 - l);
@@ -40,7 +37,9 @@ function hslToHex(h, s, l) {
 }
 
 /**
- * 대표색 1개 → 전체 팔레트 자동 생성
+ * 대표색 → 전체 팔레트 자동 생성 (spec v2 준수)
+ * - 배경: 테마색 hue 유지, 채도 15%, 명도 8~10% (dark) / 97% (light)
+ * - 액션 버튼 4색: hue shift 파생
  */
 export function generatePalette(accentHex, mode = 'dark') {
   const [h, s, l] = hexToHsl(accentHex);
@@ -48,49 +47,76 @@ export function generatePalette(accentHex, mode = 'dark') {
 
   return {
     accent:        accentHex,
-    accentHover:   hslToHex(h, s, Math.min(l + 10, 95)),
-    background:    isDark ? hslToHex(h, 20, 8)  : hslToHex(h, 15, 97),
-    surface:       isDark ? hslToHex(h, 20, 13) : hslToHex(h, 15, 92),
-    surfaceHover:  isDark ? hslToHex(h, 20, 18) : hslToHex(h, 15, 87),
-    border:        isDark ? hslToHex(h, 30, 20) : hslToHex(h, 25, 82),
-    borderHover:   isDark ? hslToHex(h, 30, 28) : hslToHex(h, 25, 74),
-    text:          isDark ? hslToHex(h, 15, 90) : hslToHex(h, 10, 10),
-    textMuted:     isDark ? hslToHex(h, 10, 50) : hslToHex(h, 10, 45),
-    textPlaceholder: isDark ? hslToHex(h, 10, 30) : hslToHex(h, 10, 65),
+    accentHover:   hslToHex(h, s, Math.min(l + 8, 92)),
+    background:    isDark ? hslToHex(h, 15, 10) : hslToHex(h, 15, 97),
+    surface:       isDark ? hslToHex(h, 15, 14) : hslToHex(h, 12, 93),
+    surfaceHover:  isDark ? hslToHex(h, 15, 19) : hslToHex(h, 12, 87),
+    border:        isDark ? hslToHex(h, 20, 22) : hslToHex(h, 18, 84),
+    borderHover:   isDark ? hslToHex(h, 20, 30) : hslToHex(h, 18, 76),
+    text:          isDark ? hslToHex(h, 10, 92) : hslToHex(h, 8,  8),
+    textMuted:     isDark ? hslToHex(h, 8,  52) : hslToHex(h, 8,  44),
+    textPlaceholder: isDark ? hslToHex(h, 8, 30) : hslToHex(h, 8, 65),
+    // 액션 버튼 4색 (spec: hue shift 파생)
+    actionReply:    hslToHex(h,               30, 65),
+    actionLink:     hslToHex((h + 30)  % 360, 35, 60),
+    actionBookmark: hslToHex((h + 60)  % 360, 35, 65),
+    actionLike:     hslToHex((h + 180) % 360, 40, 70),
   };
 }
 
-/**
- * 팔레트를 :root CSS custom properties로 주입
- */
+/** 팔레트 → :root CSS custom properties 주입 */
 export function applyPalette(palette) {
   const root = document.documentElement;
-  root.style.setProperty('--color-accent',        palette.accent);
-  root.style.setProperty('--color-accent-hover',  palette.accentHover);
-  root.style.setProperty('--color-bg',            palette.background);
-  root.style.setProperty('--color-surface',       palette.surface);
-  root.style.setProperty('--color-surface-hover', palette.surfaceHover);
-  root.style.setProperty('--color-border',        palette.border);
-  root.style.setProperty('--color-border-hover',  palette.borderHover);
-  root.style.setProperty('--color-text',          palette.text);
-  root.style.setProperty('--color-text-muted',    palette.textMuted);
-  root.style.setProperty('--color-text-placeholder', palette.textPlaceholder);
+  root.style.setProperty('--color-accent',          palette.accent);
+  root.style.setProperty('--color-accent-hover',    palette.accentHover);
+  root.style.setProperty('--color-bg',              palette.background);
+  root.style.setProperty('--color-surface',         palette.surface);
+  root.style.setProperty('--color-surface-hover',   palette.surfaceHover);
+  root.style.setProperty('--color-border',          palette.border);
+  root.style.setProperty('--color-border-hover',    palette.borderHover);
+  root.style.setProperty('--color-text',            palette.text);
+  root.style.setProperty('--color-text-muted',      palette.textMuted);
+  root.style.setProperty('--color-text-placeholder',palette.textPlaceholder);
+  // 액션 버튼 색상
+  if (palette.actionReply)    root.style.setProperty('--action-reply',    palette.actionReply);
+  if (palette.actionLink)     root.style.setProperty('--action-link',     palette.actionLink);
+  if (palette.actionBookmark) root.style.setProperty('--action-bookmark', palette.actionBookmark);
+  if (palette.actionLike)     root.style.setProperty('--action-like',     palette.actionLike);
 }
 
-/**
- * 다크/라이트 모드 전환
- */
+/** 팔레트 CSS 변수 초기화 (뉴트럴 기본값으로 리셋) */
+export function resetPalette() {
+  const root = document.documentElement;
+  [
+    '--color-accent', '--color-accent-hover',
+    '--color-bg', '--color-surface', '--color-surface-hover',
+    '--color-border', '--color-border-hover',
+    '--color-text', '--color-text-muted', '--color-text-placeholder',
+    '--action-reply', '--action-link', '--action-bookmark', '--action-like',
+  ].forEach(p => root.style.removeProperty(p));
+}
+
+/** 다크/라이트 모드 전환 */
 export function setThemeMode(mode) {
   document.documentElement.setAttribute('data-theme', mode);
 }
 
 /**
- * 프리셋 팔레트
+ * 프리셋 팔레트 (spec v2)
+ * - 모든 프리셋: 채도 55% 이하, 명도 55% 이상 (페일 톤)
+ * - accent: null → Default 뉴트럴 (테마 미적용)
  */
-export const PRESETS = [
-  { name: 'Violet',    accent: '#7C3AED' },
-  { name: 'Rose',      accent: '#E11D48' },
-  { name: 'Sky',       accent: '#0EA5E9' },
-  { name: 'Emerald',   accent: '#10B981' },
-  { name: 'Amber',     accent: '#F59E0B' },
+const PRESET_DEFS = [
+  { name: 'Default', accent: null },
+  { name: 'Ocean',   h: 210, s: 45, l: 62 }, // 페일 블루
+  { name: 'Moss',    h: 152, s: 35, l: 58 }, // 페일 그린
+  { name: 'Dusk',    h: 270, s: 30, l: 65 }, // 페일 라벤더
+  { name: 'Sand',    h: 35,  s: 40, l: 68 }, // 페일 베이지
+  { name: 'Rose',    h: 340, s: 35, l: 68 }, // 페일 로즈
 ];
+
+export const PRESETS = PRESET_DEFS.map(p =>
+  p.accent !== undefined
+    ? { name: p.name, accent: p.accent }
+    : { name: p.name, accent: hslToHex(p.h, p.s, p.l) }
+);

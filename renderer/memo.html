@@ -6,75 +6,150 @@
   <title>Memo</title>
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/memo.css" />
-  <!-- Lucide icons (CDN) -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 
-<div class="memo-window" id="memoWindow">
+<div class="memo-root" id="memoRoot">
 
-  <!-- ── 타이틀바 ── -->
-  <div class="titlebar" id="titlebar">
-    <!-- 컬러 도트 -->
-    <button class="color-dot" id="colorDot" title="테마 색상 변경" aria-label="색상 선택"></button>
-
-    <!-- 태그 영역 -->
-    <div class="tags-area" id="tagsArea">
-      <!-- 태그 pills & 입력창은 JS로 렌더링 -->
-    </div>
-
-    <!-- 액션 버튼 -->
-    <div class="titlebar-actions" id="titlebarActions">
-      <button class="action-btn" id="btnThemeToggle" title="다크/라이트 모드 토글">
-        <i data-lucide="sun" width="15" height="15"></i>
-      </button>
-      <button class="action-btn" id="btnPin" title="항상 위 고정">
-        <i data-lucide="pin" width="15" height="15"></i>
-      </button>
-      <button class="action-btn" id="btnOpacity" title="투명도 조절">
-        <i data-lucide="droplets" width="15" height="15"></i>
-      </button>
-      <button class="action-btn delete" id="btnDelete" title="메모 삭제">
-        <i data-lucide="trash-2" width="15" height="15"></i>
-      </button>
+  <!-- ══════════════════════════════════
+       BUBBLE VIEW (최소화 상태)
+  ══════════════════════════════════ -->
+  <div class="bubble-view" id="bubbleView">
+    <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
+      <span class="bubble-icon" id="bubbleIcon">📝</span>
     </div>
   </div>
 
-  <!-- 컬러 피커 팝업 -->
-  <div class="color-picker-popup" id="colorPickerPopup">
-    <div class="color-swatches" id="colorSwatches"></div>
-    <input type="color" class="color-picker-custom" id="colorPickerCustom" title="커스텀 색상" />
-  </div>
+  <!-- ══════════════════════════════════
+       CARD VIEW (기본 상태)
+  ══════════════════════════════════ -->
+  <div class="card-view" id="cardView">
 
-  <!-- 투명도 슬라이더 팝업 -->
-  <div class="opacity-slider-wrap" id="opacitySliderWrap">
-    <label>투명도</label>
-    <input type="range" class="opacity-slider" id="opacitySlider"
-           min="0.2" max="1" step="0.05" value="1" />
-    <span class="char-count" id="opacityValue">100%</span>
-  </div>
+    <!-- ── 상태바 (hover 시 슬라이드다운) ── -->
+    <div class="status-bar" id="statusBar">
+      <div class="status-bar-inner">
 
-  <!-- ── 본문 ── -->
-  <div class="memo-body">
-    <div
-      class="memo-content"
-      id="memoContent"
-      contenteditable="true"
-      spellcheck="false"
-      data-placeholder="메모를 입력하세요..."
-    ></div>
-  </div>
+        <!-- 핀 -->
+        <button class="sb-btn" id="btnPin" title="항상 위 고정">
+          <i data-lucide="pin" width="13" height="13"></i>
+        </button>
 
-  <!-- ── 하단 바 ── -->
-  <div class="memo-footer">
-    <button class="new-memo-btn" id="btnNewMemo">
-      <i data-lucide="plus" width="12" height="12"></i>
-      새 메모
-    </button>
-    <span class="char-count" id="charCount">0</span>
-  </div>
+        <!-- 투명도 -->
+        <div class="sb-popup-wrap" id="opacityWrap">
+          <button class="sb-btn" id="btnOpacity" title="투명도 조절">
+            <i data-lucide="droplets" width="13" height="13"></i>
+          </button>
+          <div class="sb-popup opacity-popup" id="opacityPopup">
+            <span class="popup-label">투명도</span>
+            <input type="range" id="opacitySlider" min="0.1" max="1" step="0.05" value="1" />
+            <span id="opacityValue">100%</span>
+          </div>
+        </div>
 
-</div>
+        <!-- 최소화 -->
+        <button class="sb-btn" id="btnMinimize" title="말풍선으로 최소화">
+          <i data-lucide="minimize-2" width="13" height="13"></i>
+        </button>
+
+        <!-- 다크/라이트 토글 -->
+        <button class="sb-btn" id="btnThemeToggle" title="다크/라이트 모드 전환">
+          <i data-lucide="sun" width="13" height="13"></i>
+        </button>
+
+        <!-- 컬러 테마 -->
+        <div class="sb-popup-wrap" id="colorWrap">
+          <button class="sb-color-dot" id="colorDot" title="테마 색상 변경"></button>
+          <div class="sb-popup color-popup" id="colorPopup">
+            <div class="color-swatches" id="colorSwatches"></div>
+            <input type="color" id="colorPickerCustom" title="커스텀 색상" />
+          </div>
+        </div>
+
+        <div class="sb-spacer"></div>
+
+        <!-- 삭제 -->
+        <button class="sb-btn delete" id="btnDelete" title="메모 삭제">
+          <i data-lucide="trash-2" width="13" height="13"></i>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ── 카드 본체 ── -->
+    <div class="memo-card">
+
+      <!-- 프로필 행 (drag region) -->
+      <div class="profile-row" id="profileRow">
+        <div class="avatar" id="profileAvatar"></div>
+        <div class="profile-info">
+          <div class="profile-top">
+            <span
+              class="display-name"
+              id="displayName"
+              contenteditable="true"
+              spellcheck="false"
+              role="textbox"
+              aria-label="표시 이름"
+            >메모</span>
+            <span
+              class="handle"
+              id="handleText"
+              contenteditable="true"
+              spellcheck="false"
+              role="textbox"
+              aria-label="핸들"
+            >@note</span>
+            <span class="profile-badge" id="profileBadge">
+              <i data-lucide="check" width="9" height="9"></i>
+            </span>
+          </div>
+        </div>
+        <!-- 우측: 심볼 아이콘 (메모 목록 열기) — Phase 3에서 선택 가능 -->
+        <button class="symbol-btn" id="symbolBtn" title="메모 목록 열기">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+            <path d="M12 21.638h-.014C9.403 21.59 1.95 14.856 1.95 8.478c0-3.064 2.525-5.754 5.403-5.754 2.29 0 3.83 1.58 4.646 2.73.814-1.148 2.354-2.73 4.645-2.73 2.88 0 5.404 2.69 5.404 5.755 0 6.376-7.454 13.11-10.037 13.157H12z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 본문 -->
+      <div class="memo-body">
+        <div
+          class="memo-content"
+          id="memoContent"
+          contenteditable="true"
+          spellcheck="false"
+          data-placeholder="메모를 입력하세요..."
+        ></div>
+      </div>
+
+      <!-- 액션 바 -->
+      <div class="action-bar">
+        <span class="created-date" id="createdDate"></span>
+        <div class="action-icons">
+          <button class="action-icon-btn reply"    id="btnReply"    title="답글 (준비 중)">
+            <i data-lucide="message-circle" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn link"     id="btnLink"     title="하이퍼링크 삽입 (Ctrl+K)">
+            <i data-lucide="link" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn bookmark" id="btnBookmark" title="중요 북마크">
+            <i data-lucide="bookmark" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn like"     id="btnLike"     title="좋아요">
+            <i data-lucide="heart" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn new-memo" id="btnNewMemo"  title="새 메모 (Ctrl+N)">
+            <i data-lucide="plus" width="15" height="15"></i>
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /.memo-card -->
+  </div><!-- /.card-view -->
+
+</div><!-- /.memo-root -->
 
 <script type="module" src="memo.js"></script>
 </body>

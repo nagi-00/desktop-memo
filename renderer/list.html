@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>메모 목록</title>
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/list.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="list-root">
+
+  <!-- 타이틀바 -->
+  <div class="list-titlebar">
+    <h1 class="list-title">메모 목록</h1>
+    <input
+      type="search"
+      class="search-input"
+      id="searchInput"
+      placeholder="검색..."
+      autocomplete="off"
+    />
+    <button class="btn-new-memo" id="btnNewMemo">
+      <i data-lucide="plus" width="12" height="12"></i>
+      새 메모
+    </button>
+    <button class="btn-close-list" id="btnClose" title="닫기">
+      <i data-lucide="x" width="14" height="14"></i>
+    </button>
+  </div>
+
+  <!-- 필터 바 -->
+  <div class="filter-bar">
+    <button class="filter-chip active" data-filter="all">전체</button>
+    <button class="filter-chip" data-filter="bookmarked">
+      <i data-lucide="bookmark" width="11" height="11"></i>
+      북마크
+    </button>
+    <button class="filter-chip" data-filter="liked">
+      <i data-lucide="heart" width="11" height="11"></i>
+      좋아요
+    </button>
+  </div>
+
+  <!-- 본체 -->
+  <div class="list-body">
+    <!-- 좌측: 메모 목록 -->
+    <div class="list-sidebar" id="memoListSidebar">
+      <div class="empty-list" id="emptyList" style="display:none">
+        <i data-lucide="file-text" width="32" height="32"></i>
+        <span>메모가 없습니다</span>
+      </div>
+      <!-- 항목은 JS로 렌더링 -->
+    </div>
+
+    <!-- 우측: 미리보기 -->
+    <div class="list-preview" id="previewPane">
+      <div class="preview-empty" id="previewEmpty">
+        <i data-lucide="mouse-pointer-click" width="32" height="32"></i>
+        <span>메모를 선택하세요</span>
+      </div>
+      <!-- 미리보기 내용은 JS로 렌더링 -->
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="list.js"></script>
+</body>
+</html>

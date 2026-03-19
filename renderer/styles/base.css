@@ -1,52 +1,55 @@
-/* ── CSS Custom Properties (Dark mode defaults) ── */
+/* ── CSS Custom Properties — Pure Neutral Dark (default) ── */
 :root {
-  /* 액센트 */
-  --color-accent: #7C3AED;
-  --color-accent-hover: #8B5CF6;
+  /* Accent (neutral gray when no theme applied) */
+  --color-accent:        #636366;
+  --color-accent-hover:  #8E8E93;
 
-  /* 배경/서피스 */
-  --color-bg: #0d0b14;
-  --color-surface: #141020;
-  --color-surface-hover: #1c1830;
+  /* Background / Surface — spec: #1C1C1E ~ #2C2C2E, 절대 남색 금지 */
+  --color-bg:            #1C1C1E;
+  --color-surface:       #2C2C2E;
+  --color-surface-hover: #3A3A3C;
 
-  /* 텍스트 */
-  --color-text: #e8e4f0;
-  --color-text-muted: #7a7390;
-  --color-text-placeholder: #4a4560;
+  /* Text */
+  --color-text:          #F2F2F7;
+  --color-text-muted:    #8E8E93;
+  --color-text-placeholder: #636366;
 
-  /* 테두리 */
-  --color-border: #2a2440;
-  --color-border-hover: #3d3560;
+  /* Border */
+  --color-border:        #3A3A3C;
+  --color-border-hover:  #48484A;
 
-  /* 그림자 */
-  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.3);
+  /* Shadows */
+  --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.32);
+  --shadow-float: 0 2px 8px  rgba(0, 0, 0, 0.30);
 
-  /* 반경 */
+  /* Radii */
   --radius-card: 16px;
   --radius-pill: 999px;
-  --radius-sm: 8px;
+  --radius-sm:   8px;
 
-  /* 전환 */
+  /* Transitions */
   --transition-fast: 150ms ease-out;
   --transition-base: 200ms ease-out;
 
-  /* 타이틀바 높이 */
-  --titlebar-height: 42px;
+  /* Action button colors — default pale (채도 40% 낮춘 pale 톤) */
+  --action-reply:    #9CA3AF;
+  --action-link:     #6EE7B7;
+  --action-bookmark: #FCD34D;
+  --action-like:     #FCA5A5;
 }
 
-/* ── Light mode ── */
+/* ── Light Mode — spec: #FFFFFF ~ #F8F8F8 무채색 ── */
 :root[data-theme="light"] {
-  --color-bg: #f8f6fe;
-  --color-surface: #eeebfb;
-  --color-surface-hover: #e4e0f7;
-  --color-text: #1a1528;
-  --color-text-muted: #6b6480;
-  --color-text-placeholder: #a89ec0;
-  --color-border: #d4ceee;
-  --color-border-hover: #bbb3e0;
-  --shadow-card: 0 8px 32px rgba(100, 80, 180, 0.12);
-  --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --color-bg:            #FFFFFF;
+  --color-surface:       #F8F8F8;
+  --color-surface-hover: #F0F0F0;
+  --color-text:          #0F0F0F;
+  --color-text-muted:    #6B7280;
+  --color-text-placeholder: #9CA3AF;
+  --color-border:        #E5E7EB;
+  --color-border-hover:  #D1D5DB;
+  --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 2px 8px  rgba(0, 0, 0, 0.06);
 }
 
 /* ── Reset & Base ── */
@@ -60,29 +63,23 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: 'system-ui', -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   font-size: 14px;
   color: var(--color-text);
   background: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
-/* 스크롤바 */
-::-webkit-scrollbar {
-  width: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: var(--radius-pill);
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent);
-}
+::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
 
-/* 선택 색상 */
+/* ── Selection ── */
 ::selection {
   background: var(--color-accent);
   color: #fff;
