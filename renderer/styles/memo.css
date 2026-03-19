@@ -71,28 +71,10 @@
 }
 
 /* ══════════════════════════════════════════════
-   STATUS BAR (hover 시 슬라이드다운)
+   STATUS BAR (상단 고정 — 항상 표시)
    ══════════════════════════════════════════════ */
 .status-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  pointer-events: none;
-  /* 기본: 위로 숨김 */
-  opacity: 0;
-  transform: translateY(-100%);
-  transition:
-    opacity 180ms ease-out,
-    transform 180ms ease-out;
-}
-
-/* 카드 뷰 호버 시 상태바 슬라이드다운 */
-.card-view:hover .status-bar {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
+  flex-shrink: 0;
 }
 
 .status-bar-inner {
@@ -102,7 +84,6 @@
   padding: 5px 8px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
   -webkit-app-region: drag;
   transition:
     background var(--transition-base),
@@ -244,14 +225,9 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 14px 14px 8px;
+  padding: 12px 14px 8px;
   flex-shrink: 0;
   -webkit-app-region: drag;
-  transition: padding-top var(--transition-base);
-}
-/* 상태바가 나타나면 프로필 행에 패딩 추가 */
-.card-view:hover .profile-row {
-  padding-top: 42px;
 }
 .profile-row > * { -webkit-app-region: no-drag; }
 
@@ -493,12 +469,26 @@
 .action-icon-btn.like:hover     { background: color-mix(in srgb, var(--action-like)     15%, transparent); }
 .action-icon-btn.new-memo:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
-/* 토글 활성 상태 */
+/* 토글 활성 상태 — 트위터 방식: SVG fill 채색 */
 .action-icon-btn.bookmark.active {
   color: var(--action-bookmark);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--action-bookmark) 50%, transparent));
+}
+.action-icon-btn.bookmark.active svg {
+  fill: currentColor;
+  stroke: none;
 }
 .action-icon-btn.like.active {
   color: var(--action-like);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--action-like) 50%, transparent));
+}
+.action-icon-btn.like.active svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ── 구분선 ── */
+.memo-content hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 10px 0;
+  transition: border-color var(--transition-base);
 }

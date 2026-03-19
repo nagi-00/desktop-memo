@@ -164,13 +164,9 @@ function updatePinButton() {
   if (window.lucide) lucide.createIcons({ nodes: [icon] });
 }
 
-// ── 북마크 / 좋아요 버튼 ─────────────────────
+// ── 북마크 / 좋아요 버튼 (아이콘 유지, SVG fill 채색) ──
 function updateBookmarkButton() {
   btnBookmark.classList.toggle('active', isBookmarked);
-  const icon = btnBookmark.querySelector('[data-lucide]');
-  if (!icon) return;
-  icon.setAttribute('data-lucide', isBookmarked ? 'bookmark-check' : 'bookmark');
-  if (window.lucide) lucide.createIcons({ nodes: [icon] });
 }
 
 function updateLikeButton() {
@@ -346,6 +342,26 @@ function bindEvents() {
     else if (mod && e.key === 'z')                  { e.preventDefault(); document.execCommand('undo'); }
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
+    } else if (e.key === '-') {
+      // --- 입력 시 수평 구분선으로 자동 변환
+      const sel = window.getSelection();
+      if (sel?.rangeCount) {
+        const range = sel.getRangeAt(0);
+        const node  = range.startContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const textBefore = node.textContent.slice(0, range.startOffset);
+          if (textBefore === '--') {
+            e.preventDefault();
+            // '--' 제거 후 <hr> 삽입
+            node.textContent = node.textContent.slice(range.startOffset);
+            const r2 = document.createRange();
+            r2.setStart(node, 0); r2.collapse(true);
+            sel.removeAllRanges(); sel.addRange(r2);
+            document.execCommand('insertHTML', false, '<hr>');
+            scheduleSave();
+          }
+        }
+      }
     }
     handleAutoConvert(e);
   });

@@ -26,58 +26,58 @@
   ══════════════════════════════════ -->
   <div class="card-view" id="cardView">
 
-    <!-- ── 상태바 (hover 시 슬라이드다운) ── -->
-    <div class="status-bar" id="statusBar">
-      <div class="status-bar-inner">
-
-        <!-- 핀 -->
-        <button class="sb-btn" id="btnPin" title="항상 위 고정">
-          <i data-lucide="pin" width="13" height="13"></i>
-        </button>
-
-        <!-- 투명도 -->
-        <div class="sb-popup-wrap" id="opacityWrap">
-          <button class="sb-btn" id="btnOpacity" title="투명도 조절">
-            <i data-lucide="droplets" width="13" height="13"></i>
-          </button>
-          <div class="sb-popup opacity-popup" id="opacityPopup">
-            <span class="popup-label">투명도</span>
-            <input type="range" id="opacitySlider" min="0.1" max="1" step="0.05" value="1" />
-            <span id="opacityValue">100%</span>
-          </div>
-        </div>
-
-        <!-- 최소화 -->
-        <button class="sb-btn" id="btnMinimize" title="말풍선으로 최소화">
-          <i data-lucide="minimize-2" width="13" height="13"></i>
-        </button>
-
-        <!-- 다크/라이트 토글 -->
-        <button class="sb-btn" id="btnThemeToggle" title="다크/라이트 모드 전환">
-          <i data-lucide="sun" width="13" height="13"></i>
-        </button>
-
-        <!-- 컬러 테마 -->
-        <div class="sb-popup-wrap" id="colorWrap">
-          <button class="sb-color-dot" id="colorDot" title="테마 색상 변경"></button>
-          <div class="sb-popup color-popup" id="colorPopup">
-            <div class="color-swatches" id="colorSwatches"></div>
-            <input type="color" id="colorPickerCustom" title="커스텀 색상" />
-          </div>
-        </div>
-
-        <div class="sb-spacer"></div>
-
-        <!-- 삭제 -->
-        <button class="sb-btn delete" id="btnDelete" title="메모 삭제">
-          <i data-lucide="trash-2" width="13" height="13"></i>
-        </button>
-
-      </div>
-    </div>
-
     <!-- ── 카드 본체 ── -->
     <div class="memo-card">
+
+      <!-- ── 상태바 (상단 고정) ── -->
+      <div class="status-bar" id="statusBar">
+        <div class="status-bar-inner">
+
+          <!-- 핀 -->
+          <button class="sb-btn" id="btnPin" title="항상 위 고정">
+            <i data-lucide="pin" width="13" height="13"></i>
+          </button>
+
+          <!-- 투명도 -->
+          <div class="sb-popup-wrap" id="opacityWrap">
+            <button class="sb-btn" id="btnOpacity" title="투명도 조절">
+              <i data-lucide="droplets" width="13" height="13"></i>
+            </button>
+            <div class="sb-popup opacity-popup" id="opacityPopup">
+              <span class="popup-label">투명도</span>
+              <input type="range" id="opacitySlider" min="0.1" max="1" step="0.05" value="1" />
+              <span id="opacityValue">100%</span>
+            </div>
+          </div>
+
+          <!-- 최소화 -->
+          <button class="sb-btn" id="btnMinimize" title="말풍선으로 최소화">
+            <i data-lucide="minimize-2" width="13" height="13"></i>
+          </button>
+
+          <!-- 다크/라이트 토글 -->
+          <button class="sb-btn" id="btnThemeToggle" title="다크/라이트 모드 전환">
+            <i data-lucide="sun" width="13" height="13"></i>
+          </button>
+
+          <!-- 컬러 테마 -->
+          <div class="sb-popup-wrap" id="colorWrap">
+            <button class="sb-color-dot" id="colorDot" title="테마 색상 변경"></button>
+            <div class="sb-popup color-popup" id="colorPopup">
+              <div class="color-swatches" id="colorSwatches"></div>
+              <input type="color" id="colorPickerCustom" title="커스텀 색상" />
+            </div>
+          </div>
+
+          <div class="sb-spacer"></div>
+
+          <!-- 삭제 -->
+          <button class="sb-btn delete" id="btnDelete" title="메모 삭제">
+            <i data-lucide="trash-2" width="13" height="13"></i>
+          </button>
+
+        </div>
+      </div>
 
       <!-- 프로필 행 (drag region) -->
       <div class="profile-row" id="profileRow">
@@ -147,6 +147,7 @@
       </div>
 
     </div><!-- /.memo-card -->
+
   </div><!-- /.card-view -->
 
 </div><!-- /.memo-root -->
