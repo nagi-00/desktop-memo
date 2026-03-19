@@ -100,6 +100,12 @@ function createMemoWindow(memoData) {
     }
   });
 
+  // local-fonts 퍼미션 자동 허용 (폰트 선택기용)
+  win.webContents.session.setPermissionRequestHandler((wc, permission, callback) => {
+    if (permission === 'local-fonts') return callback(true);
+    callback(false);
+  });
+
   win.loadFile(path.join(__dirname, 'renderer', 'memo.html'), {
     query: { memoId: id }
   });

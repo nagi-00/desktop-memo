@@ -254,6 +254,13 @@
   font-weight: 700;
   font-size: 12px;
 }
+.color-swatch.custom:hover {
+  background: color-mix(in srgb, var(--color-text-muted) 15%, transparent) !important;
+}
+.color-swatch.custom:active {
+  transform: scale(0.9);
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent) !important;
+}
 .color-swatch.custom.selected {
   border-color: var(--color-text) !important;
   border-style: solid !important;
@@ -265,12 +272,28 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
-  min-width: 160px;
+  min-width: 200px;
+  max-width: 260px;
 }
+.font-search {
+  width: 100%;
+  padding: 5px 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  color: var(--color-text);
+  font-size: 11px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.font-search::placeholder { color: var(--color-text-placeholder); }
+.font-search:focus { border-color: var(--color-accent); }
 .font-families {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
 }
 .font-opt {
   display: block;
@@ -440,20 +463,18 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 0 14px 4px;
 }
 
 .memo-content {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
   outline: none;
   font-size: var(--memo-font-size, 14px);
   font-family: var(--memo-font-family, system-ui);
   line-height: 1.75;
   color: var(--color-text);
   word-break: break-word;
-  overflow-y: auto;
   transition: color var(--transition-base);
 }
 .memo-content:empty::before {
@@ -531,6 +552,12 @@
   color: var(--color-text-muted);
 }
 
+/* ── 미디어 영역 (텍스트 아래 고정, 트위터 스타일) ── */
+.media-area {
+  flex-shrink: 0;
+  padding: 0 0 4px;
+}
+
 /* ══════════════════════════════════════════════
    ACTION BAR
    ══════════════════════════════════════════════ */
@@ -558,6 +585,10 @@
   display: flex;
   align-items: center;
   gap: 0;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+  overflow: hidden;
 }
 
 /* 액션 아이콘 버튼 */
@@ -638,7 +669,7 @@
 }
 
 /* ── Twitter-style 미디어 그리드 ── */
-.memo-content .media-grid {
+.media-area .media-grid {
   display: grid;
   gap: 2px;
   border-radius: 12px;
@@ -647,29 +678,29 @@
   max-height: 220px;
   position: relative;
 }
-.memo-content .media-grid[data-count="1"] {
+.media-area .media-grid[data-count="1"] {
   grid-template-columns: 1fr;
 }
-.memo-content .media-grid[data-count="2"] {
+.media-area .media-grid[data-count="2"] {
   grid-template-columns: 1fr 1fr;
 }
-.memo-content .media-grid[data-count="3"] {
+.media-area .media-grid[data-count="3"] {
   grid-template-columns: 2fr 1fr;
   grid-template-rows: 1fr 1fr;
 }
-.memo-content .media-grid[data-count="3"] > :first-child {
+.media-area .media-grid[data-count="3"] > :first-child {
   grid-row: 1 / 3;
 }
-.memo-content .media-grid[data-count="4"] {
+.media-area .media-grid[data-count="4"] {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
 }
-.memo-content .media-grid > .img-wrap,
-.memo-content .media-grid > img {
+.media-area .media-grid > .img-wrap,
+.media-area .media-grid > img {
   min-height: 0;
   min-width: 0;
 }
-.memo-content .media-grid img {
+.media-area .media-grid img {
   width: 100%;
   height: 100%;
   max-width: none;

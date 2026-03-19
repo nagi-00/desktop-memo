@@ -62,8 +62,8 @@ export function generatePalette(accentHex, mode = 'dark') {
     // 액션 버튼 4색 — 낮은 채도(뮤트 톤), 무채색 선택 시 그레이스케일
     actionReply:    isAchromatic ? hslToHex(0, 0, 55) : hslToHex(h,               26, 62),
     actionLink:     isAchromatic ? hslToHex(0, 0, 62) : hslToHex((h + 30)  % 360, 32, 60),
-    actionBookmark: isAchromatic ? hslToHex(0, 0, 58) : hslToHex(h,               32, 62),
-    actionLike:     isAchromatic ? hslToHex(0, 0, 66) : hslToHex(h,               38, 66),
+    actionBookmark: isAchromatic ? hslToHex(42, 10, 58) : hslToHex((h + 45) % 360, 42, 64),
+    actionLike:     isAchromatic ? hslToHex(350, 12, 62) : hslToHex((h + 330) % 360, 45, 62),
   };
 }
 

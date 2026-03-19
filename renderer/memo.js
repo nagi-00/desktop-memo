@@ -62,13 +62,16 @@ const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
 const fontSizeSlider  = document.getElementById('fontSizeSlider');
 const fontSizeValue   = document.getElementById('fontSizeValue');
+const mediaArea       = document.getElementById('mediaArea');
+const fontSearch      = document.getElementById('fontSearch');
 
-const FONT_OPTIONS = [
-  { label: '기본',   family: 'system-ui, sans-serif' },
-  { label: '세리프',  family: 'Georgia, "Times New Roman", serif' },
-  { label: '고딕',   family: '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif' },
-  { label: '모노',   family: 'Consolas, "D2Coding", monospace' },
+const FONT_FALLBACKS = [
+  { label: '기본 (System)',   family: 'system-ui, sans-serif' },
+  { label: 'Serif',           family: 'Georgia, "Times New Roman", serif' },
+  { label: '고딕',            family: '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif' },
+  { label: 'Monospace',       family: 'Consolas, "D2Coding", monospace' },
 ];
+let localFonts = null; // 캐시된 로컬 폰트 목록
 
 let savedTextRange = null; // 텍스트 색상 적용 전 선택 범위 저장
 
@@ -134,7 +137,8 @@ async function init() {
   // 스와치 렌더링
   renderColorSwatches();
 
-  // 폰트 UI 초기화
+  // 폰트 UI 초기화 (로컬 폰트 비동기 로드)
+  await loadLocalFonts();
   renderFontOptions();
   const fontSize = memoData.font?.size || 14;
   fontSizeSlider.value = fontSize;
@@ -270,9 +274,11 @@ function scheduleSave() {
   saveTimer = setTimeout(() => {
     const contentHtml = memoContent.innerHTML;
     const content     = memoContent.textContent;
+    const images      = getMediaImages();
     memoData.contentHtml = contentHtml;
     memoData.content     = content;
-    saveMemoChanges({ contentHtml, content });
+    memoData.images      = images;
+    saveMemoChanges({ contentHtml, content, images });
   }, 500);
 }
 
@@ -280,14 +286,13 @@ function saveMemoChanges(changes) {
   api.updateMemo(changes).catch(console.error);
 }
 
-// ── 미디어 그리드 (트위터 스타일) ──────────────
+// ── 미디어 그리드 (트위터 스타일 — mediaArea에 고정) ──
 function getOrCreateGrid() {
-  let grid = memoContent.querySelector('.media-grid');
+  let grid = mediaArea.querySelector('.media-grid');
   if (!grid) {
     grid = document.createElement('div');
     grid.className = 'media-grid';
-    grid.contentEditable = 'false';
-    memoContent.appendChild(grid);
+    mediaArea.appendChild(grid);
   }
   return grid;
 }
@@ -358,27 +363,36 @@ function addImageToGrid(grid, src) {
   setupImgWrap(wrap, grid);
 }
 
-/** 저장된 HTML에서 복원된 그리드에 래퍼/이벤트 재적용 */
+/** 저장된 이미지 복원: memoData.images → mediaArea, 인라인 이미지 마이그레이션 */
 function initMediaGrids() {
-  memoContent.querySelectorAll('.media-grid').forEach(grid => {
-    grid.contentEditable = 'false';
-
-    // bare <img> → .img-wrap으로 감싸기
-    grid.querySelectorAll(':scope > img').forEach(img => {
-      const wrap = document.createElement('div');
-      wrap.className = 'img-wrap';
-      grid.insertBefore(wrap, img);
-      wrap.appendChild(img);
-    });
-
-    // 모든 img-wrap에 이벤트 연결
-    grid.querySelectorAll('.img-wrap').forEach(wrap => setupImgWrap(wrap, grid));
-
-    // data-count 갱신
-    const count = grid.querySelectorAll('.img-wrap').length;
-    if (count === 0) grid.remove();
-    else grid.setAttribute('data-count', Math.min(count, 4));
+  // 1) contentHtml 내부의 인라인 이미지/그리드를 mediaArea로 마이그레이션
+  const inlineGrids = memoContent.querySelectorAll('.media-grid');
+  const migratedSrcs = [];
+  inlineGrids.forEach(grid => {
+    grid.querySelectorAll('img').forEach(img => migratedSrcs.push(img.src));
+    grid.remove();
   });
+  // bare <img> in content
+  memoContent.querySelectorAll(':scope > img').forEach(img => {
+    migratedSrcs.push(img.src);
+    img.remove();
+  });
+
+  // 2) memoData.images 로드 (마이그레이션된 것과 합침)
+  const savedImages = memoData.images || [];
+  const allImages = [...savedImages, ...migratedSrcs];
+  if (allImages.length === 0) return;
+
+  const grid = getOrCreateGrid();
+  allImages.forEach(src => addImageToGrid(grid, src));
+  updateGridCount(grid);
+}
+
+/** mediaArea에서 이미지 src 배열 추출 */
+function getMediaImages() {
+  const grid = mediaArea.querySelector('.media-grid');
+  if (!grid) return [];
+  return [...grid.querySelectorAll('.img-wrap img')].map(img => img.src);
 }
 
 // ── 텍스트 서식 ──────────────────────────────
@@ -490,11 +504,39 @@ function insertLink() {
   scheduleSave();
 }
 
-// ── 폰트 옵션 렌더 ──────────────────────────
-function renderFontOptions() {
+// ── 폰트 옵션 렌더 (로컬 폰트 열거) ──────────────
+async function loadLocalFonts() {
+  if (localFonts) return localFonts;
+  try {
+    if ('queryLocalFonts' in window) {
+      const fonts = await window.queryLocalFonts();
+      const seen = new Set();
+      localFonts = [];
+      for (const f of fonts) {
+        if (!seen.has(f.family)) {
+          seen.add(f.family);
+          localFonts.push({ label: f.family, family: `"${f.family}"` });
+        }
+      }
+      localFonts.sort((a, b) => a.label.localeCompare(b.label));
+      return localFonts;
+    }
+  } catch { /* permission denied or not supported */ }
+  localFonts = FONT_FALLBACKS;
+  return localFonts;
+}
+
+function renderFontOptions(filter = '') {
   fontFamilies.innerHTML = '';
   const currentFamily = memoData?.font?.family || 'system-ui, sans-serif';
-  FONT_OPTIONS.forEach(({ label, family }) => {
+  const fonts = localFonts || FONT_FALLBACKS;
+  const lowerFilter = filter.toLowerCase();
+  const filtered = lowerFilter
+    ? fonts.filter(f => f.label.toLowerCase().includes(lowerFilter))
+    : fonts;
+  const toShow = filtered.slice(0, 80); // 성능을 위해 최대 80개
+
+  toShow.forEach(({ label, family }) => {
     const btn = document.createElement('button');
     btn.className = 'font-opt';
     btn.textContent = label;
@@ -505,7 +547,7 @@ function renderFontOptions() {
       memoData.font = { ...(memoData.font || {}), family };
       document.documentElement.style.setProperty('--memo-font-family', family);
       saveMemoChanges({ font: memoData.font });
-      renderFontOptions();
+      renderFontOptions(fontSearch.value);
     });
     fontFamilies.appendChild(btn);
   });
@@ -537,11 +579,28 @@ function bindEvents() {
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
-      // 빈 리스트 항목에서 엔터 → 리스트 서식 해제
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
         let node = sel.getRangeAt(0).startContainer;
         if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+
+        // 체크박스 아이템 안에서 Enter → 밖으로 탈출
+        const cbItem = node.closest?.('.cb-item');
+        if (cbItem) {
+          e.preventDefault();
+          const newP = document.createElement('div');
+          newP.innerHTML = '<br>';
+          cbItem.parentNode.insertBefore(newP, cbItem.nextSibling);
+          const r = document.createRange();
+          r.setStart(newP, 0);
+          r.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(r);
+          scheduleSave();
+          return;
+        }
+
+        // 빈 리스트 항목에서 엔터 → 리스트 서식 해제
         const li = node.closest?.('li');
         if (li && li.textContent.trim() === '') {
           e.preventDefault();
@@ -761,7 +820,14 @@ function bindEvents() {
     opacityPopup.classList.remove('visible');
     colorPopup.classList.remove('visible');
     capturePopup.classList.remove('visible');
+    if (fontPopup.classList.contains('visible')) {
+      fontSearch.value = '';
+      renderFontOptions();
+      fontSearch.focus();
+    }
   });
+  fontSearch.addEventListener('input', () => renderFontOptions(fontSearch.value));
+  fontSearch.addEventListener('click', (e) => e.stopPropagation());
   fontSizeSlider.addEventListener('input', () => {
     const size = parseInt(fontSizeSlider.value, 10);
     fontSizeValue.textContent = `${size}px`;
@@ -777,7 +843,7 @@ function bindEvents() {
     fontPopup.classList.remove('visible');
   });
 
-  // 캡처 — 상태바 제외 카드 영역 계산 후 IPC
+  // 캡처 — 상태바 제외, 투명 여백 포함 카드 영역 캡처
   async function doCapture(action) {
     capturePopup.classList.remove('visible');
     // 리페인트 대기 (팝업이 완전히 사라진 뒤 캡처)
@@ -788,11 +854,12 @@ function bindEvents() {
     const sbRect   = statusBar.getBoundingClientRect();
     const cardRect = memoCard.getBoundingClientRect();
     const dpr      = window.devicePixelRatio || 1;
+    const pad      = Math.round(6 * dpr); // 투명 여백
     const captureRect = {
-      x:      Math.round(cardRect.x * dpr),
-      y:      Math.round(sbRect.bottom * dpr),
-      width:  Math.round(cardRect.width * dpr),
-      height: Math.round((cardRect.bottom - sbRect.bottom) * dpr),
+      x:      Math.max(0, Math.floor(cardRect.x * dpr) - pad),
+      y:      Math.max(0, Math.floor(sbRect.bottom * dpr) - pad),
+      width:  Math.ceil(cardRect.width * dpr) + pad * 2,
+      height: Math.ceil((cardRect.bottom - sbRect.bottom) * dpr) + pad * 2,
     };
     try {
       await api.captureCard({ rect: captureRect, action });
