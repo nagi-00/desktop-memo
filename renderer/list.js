@@ -149,13 +149,27 @@ function renderList() {
     const rootEl = buildListItem(root, { isThreadRoot: hasReplies, replyCount: replies.length });
     sidebar.appendChild(rootEl);
 
-    // 답글은 항상 아래에 표시 (트위터 스타일 — 자동 펼침)
+    // 답글 — 접기/펼치기 지원
     if (hasReplies) {
+      const replyEls = [];
       replies.forEach((reply, idx) => {
         const isLast = idx === replies.length - 1;
         const replyEl = buildListItem(reply, { isReply: true, isLastReply: isLast });
         sidebar.appendChild(replyEl);
+        replyEls.push(replyEl);
       });
+      const toggleBtn = rootEl.querySelector('.thread-toggle');
+      if (toggleBtn) {
+        toggleBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const collapsed = toggleBtn.dataset.collapsed === 'true';
+          const next = !collapsed;
+          toggleBtn.dataset.collapsed = String(next);
+          toggleBtn.textContent = next ? '▸' : '▾';
+          toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
+          replyEls.forEach(el => el.style.display = next ? 'none' : '');
+        });
+      }
     }
   });
 }
@@ -206,6 +220,17 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
       ${badgesHtml ? `<div class="item-badges">${badgesHtml}</div>` : ''}
     </div>
   `;
+
+  // 스레드 루트에 접기/펼치기 토글 버튼 추가
+  if (isThreadRoot && replyCount > 0) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'thread-toggle';
+    toggleBtn.dataset.collapsed = 'false';
+    toggleBtn.title = '답글 접기';
+    toggleBtn.textContent = '▾';
+    toggleBtn.addEventListener('click', (e) => e.stopPropagation());
+    el.appendChild(toggleBtn);
+  }
 
   el.addEventListener('click', () => selectMemo(memo.id));
   return el;

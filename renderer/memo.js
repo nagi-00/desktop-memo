@@ -14,6 +14,7 @@ let isMinimized  = false;
 let isBookmarked = false;
 let isLiked      = false;
 let saveTimer    = null;
+let mediaFolded  = false;
 
 // ── DOM 참조 ──────────────────────────────────
 const memoRoot    = document.getElementById('memoRoot');
@@ -64,6 +65,7 @@ const fontFamilies    = document.getElementById('fontFamilies');
 const fontSizeSlider  = document.getElementById('fontSizeSlider');
 const fontSizeValue   = document.getElementById('fontSizeValue');
 const mediaArea       = document.getElementById('mediaArea');
+const mediaHeader     = document.getElementById('mediaHeader');
 const fontSearch      = document.getElementById('fontSearch');
 
 const FONT_FALLBACKS = [
@@ -354,10 +356,20 @@ function getOrCreateGrid() {
   return grid;
 }
 
+function updateMediaHeaderVisibility() {
+  const hasImages = !!mediaArea.querySelector('.img-wrap');
+  mediaHeader.style.display = hasImages ? 'flex' : 'none';
+  if (!hasImages) {
+    mediaFolded = false;
+    mediaArea.style.display = '';
+  }
+}
+
 function updateGridCount(grid) {
   const count = grid.querySelectorAll('.img-wrap').length;
-  if (count === 0) { grid.remove(); return; }
+  if (count === 0) { grid.remove(); updateMediaHeaderVisibility(); return; }
   grid.setAttribute('data-count', Math.min(count, 4));
+  updateMediaHeaderVisibility();
   scheduleSave();
 }
 
@@ -813,6 +825,35 @@ function bindEvents() {
   // 콘텐츠 입력
   memoContent.addEventListener('input', scheduleSave);
 
+  // HR 블록(contenteditable=false) 클릭 시 커서 탈출
+  memoContent.addEventListener('click', () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return;
+    let node = sel.getRangeAt(0).startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+    let cur = node;
+    while (cur && cur !== memoContent) {
+      if (cur.getAttribute?.('contenteditable') === 'false') {
+        let next = cur.nextSibling;
+        if (!next) {
+          const newDiv = document.createElement('div');
+          newDiv.innerHTML = '<br>';
+          cur.parentNode.appendChild(newDiv);
+          next = newDiv;
+        }
+        try {
+          const range = document.createRange();
+          range.setStart(next, 0);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch {}
+        break;
+      }
+      cur = cur.parentNode;
+    }
+  });
+
   // 서식 단축키
   memoContent.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
@@ -937,6 +978,27 @@ function bindEvents() {
             r2.setStart(node, 0); r2.collapse(true);
             sel.removeAllRanges(); sel.addRange(r2);
             document.execCommand('insertHTML', false, '<div class="hr-block" contenteditable="false"><hr></div>');
+            // hr-block 뒤로 커서 이동 (contenteditable=false 탈출)
+            {
+              const blocks = memoContent.querySelectorAll('.hr-block');
+              const lastBlock = blocks[blocks.length - 1];
+              if (lastBlock) {
+                let next = lastBlock.nextSibling;
+                if (!next) {
+                  const newDiv = document.createElement('div');
+                  newDiv.innerHTML = '<br>';
+                  lastBlock.parentNode.insertBefore(newDiv, lastBlock.nextSibling);
+                  next = newDiv;
+                }
+                try {
+                  const r2 = document.createRange();
+                  r2.setStart(next, 0);
+                  r2.collapse(true);
+                  sel.removeAllRanges();
+                  sel.addRange(r2);
+                } catch {}
+              }
+            }
             scheduleSave();
           }
         }
@@ -1097,12 +1159,15 @@ function bindEvents() {
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.accept = 'image/*';
+      fileInput.style.display = 'none';
+      document.body.appendChild(fileInput);
       fileInput.addEventListener('change', () => {
+        document.body.removeChild(fileInput);
         const file = fileInput.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (e) => {
-          memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: e.target.result };
+        reader.onload = (ev2) => {
+          memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: ev2.target.result };
           saveMemoChanges({ profile: memoData.profile });
           renderAvatar();
         };
@@ -1224,6 +1289,10 @@ function bindEvents() {
   // 캡처 — 상태바 제외, 투명 여백 포함 카드 영역 캡처
   async function doCapture(action) {
     capturePopup.classList.remove('visible');
+    // 이미지 에디터가 열려있으면 캡처 중 임시 숨김
+    const editorOverlay = document.getElementById('imgEditorOverlay');
+    const editorOpen = editorOverlay.classList.contains('visible');
+    if (editorOpen) editorOverlay.style.visibility = 'hidden';
     // 리페인트 대기 (팝업이 완전히 사라진 뒤 캡처)
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -1243,11 +1312,26 @@ function bindEvents() {
       await api.captureCard({ rect: captureRect, action });
     } catch (err) {
       console.error('캡처 실패:', err);
+    } finally {
+      if (editorOpen) editorOverlay.style.visibility = '';
     }
   }
 
   btnCaptureClipboard.addEventListener('click', () => doCapture('clipboard'));
   btnCaptureSave.addEventListener('click',      () => doCapture('save'));
+
+  // 미디어 영역 접기/펼치기
+  document.getElementById('btnMediaFold').addEventListener('click', () => {
+    mediaFolded = !mediaFolded;
+    mediaArea.style.display = mediaFolded ? 'none' : '';
+    const label = document.getElementById('mediaFoldLabel');
+    const icon  = document.getElementById('mediaFoldIcon');
+    if (label) label.textContent = mediaFolded ? '이미지 펼치기' : '이미지 접기';
+    if (icon) {
+      icon.setAttribute('data-lucide', mediaFolded ? 'chevron-down' : 'chevron-up');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
+  });
 
   // 하이라이트 버튼
   btnHighlight.addEventListener('click', toggleHighlight);
