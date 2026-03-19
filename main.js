@@ -11,6 +11,9 @@ let listWindow = null;
 // memoId → BrowserWindow 매핑
 const memoWindows = new Map();
 
+// 휴지통 (인메모리 — 재부팅 시 소멸)
+let trash = [];
+
 // ──────────────────────────────────────────
 // electron-store 동적 import (ESM)
 // ──────────────────────────────────────────
@@ -216,15 +219,46 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 메모 삭제
+  // 메모 삭제 → 휴지통으로 이동 (인메모리, 재부팅 시 소멸)
   ipcMain.handle('memo:delete', (_e, memoId) => {
-    saveMemos(getMemos().filter(m => m.id !== memoId));
+    const memos = getMemos();
+    const idx = memos.findIndex(m => m.id === memoId);
+    if (idx !== -1) {
+      trash.push({ ...memos[idx], deletedAt: new Date().toISOString() });
+      memos.splice(idx, 1);
+      saveMemos(memos);
+    }
     const win = memoWindows.get(memoId);
     if (win && !win.isDestroyed()) {
       win._forceClose = true;
       win.close();
     }
     updateTrayMenu();
+    broadcastListUpdate();
+    return true;
+  });
+
+  // 휴지통 조회
+  ipcMain.handle('memo:getTrash', () => trash);
+
+  // 휴지통에서 복원
+  ipcMain.handle('memo:restoreFromTrash', (_e, memoId) => {
+    const idx = trash.findIndex(m => m.id === memoId);
+    if (idx === -1) return false;
+    const [memo] = trash.splice(idx, 1);
+    delete memo.deletedAt;
+    const memos = getMemos();
+    memos.push(memo);
+    saveMemos(memos);
+    createMemoWindow(memo);
+    updateTrayMenu();
+    broadcastListUpdate();
+    return true;
+  });
+
+  // 휴지통 비우기
+  ipcMain.handle('memo:emptyTrash', () => {
+    trash = [];
     broadcastListUpdate();
     return true;
   });

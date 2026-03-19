@@ -114,8 +114,19 @@ async function init() {
       const ctxText = document.getElementById('replyContextText');
       ctxText.textContent = `${parent.profile?.name || '메모'}에 대한 답글`;
       ctx.style.display = 'flex';
-      ctx.style.cursor = 'pointer';
-      ctx.addEventListener('click', () => api.focusMemo(parent.id));
+      ctxText.style.cursor = 'pointer';
+      ctxText.addEventListener('click', () => api.focusMemo(parent.id));
+
+      // 원본 테마 적용 버튼
+      const btnApplyParentTheme = document.getElementById('btnApplyParentTheme');
+      btnApplyParentTheme.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const parentAccent = parent.theme?.accent ?? null;
+        memoData.theme = { ...(memoData.theme || {}), accent: parentAccent };
+        applyTheme(parentAccent, currentMode);
+        saveMemoChanges({ theme: memoData.theme });
+        renderColorSwatches();
+      });
     }
   }
 
@@ -329,11 +340,39 @@ function setupImgWrap(wrap, grid) {
     wrap.appendChild(removeBtn);
   }
 
+  // 교체 버튼이 없으면 추가
+  if (!wrap.querySelector('.img-replace')) {
+    const replaceBtn = document.createElement('button');
+    replaceBtn.className = 'img-replace';
+    replaceBtn.textContent = '✎';
+    wrap.appendChild(replaceBtn);
+  }
+
   // 삭제 버튼 이벤트
   wrap.querySelector('.img-remove').addEventListener('click', (ev) => {
     ev.stopPropagation();
     wrap.remove();
     updateGridCount(grid);
+  });
+
+  // 교체 버튼 이벤트
+  wrap.querySelector('.img-replace').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = wrap.querySelector('img');
+        if (img) img.src = e.target.result;
+        scheduleSave();
+      };
+      reader.readAsDataURL(file);
+    });
+    input.click();
   });
 
   // 드래그 순서 변경
@@ -605,11 +644,17 @@ function bindEvents() {
           const span = cbItem.querySelector('span');
           const text = span ? span.textContent.replace(/\u00A0/g, '').trim() : '';
 
+          // memoContent 직계 자식 레벨까지 올라가서 삽입 (들여쓰기 방지)
+          let insertRef = cbItem;
+          while (insertRef.parentNode && insertRef.parentNode !== memoContent) {
+            insertRef = insertRef.parentNode;
+          }
+
           if (text === '') {
             // 빈 체크박스에서 Enter → 체크박스 삭제, 일반 텍스트로 전환
             const newP = document.createElement('div');
             newP.innerHTML = '<br>';
-            cbItem.parentNode.insertBefore(newP, cbItem.nextSibling);
+            memoContent.insertBefore(newP, insertRef.nextSibling);
             cbItem.remove();
             const r = document.createRange();
             r.setStart(newP, 0);
@@ -626,7 +671,7 @@ function bindEvents() {
             newSpan.textContent = '\u00A0';
             newCb.appendChild(newInput);
             newCb.appendChild(newSpan);
-            cbItem.parentNode.insertBefore(newCb, cbItem.nextSibling);
+            memoContent.insertBefore(newCb, insertRef.nextSibling);
             const r = document.createRange();
             r.selectNodeContents(newSpan);
             r.collapse(false);
@@ -790,8 +835,46 @@ function bindEvents() {
     scheduleSave();
   });
 
-  // 아바타 클릭 → 이미지 업로드
-  profileAvatar.addEventListener('click', () => avatarFileInput.click());
+  // 아바타 클릭 → 컨텍스트 메뉴 (변경/삭제)
+  profileAvatar.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // 기존 메뉴 제거
+    document.querySelectorAll('.avatar-menu').forEach(m => m.remove());
+
+    const hasAvatar = !!memoData?.profile?.avatarDataUrl;
+    const menu = document.createElement('div');
+    menu.className = 'avatar-menu';
+
+    const changeBtn = document.createElement('button');
+    changeBtn.textContent = hasAvatar ? '사진 변경' : '사진 추가';
+    changeBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      menu.remove();
+      avatarFileInput.click();
+    });
+    menu.appendChild(changeBtn);
+
+    if (hasAvatar) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'danger';
+      removeBtn.textContent = '사진 삭제';
+      removeBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        menu.remove();
+        memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: null };
+        saveMemoChanges({ profile: memoData.profile });
+        renderAvatar();
+      });
+      menu.appendChild(removeBtn);
+    }
+
+    profileAvatar.style.position = 'relative';
+    profileAvatar.appendChild(menu);
+
+    // 외부 클릭 시 메뉴 닫기
+    const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  });
   avatarFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -894,9 +977,9 @@ function bindEvents() {
     const pad      = Math.round(6 * dpr); // 투명 여백
     const captureRect = {
       x:      Math.max(0, Math.floor(cardRect.x * dpr) - pad),
-      y:      Math.max(0, Math.floor(sbRect.bottom * dpr) - pad),
+      y:      Math.max(0, Math.floor(cardRect.y * dpr) - pad),
       width:  Math.ceil(cardRect.width * dpr) + pad * 2,
-      height: Math.ceil((cardRect.bottom - sbRect.bottom) * dpr) + pad * 2,
+      height: Math.ceil(cardRect.height * dpr) + pad * 2,
     };
     try {
       await api.captureCard({ rect: captureRect, action });
