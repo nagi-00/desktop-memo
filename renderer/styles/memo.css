@@ -24,6 +24,11 @@
 .memo-root.minimized .bubble-view { display: flex; }
 .memo-root.minimized .card-view   { display: none; }
 
+.bubble-view {
+  -webkit-app-region: drag;
+  position: relative;
+}
+
 .bubble-btn {
   width: 56px;
   height: 56px;
@@ -36,7 +41,7 @@
   justify-content: center;
   font-size: 26px;
   box-shadow: var(--shadow-card);
-  -webkit-app-region: drag;
+  -webkit-app-region: no-drag;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .bubble-btn:hover {
@@ -44,6 +49,26 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 .bubble-btn:active { transform: scale(0.97); }
+
+/* 버블 아이콘 편집 버튼 */
+.bubble-edit-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(0,0,0,0.55);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+  z-index: 10;
+}
+.bubble-view:hover .bubble-edit-btn { display: flex; }
 
 /* ══════════════════════════════════════════════
    CARD VIEW
@@ -64,7 +89,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow: visible; /* 팝업이 카드 밖으로 나올 수 있게 */
   transition:
     background var(--transition-base),
     border-color var(--transition-base);
@@ -84,6 +109,7 @@
   padding: 5px 8px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-card) var(--radius-card) 0 0; /* 카드 상단 모서리 클리핑 */
   -webkit-app-region: drag;
   transition:
     background var(--transition-base),
@@ -401,11 +427,35 @@
   align-items: baseline;
   gap: 6px;
 }
+/* 커스텀 얇은 체크박스 */
 .memo-content .cb-item input[type="checkbox"] {
-  accent-color: var(--color-accent);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--color-text-muted);
+  border-radius: 3px;
   cursor: pointer;
-  margin-top: 3px;
   flex-shrink: 0;
+  margin-top: 2px;
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.memo-content .cb-item input[type="checkbox"]:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.memo-content .cb-item input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0px;
+  width: 5px;
+  height: 8px;
+  border: 1.5px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(42deg);
 }
 .memo-content .cb-item.checked > span {
   text-decoration: line-through;
@@ -421,8 +471,10 @@
   justify-content: space-between;
   padding: 6px 10px 10px;
   border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-card) var(--radius-card); /* 카드 하단 모서리 */
+  background: var(--color-bg);
   flex-shrink: 0;
-  transition: border-color var(--transition-base);
+  transition: border-color var(--transition-base), background var(--transition-base);
 }
 
 .created-date {
@@ -456,17 +508,37 @@
 }
 .action-icon-btn:hover { transform: scale(1.12); }
 
-/* 각 버튼별 색상 (default pale 톤) */
+/* 각 버튼별 색상 */
 .action-icon-btn.reply    { color: var(--action-reply);    }
 .action-icon-btn.link     { color: var(--action-link);     }
 .action-icon-btn.bookmark { color: var(--action-bookmark); }
 .action-icon-btn.like     { color: var(--action-like);     }
+.action-icon-btn.image    { color: var(--action-link);     }
 .action-icon-btn.new-memo { color: var(--color-text-muted);}
+
+/* 텍스트 색상 버튼 — 밑줄로 현재 색상 표시 */
+.action-icon-btn.text-color {
+  color: var(--color-text-muted);
+  position: relative;
+}
+.action-icon-btn.text-color::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 11px;
+  height: 3px;
+  background: var(--tc-current, var(--action-like));
+  border-radius: 1.5px;
+}
 
 .action-icon-btn.reply:hover    { background: color-mix(in srgb, var(--action-reply)    15%, transparent); }
 .action-icon-btn.link:hover     { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
 .action-icon-btn.bookmark:hover { background: color-mix(in srgb, var(--action-bookmark) 15%, transparent); }
 .action-icon-btn.like:hover     { background: color-mix(in srgb, var(--action-like)     15%, transparent); }
+.action-icon-btn.image:hover    { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
+.action-icon-btn.text-color:hover { background: var(--color-surface-hover); }
 .action-icon-btn.new-memo:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 /* 토글 활성 상태 — 트위터 방식: SVG fill 채색 */
@@ -483,6 +555,15 @@
 .action-icon-btn.like.active svg {
   fill: currentColor;
   stroke: none;
+}
+
+/* 이미지 */
+.memo-content img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 4px 0;
+  display: block;
+  cursor: pointer;
 }
 
 /* ── 구분선 ── */

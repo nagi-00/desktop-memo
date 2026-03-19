@@ -42,11 +42,19 @@ const colorSwatches  = document.getElementById('colorSwatches');
 const colorPickerCustom = document.getElementById('colorPickerCustom');
 const btnDelete      = document.getElementById('btnDelete');
 
-const btnReply    = document.getElementById('btnReply');
-const btnLink     = document.getElementById('btnLink');
-const btnBookmark = document.getElementById('btnBookmark');
-const btnLike     = document.getElementById('btnLike');
-const btnNewMemo  = document.getElementById('btnNewMemo');
+const btnReply      = document.getElementById('btnReply');
+const btnLink       = document.getElementById('btnLink');
+const btnBookmark   = document.getElementById('btnBookmark');
+const btnLike       = document.getElementById('btnLike');
+const btnNewMemo    = document.getElementById('btnNewMemo');
+const btnImage      = document.getElementById('btnImage');
+const btnTextColor  = document.getElementById('btnTextColor');
+const imageFileInput  = document.getElementById('imageFileInput');
+const avatarFileInput = document.getElementById('avatarFileInput');
+const textColorInput  = document.getElementById('textColorInput');
+const bubbleEditBtn   = document.getElementById('bubbleEditBtn');
+
+let savedTextRange = null; // 텍스트 색상 적용 전 선택 범위 저장
 
 // ── 초기화 ────────────────────────────────────
 async function init() {
@@ -342,6 +350,19 @@ function bindEvents() {
     else if (mod && e.key === 'z')                  { e.preventDefault(); document.execCommand('undo'); }
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
+    } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
+      // 빈 리스트 항목에서 엔터 → 리스트 서식 해제
+      const sel = window.getSelection();
+      if (sel?.rangeCount && sel.isCollapsed) {
+        let node = sel.getRangeAt(0).startContainer;
+        if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        const li = node.closest?.('li');
+        if (li && li.textContent.trim() === '') {
+          e.preventDefault();
+          document.execCommand('outdent', false);
+          scheduleSave();
+        }
+      }
     } else if (e.key === '-') {
       // --- 입력 시 수평 구분선으로 자동 변환
       const sel = window.getSelection();
@@ -352,7 +373,6 @@ function bindEvents() {
           const textBefore = node.textContent.slice(0, range.startOffset);
           if (textBefore === '--') {
             e.preventDefault();
-            // '--' 제거 후 <hr> 삽입
             node.textContent = node.textContent.slice(range.startOffset);
             const r2 = document.createRange();
             r2.setStart(node, 0); r2.collapse(true);
@@ -445,6 +465,73 @@ function bindEvents() {
 
   // 링크 버튼
   btnLink.addEventListener('click', insertLink);
+
+  // 이미지 첨부
+  btnImage.addEventListener('click', () => imageFileInput.click());
+  imageFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      memoContent.focus();
+      document.execCommand('insertHTML', false,
+        `<img src="${ev.target.result}" style="max-width:100%;border-radius:6px;margin:4px 0;display:block">`
+      );
+      scheduleSave();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  // 글자 색상
+  btnTextColor.addEventListener('click', () => {
+    const sel = window.getSelection();
+    if (sel?.rangeCount && !sel.isCollapsed) {
+      savedTextRange = sel.getRangeAt(0).cloneRange();
+    }
+    textColorInput.click();
+  });
+  textColorInput.addEventListener('change', () => {
+    const color = textColorInput.value;
+    btnTextColor.style.setProperty('--tc-current', color);
+    memoContent.focus();
+    if (savedTextRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedTextRange);
+      savedTextRange = null;
+    }
+    document.execCommand('foreColor', false, color);
+    scheduleSave();
+  });
+
+  // 아바타 클릭 → 이미지 업로드
+  profileAvatar.addEventListener('click', () => avatarFileInput.click());
+  avatarFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: ev.target.result };
+      saveMemoChanges({ profile: memoData.profile });
+      renderAvatar();
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  // 버블 아이콘 편집
+  bubbleEditBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const current = memoData?.profile?.bubbleIcon || '📝';
+    const icon = prompt('아이콘 이모지를 입력하세요:', current);
+    if (icon !== null) {
+      const trimmed = icon.trim() || '📝';
+      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: trimmed };
+      bubbleIcon.textContent = trimmed;
+      saveMemoChanges({ profile: memoData.profile });
+    }
+  });
 
   // 답글 (Phase 3 placeholder)
   btnReply.addEventListener('click', () => {

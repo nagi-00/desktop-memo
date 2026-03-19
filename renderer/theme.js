@@ -56,11 +56,11 @@ export function generatePalette(accentHex, mode = 'dark') {
     text:          isDark ? hslToHex(h, 10, 92) : hslToHex(h, 8,  8),
     textMuted:     isDark ? hslToHex(h, 8,  52) : hslToHex(h, 8,  44),
     textPlaceholder: isDark ? hslToHex(h, 8, 30) : hslToHex(h, 8, 65),
-    // 액션 버튼 4색 (spec: hue shift 파생)
-    actionReply:    hslToHex(h,               30, 65),
-    actionLink:     hslToHex((h + 30)  % 360, 35, 60),
-    actionBookmark: hslToHex((h + 60)  % 360, 35, 65),
-    actionLike:     hslToHex((h + 180) % 360, 40, 70),
+    // 액션 버튼 4색 — 테마색 기반, 채도 높여 테마 반영 강화
+    actionReply:    hslToHex(h,               42, 62),
+    actionLink:     hslToHex((h + 30)  % 360, 50, 58),
+    actionBookmark: hslToHex(h,               55, 60), // 테마색과 동일 hue
+    actionLike:     hslToHex((h + 180) % 360, 55, 65),
   };
 }
 

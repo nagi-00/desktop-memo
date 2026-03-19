@@ -19,6 +19,9 @@
     <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
       <span class="bubble-icon" id="bubbleIcon">📝</span>
     </div>
+    <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
+      <i data-lucide="pencil" width="10" height="10"></i>
+    </button>
   </div>
 
   <!-- ══════════════════════════════════
@@ -128,19 +131,25 @@
       <div class="action-bar">
         <span class="created-date" id="createdDate"></span>
         <div class="action-icons">
-          <button class="action-icon-btn reply"    id="btnReply"    title="답글 (준비 중)">
+          <button class="action-icon-btn reply"      id="btnReply"      title="답글 (준비 중)">
             <i data-lucide="message-circle" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn link"     id="btnLink"     title="하이퍼링크 삽입 (Ctrl+K)">
+          <button class="action-icon-btn link"       id="btnLink"       title="하이퍼링크 삽입 (Ctrl+K)">
             <i data-lucide="link" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn bookmark" id="btnBookmark" title="중요 북마크">
+          <button class="action-icon-btn text-color" id="btnTextColor"  title="글자 색상">
+            <i data-lucide="type" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn image"      id="btnImage"      title="이미지 첨부">
+            <i data-lucide="image" width="15" height="15"></i>
+          </button>
+          <button class="action-icon-btn bookmark"   id="btnBookmark"   title="중요 북마크">
             <i data-lucide="bookmark" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn like"     id="btnLike"     title="좋아요">
+          <button class="action-icon-btn like"       id="btnLike"       title="좋아요">
             <i data-lucide="heart" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn new-memo" id="btnNewMemo"  title="새 메모 (Ctrl+N)">
+          <button class="action-icon-btn new-memo"   id="btnNewMemo"    title="새 메모 (Ctrl+N)">
             <i data-lucide="plus" width="15" height="15"></i>
           </button>
         </div>
@@ -151,6 +160,11 @@
   </div><!-- /.card-view -->
 
 </div><!-- /.memo-root -->
+
+<!-- 숨겨진 파일 인풋 -->
+<input type="file" id="imageFileInput" accept="image/*" style="display:none">
+<input type="file" id="avatarFileInput" accept="image/*" style="display:none">
+<input type="color" id="textColorInput" style="display:none" value="#f87171">
 
 <script type="module" src="memo.js"></script>
 </body>

@@ -233,8 +233,9 @@ function registerIpcHandlers() {
       // 이전 크기로 복원
       const memo = getMemoById(id);
       const prev = memo?.prevBounds || { width: 320, height: 420 };
+      win.setMinimumSize(260, 200);
       win.setResizable(true);
-      win.setSize(prev.width, prev.height);
+      win.setSize(prev.width || 320, prev.height || 420);
       if (prev.x != null && prev.y != null) {
         win.setPosition(Math.round(prev.x), Math.round(prev.y));
       }

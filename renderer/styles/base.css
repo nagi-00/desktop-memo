@@ -31,11 +31,11 @@
   --transition-fast: 150ms ease-out;
   --transition-base: 200ms ease-out;
 
-  /* Action button colors — default pale (채도 40% 낮춘 pale 톤) */
-  --action-reply:    #9CA3AF;
-  --action-link:     #6EE7B7;
-  --action-bookmark: #FCD34D;
-  --action-like:     #FCA5A5;
+  /* Action button colors */
+  --action-reply:    #94A3B8;
+  --action-link:     #34D399;
+  --action-bookmark: #FBBF24;
+  --action-like:     #F87171;
 }
 
 /* ── Light Mode — spec: #FFFFFF ~ #F8F8F8 무채색 ── */
