@@ -357,37 +357,11 @@ body {
   margin-left: 4px;
 }
 
-/* ── 스레드 토글 버튼 ── */
-.thread-toggle {
-  display: flex;
-  align-items: center;
-  padding: 0 12px 0 26px;
-  border-bottom: 1px solid var(--color-border);
-}
-.thread-line {
-  width: 2px;
-  height: 16px;
-  background: var(--color-border);
-  border-radius: 1px;
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-.thread-toggle-btn {
-  background: none;
-  border: none;
-  color: var(--color-accent);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: opacity var(--transition-fast);
-}
-.thread-toggle-btn:hover { opacity: 0.7; }
-
-/* ── 사이드바: 답글 아이템 ── */
+/* ── 사이드바: 답글 아이템 — 인셋 섀도로 단순 직선 표현 ── */
 .memo-list-item.reply-item {
-  padding-left: 8px;
+  padding-left: 16px;
   border-bottom: none;
+  box-shadow: inset 3px 0 0 var(--color-border);
 }
 .memo-list-item.reply-item .item-avatar {
   width: 24px;
@@ -396,37 +370,6 @@ body {
 }
 .memo-list-item.last-reply {
   border-bottom: 1px solid var(--color-border);
-}
-
-/* 답글 연결선 */
-.reply-connector {
-  display: flex;
-  align-items: stretch;
-  flex-shrink: 0;
-  width: 14px;
-  position: relative;
-}
-.connector-line {
-  position: absolute;
-  left: 6px;
-  top: -10px;
-  bottom: 50%;
-  width: 2px;
-  background: var(--color-border);
-  border-radius: 1px;
-}
-.connector-line::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 8px;
-  height: 2px;
-  background: var(--color-border);
-  border-radius: 1px;
-}
-.connector-line.last {
-  border-radius: 0 0 0 4px;
 }
 
 /* ── 미리보기: 스레드 컨텍스트 (답글의 부모 표시) ── */

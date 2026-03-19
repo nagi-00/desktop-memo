@@ -57,6 +57,7 @@ const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
+const btnHighlight    = document.getElementById('btnHighlight');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
@@ -340,12 +341,22 @@ function setupImgWrap(wrap, grid) {
     wrap.appendChild(removeBtn);
   }
 
-  // 교체 버튼이 없으면 추가
-  if (!wrap.querySelector('.img-replace')) {
-    const replaceBtn = document.createElement('button');
-    replaceBtn.className = 'img-replace';
-    replaceBtn.textContent = '✎';
-    wrap.appendChild(replaceBtn);
+  // 편집 버튼 (✎) — 이미지 에디터 열기
+  if (!wrap.querySelector('.img-edit')) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'img-edit';
+    editBtn.textContent = '✎';
+    editBtn.title = '이미지 편집';
+    wrap.appendChild(editBtn);
+  }
+
+  // 교체 버튼 (⟳) — 파일로 교체
+  if (!wrap.querySelector('.img-swap')) {
+    const swapBtn = document.createElement('button');
+    swapBtn.className = 'img-swap';
+    swapBtn.textContent = '⟳';
+    swapBtn.title = '이미지 교체';
+    wrap.appendChild(swapBtn);
   }
 
   // 삭제 버튼 이벤트
@@ -355,8 +366,14 @@ function setupImgWrap(wrap, grid) {
     updateGridCount(grid);
   });
 
+  // 편집 버튼 이벤트
+  wrap.querySelector('.img-edit').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    openImageEditor(wrap.querySelector('img'));
+  });
+
   // 교체 버튼 이벤트
-  wrap.querySelector('.img-replace').addEventListener('click', (ev) => {
+  wrap.querySelector('.img-swap').addEventListener('click', (ev) => {
     ev.stopPropagation();
     const input = document.createElement('input');
     input.type = 'file';
@@ -606,6 +623,133 @@ function renderFontOptions(filter = '') {
   });
 }
 
+// ── 이미지 에디터 ────────────────────────────
+let imgEditorTarget = null; // 편집 중인 <img> 요소
+let imgEditorSrc    = new Image();
+const imgEditorState = { rotation: 0, flipH: false, flipV: false, brightness: 100, contrast: 100 };
+
+function openImageEditor(imgEl) {
+  imgEditorTarget = imgEl;
+  Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, brightness: 100, contrast: 100 });
+  document.getElementById('imgBrightness').value = 100;
+  document.getElementById('imgContrast').value   = 100;
+  document.getElementById('imgBrightnessVal').textContent = '100%';
+  document.getElementById('imgContrastVal').textContent   = '100%';
+
+  imgEditorSrc = new Image();
+  imgEditorSrc.onload = () => {
+    redrawEditorCanvas();
+    document.getElementById('imgEditorOverlay').classList.add('visible');
+  };
+  imgEditorSrc.src = imgEl.src;
+}
+
+function redrawEditorCanvas() {
+  const canvas = document.getElementById('imgEditorCanvas');
+  const ctx    = canvas.getContext('2d');
+  const img    = imgEditorSrc;
+  const rot    = imgEditorState.rotation;
+  const rotated = rot === 90 || rot === 270;
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  const cw = rotated ? nh : nw, ch = rotated ? nw : nh;
+  const MAX = 380;
+  const scale = Math.min(MAX / cw, MAX / ch, 1);
+  canvas.width  = Math.round(cw * scale);
+  canvas.height = Math.round(ch * scale);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.filter = `brightness(${imgEditorState.brightness}%) contrast(${imgEditorState.contrast}%)`;
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((rot * Math.PI) / 180);
+  if (imgEditorState.flipH) ctx.scale(-1, 1);
+  if (imgEditorState.flipV) ctx.scale(1, -1);
+  ctx.drawImage(img, -nw * scale / 2, -nh * scale / 2, nw * scale, nh * scale);
+  ctx.restore();
+}
+
+function applyImageEdit() {
+  if (!imgEditorTarget || !imgEditorSrc.naturalWidth) return;
+  const img = imgEditorSrc;
+  const rot = imgEditorState.rotation;
+  const rotated = rot === 90 || rot === 270;
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  const cw = rotated ? nh : nw, ch = rotated ? nw : nh;
+  const offscreen = document.createElement('canvas');
+  offscreen.width = cw; offscreen.height = ch;
+  const ctx = offscreen.getContext('2d');
+  ctx.filter = `brightness(${imgEditorState.brightness}%) contrast(${imgEditorState.contrast}%)`;
+  ctx.save();
+  ctx.translate(cw / 2, ch / 2);
+  ctx.rotate((rot * Math.PI) / 180);
+  if (imgEditorState.flipH) ctx.scale(-1, 1);
+  if (imgEditorState.flipV) ctx.scale(1, -1);
+  ctx.drawImage(img, -nw / 2, -nh / 2, nw, nh);
+  ctx.restore();
+  const resultDataUrl = offscreen.toDataURL('image/jpeg', 0.92);
+  imgEditorTarget.src = resultDataUrl;
+  // 아바타 이미지면 프로필에도 저장
+  if (imgEditorTarget.closest('#profileAvatar')) {
+    memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: resultDataUrl };
+    saveMemoChanges({ profile: memoData.profile });
+  } else {
+    scheduleSave();
+  }
+  document.getElementById('imgEditorOverlay').classList.remove('visible');
+  imgEditorTarget = null;
+}
+
+// ── 텍스트 하이라이트 토글 ────────────────────
+function toggleHighlight() {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount || sel.isCollapsed) return;
+  memoContent.focus();
+
+  const range = sel.getRangeAt(0);
+  let node = range.commonAncestorContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+  const existingMark = node.closest?.('mark');
+
+  if (existingMark && memoContent.contains(existingMark)) {
+    // 하이라이트 제거
+    const parent = existingMark.parentNode;
+    const frag = document.createDocumentFragment();
+    while (existingMark.firstChild) frag.appendChild(existingMark.firstChild);
+    parent.replaceChild(frag, existingMark);
+    parent.normalize();
+  } else {
+    // 하이라이트 적용
+    try {
+      const mark = document.createElement('mark');
+      range.surroundContents(mark);
+    } catch {
+      const mark = document.createElement('mark');
+      const frag = range.extractContents();
+      mark.appendChild(frag);
+      range.insertNode(mark);
+    }
+  }
+  scheduleSave();
+}
+
+// ── 서식 상태 초기화 (더블엔터 후 호출) ─────────
+function resetFormattingAtCursor() {
+  // 임시 문자 삽입 → select → removeFormat → 삭제
+  // 이렇게 해야 브라우저의 "활성 서식" 기억이 초기화됨
+  document.execCommand('insertText', false, '\u200B');
+  const sel2 = window.getSelection();
+  if (sel2?.rangeCount) {
+    const r2 = sel2.getRangeAt(0).cloneRange();
+    r2.setStart(r2.startContainer, r2.startOffset - 1);
+    sel2.removeAllRanges();
+    sel2.addRange(r2);
+    document.execCommand('removeFormat');
+    r2.collapse(false);
+    sel2.removeAllRanges();
+    sel2.addRange(r2);
+    document.execCommand('delete');
+  }
+}
+
 // ── 이벤트 바인딩 ─────────────────────────────
 function bindEvents() {
   // 체크박스 delegated 이벤트 (박스 자체 클릭만 토글)
@@ -623,14 +767,32 @@ function bindEvents() {
   // 서식 단축키
   memoContent.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key === 'b')                       { e.preventDefault(); fmt('bold'); }
-    else if (mod && e.key === 'i')                  { e.preventDefault(); fmt('italic'); }
-    else if (mod && e.key === 'u')                  { e.preventDefault(); fmt('underline'); }
-    else if (mod && e.shiftKey && e.key === 'X')    { e.preventDefault(); fmt('strikeThrough'); }
-    else if (mod && e.key === 'k')                  { e.preventDefault(); insertLink(); }
-    else if (mod && e.key === 'z')                  { e.preventDefault(); document.execCommand('undo'); }
+    if (mod && e.key === 'b')                            { e.preventDefault(); fmt('bold'); }
+    else if (mod && e.key === 'i')                       { e.preventDefault(); fmt('italic'); }
+    else if (mod && e.key === 'u')                       { e.preventDefault(); fmt('underline'); }
+    else if (mod && e.shiftKey && e.key === 'X')         { e.preventDefault(); fmt('strikeThrough'); }
+    else if (mod && e.shiftKey && e.key === 'H')         { e.preventDefault(); toggleHighlight(); }
+    else if (mod && e.key === 'k')                       { e.preventDefault(); insertLink(); }
+    else if (mod && e.key === 'z')                       { e.preventDefault(); document.execCommand('undo'); }
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
+    } else if (e.key === 'Backspace' && !mod) {
+      // 구분선(HR) 앞에서 Backspace → HR 삭제
+      const sel = window.getSelection();
+      if (sel?.rangeCount && sel.isCollapsed && sel.getRangeAt(0).startOffset === 0) {
+        let node = sel.getRangeAt(0).startContainer;
+        if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
+        let el = node;
+        while (el && el.parentNode !== memoContent) el = el.parentNode;
+        if (el) {
+          const prev = el.previousElementSibling;
+          if (prev?.tagName === 'HR') {
+            e.preventDefault();
+            prev.remove();
+            scheduleSave();
+          }
+        }
+      }
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
@@ -661,6 +823,8 @@ function bindEvents() {
             r.collapse(true);
             sel.removeAllRanges();
             sel.addRange(r);
+            // 브라우저의 활성 서식 기억 초기화
+            resetFormattingAtCursor();
           } else {
             // 내용이 있는 체크박스에서 Enter → 새 체크박스 생성
             const newCb = document.createElement('div');
@@ -845,6 +1009,18 @@ function bindEvents() {
     const menu = document.createElement('div');
     menu.className = 'avatar-menu';
 
+    if (hasAvatar) {
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '사진 편집';
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        menu.remove();
+        const img = profileAvatar.querySelector('img');
+        if (img) openImageEditor(img);
+      });
+      menu.appendChild(editBtn);
+    }
+
     const changeBtn = document.createElement('button');
     changeBtn.textContent = hasAvatar ? '사진 변경' : '사진 추가';
     changeBtn.addEventListener('click', (ev) => {
@@ -990,6 +1166,47 @@ function bindEvents() {
 
   btnCaptureClipboard.addEventListener('click', () => doCapture('clipboard'));
   btnCaptureSave.addEventListener('click',      () => doCapture('save'));
+
+  // 하이라이트 버튼
+  btnHighlight.addEventListener('click', toggleHighlight);
+
+  // 이미지 에디터 이벤트
+  document.getElementById('imgEditorClose').addEventListener('click', () => {
+    document.getElementById('imgEditorOverlay').classList.remove('visible');
+    imgEditorTarget = null;
+  });
+  document.getElementById('imgEditorCancel').addEventListener('click', () => {
+    document.getElementById('imgEditorOverlay').classList.remove('visible');
+    imgEditorTarget = null;
+  });
+  document.getElementById('imgEditorApply').addEventListener('click', applyImageEdit);
+
+  document.getElementById('imgRotateCCW').addEventListener('click', () => {
+    imgEditorState.rotation = (imgEditorState.rotation + 270) % 360;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgRotateCW').addEventListener('click', () => {
+    imgEditorState.rotation = (imgEditorState.rotation + 90) % 360;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgFlipH').addEventListener('click', () => {
+    imgEditorState.flipH = !imgEditorState.flipH;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgFlipV').addEventListener('click', () => {
+    imgEditorState.flipV = !imgEditorState.flipV;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgBrightness').addEventListener('input', (e) => {
+    imgEditorState.brightness = parseInt(e.target.value);
+    document.getElementById('imgBrightnessVal').textContent = `${imgEditorState.brightness}%`;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgContrast').addEventListener('input', (e) => {
+    imgEditorState.contrast = parseInt(e.target.value);
+    document.getElementById('imgContrastVal').textContent = `${imgEditorState.contrast}%`;
+    redrawEditorCanvas();
+  });
 
   // 외부 클릭 시 팝업 닫기
   document.addEventListener('click', (e) => {

@@ -162,6 +162,31 @@ function updateMemoField(id, field, value) {
 }
 
 // ──────────────────────────────────────────
+// 답글 창 부착 (aboveWin 바로 아래에 belowWin 고정)
+// ──────────────────────────────────────────
+function attachChildWindow(aboveWin, belowWin) {
+  let syncing = false;
+  const sync = () => {
+    if (aboveWin.isDestroyed() || belowWin.isDestroyed() || syncing) return;
+    syncing = true;
+    try {
+      const ab  = aboveWin.getBounds();
+      const bel = belowWin.getBounds();
+      belowWin.setBounds({ x: ab.x, y: ab.y + ab.height + 2, width: ab.width, height: bel.height });
+    } finally { syncing = false; }
+  };
+  sync();
+  aboveWin.on('resize', sync);
+  aboveWin.on('move',   sync);
+  belowWin.on('closed', () => {
+    if (!aboveWin.isDestroyed()) {
+      aboveWin.off('resize', sync);
+      aboveWin.off('move',   sync);
+    }
+  });
+}
+
+// ──────────────────────────────────────────
 // IPC 핸들러
 // ──────────────────────────────────────────
 function registerIpcHandlers() {
@@ -190,16 +215,37 @@ function registerIpcHandlers() {
   ipcMain.handle('memo:createReply', (_e, { parentId }) => {
     const parent = getMemoById(parentId);
     if (!parent) return null;
+
+    // 같은 부모를 가진 기존 형제 중 가장 최근 것 → 그 아래에 붙임
+    const siblings = getMemos()
+      .filter(m => m.parentId === parentId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    let attachAbove = memoWindows.get(parentId);
+    if (siblings.length > 0) {
+      const lastWin = memoWindows.get(siblings[0].id);
+      if (lastWin && !lastWin.isDestroyed()) attachAbove = lastWin;
+    }
+
+    let replyX, replyY, replyWidth = 320;
+    if (attachAbove && !attachAbove.isDestroyed()) {
+      const pb = attachAbove.getBounds();
+      replyX = pb.x; replyY = pb.y + pb.height + 2; replyWidth = pb.width;
+    }
+
     const memo = buildNewMemo({
       parentId,
-      profile: { ...parent.profile },   // 부모 프로필 상속
-      theme:   { ...parent.theme },      // 부모 테마 상속
-      font:    { ...parent.font },       // 부모 폰트 상속
+      profile: { ...parent.profile },
+      theme:   { ...parent.theme },
+      font:    { ...parent.font },
+      window:  { x: replyX, y: replyY, width: replyWidth, height: 420 },
     });
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);
-    createMemoWindow(memo);
+    const replyWin = createMemoWindow(memo);
+    if (attachAbove && !attachAbove.isDestroyed()) {
+      attachChildWindow(attachAbove, replyWin);
+    }
     updateTrayMenu();
     broadcastListUpdate();
     return memo.id;
@@ -486,6 +532,25 @@ app.whenReady().then(async () => {
   } else {
     for (const memo of memos) createMemoWindow(memo);
   }
+
+  // 답글 창을 부모 창 아래에 재부착 (시작 시)
+  const sorted = [...memos].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const attached = new Set();
+  function attachThread(memoId) {
+    if (attached.has(memoId)) return;
+    attached.add(memoId);
+    const kids = sorted.filter(m => m.parentId === memoId);
+    let prevWin = memoWindows.get(memoId);
+    for (const kid of kids) {
+      const kidWin = memoWindows.get(kid.id);
+      if (prevWin && !prevWin.isDestroyed() && kidWin && !kidWin.isDestroyed()) {
+        attachChildWindow(prevWin, kidWin);
+      }
+      prevWin = kidWin;
+      attachThread(kid.id);
+    }
+  }
+  sorted.filter(m => !m.parentId).forEach(m => attachThread(m.id));
 
   updateTrayMenu();
 });

@@ -170,6 +170,11 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
   el.dataset.id = memo.id;
   if (memo.id === selectedId) el.classList.add('active');
 
+  // 메모별 테마 색상 적용 (CSS 변수 오버라이드)
+  if (memo.theme?.accent) {
+    el.style.setProperty('--color-accent', memo.theme.accent);
+  }
+
   const initial = (memo.profile?.name || '메')[0].toUpperCase();
   const accentBg = memo.theme?.accent || 'var(--color-accent)';
 
@@ -184,12 +189,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     ? new Date(memo.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
     : '';
 
-  const threadLineHtml = isReply
-    ? `<div class="reply-connector"><span class="connector-line ${isLastReply ? 'last' : ''}"></span></div>`
-    : '';
-
   el.innerHTML = `
-    ${threadLineHtml}
     <div class="item-avatar" style="background:${accentBg}">
       ${memo.profile?.avatarDataUrl
         ? `<img src="${memo.profile.avatarDataUrl}" alt="">`
@@ -229,10 +229,18 @@ function renderPreview(memo, isTrash = false) {
   });
 
   if (!memo) {
+    previewPane.style.removeProperty('--color-accent');
     previewEmpty.style.display = 'flex';
     return;
   }
   previewEmpty.style.display = 'none';
+
+  // 미리보기 패널에 메모 테마 색상 적용
+  if (memo.theme?.accent) {
+    previewPane.style.setProperty('--color-accent', memo.theme.accent);
+  } else {
+    previewPane.style.removeProperty('--color-accent');
+  }
 
   const initial  = (memo.profile?.name || '메')[0].toUpperCase();
   const accentBg = memo.theme?.accent || 'var(--color-accent)';

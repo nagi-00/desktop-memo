@@ -164,6 +164,9 @@
           <button class="action-icon-btn text-color" id="btnTextColor"  title="글자 색상">
             <i data-lucide="type" width="15" height="15"></i>
           </button>
+          <button class="action-icon-btn highlight" id="btnHighlight" title="텍스트 하이라이트 (Ctrl+Shift+H)">
+            <i data-lucide="highlighter" width="15" height="15"></i>
+          </button>
           <button class="action-icon-btn image"      id="btnImage"      title="이미지 첨부">
             <i data-lucide="image" width="15" height="15"></i>
           </button>
@@ -200,6 +203,41 @@
   </div><!-- /.card-view -->
 
 </div><!-- /.memo-root -->
+
+<!-- 이미지 편집 모달 -->
+<div class="img-editor-overlay" id="imgEditorOverlay">
+  <div class="img-editor-dialog">
+    <div class="img-editor-header">
+      <span>이미지 편집</span>
+      <button class="img-editor-close" id="imgEditorClose">×</button>
+    </div>
+    <div class="img-editor-canvas-wrap">
+      <canvas id="imgEditorCanvas"></canvas>
+    </div>
+    <div class="img-editor-controls">
+      <div class="img-editor-row">
+        <button class="img-editor-btn" id="imgRotateCCW" title="반시계 회전">↺</button>
+        <button class="img-editor-btn" id="imgRotateCW"  title="시계 회전">↻</button>
+        <button class="img-editor-btn" id="imgFlipH"     title="좌우 반전">↔</button>
+        <button class="img-editor-btn" id="imgFlipV"     title="상하 반전">↕</button>
+      </div>
+      <div class="img-editor-row slider-row">
+        <label>밝기</label>
+        <input type="range" id="imgBrightness" min="0" max="200" value="100">
+        <span id="imgBrightnessVal">100%</span>
+      </div>
+      <div class="img-editor-row slider-row">
+        <label>대비</label>
+        <input type="range" id="imgContrast" min="0" max="200" value="100">
+        <span id="imgContrastVal">100%</span>
+      </div>
+    </div>
+    <div class="img-editor-footer">
+      <button class="img-editor-btn cancel" id="imgEditorCancel">취소</button>
+      <button class="img-editor-btn apply" id="imgEditorApply">적용</button>
+    </div>
+  </div>
+</div>
 
 <!-- 숨겨진 파일 인풋 -->
 <input type="file" id="imageFileInput" accept="image/*" multiple style="display:none">
