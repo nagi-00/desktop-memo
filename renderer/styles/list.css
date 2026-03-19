@@ -3,7 +3,7 @@
    ══════════════════════════════════════════════ */
 
 :root {
-  --list-sidebar-width: 220px;
+  --list-sidebar-width: 240px;
 }
 
 body {
@@ -321,4 +321,241 @@ body {
   background: color-mix(in srgb, #ef4444 15%, transparent);
   border-color: #ef4444;
   color: #ef4444;
+}
+
+/* ══════════════════════════════════════════════
+   THREAD / REPLY STYLES
+   ══════════════════════════════════════════════ */
+
+/* ── 사이드바: 스레드 루트 ── */
+.memo-list-item.thread-root {
+  border-bottom: none;
+}
+
+/* 스레드 카운트 뱃지 */
+.thread-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  color: var(--color-accent);
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* 답글 라벨 */
+.reply-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-placeholder);
+  margin-left: 4px;
+}
+
+/* ── 스레드 토글 버튼 ── */
+.thread-toggle {
+  display: flex;
+  align-items: center;
+  padding: 0 12px 0 26px;
+  border-bottom: 1px solid var(--color-border);
+}
+.thread-line {
+  width: 2px;
+  height: 16px;
+  background: var(--color-border);
+  border-radius: 1px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+.thread-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity var(--transition-fast);
+}
+.thread-toggle-btn:hover { opacity: 0.7; }
+
+/* ── 사이드바: 답글 아이템 ── */
+.memo-list-item.reply-item {
+  padding-left: 8px;
+  border-bottom: none;
+}
+.memo-list-item.reply-item .item-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+.memo-list-item.last-reply {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* 답글 연결선 */
+.reply-connector {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  width: 14px;
+  position: relative;
+}
+.connector-line {
+  position: absolute;
+  left: 6px;
+  top: -10px;
+  bottom: 50%;
+  width: 2px;
+  background: var(--color-border);
+  border-radius: 1px;
+}
+.connector-line::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 2px;
+  background: var(--color-border);
+  border-radius: 1px;
+}
+.connector-line.last {
+  border-radius: 0 0 0 4px;
+}
+
+/* ── 미리보기: 스레드 컨텍스트 (답글의 부모 표시) ── */
+.preview-thread-ctx {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-accent);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  transition: background var(--transition-fast);
+}
+.preview-thread-ctx:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.thread-ctx-icon {
+  font-size: 14px;
+  color: var(--color-accent);
+}
+.thread-ctx-text strong {
+  color: var(--color-text);
+}
+
+/* ── 미리보기: 답글 스레드 섹션 ── */
+.preview-thread {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+.preview-thread-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+
+.preview-thread-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  position: relative;
+}
+.preview-thread-item:hover {
+  background: var(--color-surface-hover);
+}
+
+/* 스레드 아이템 연결선 */
+.thread-item-line {
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-border);
+  border-radius: 1px;
+}
+.preview-thread-item:last-child .thread-item-line {
+  bottom: 50%;
+}
+
+.thread-item-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 11px;
+  overflow: hidden;
+  z-index: 1;
+}
+.thread-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.thread-item-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.thread-item-date {
+  font-size: 10px;
+  color: var(--color-text-placeholder);
+  margin-left: 6px;
+}
+.thread-item-text {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 미리보기: 이미지 그리드 ── */
+.preview-images {
+  display: grid;
+  gap: 2px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+  max-height: 180px;
+}
+.preview-images[data-count="1"] { grid-template-columns: 1fr; }
+.preview-images[data-count="2"] { grid-template-columns: 1fr 1fr; }
+.preview-images[data-count="3"] {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.preview-images[data-count="3"] > :first-child { grid-row: 1 / 3; }
+.preview-images[data-count="4"] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.preview-images img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }

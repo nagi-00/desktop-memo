@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('memoAPI', {
 
   // ── 메모 CRUD ──
   createMemo: ()          => ipcRenderer.invoke('memo:create'),
+  createReply:(parentId)  => ipcRenderer.invoke('memo:createReply', { parentId }),
   updateMemo: (changes)   => ipcRenderer.invoke('memo:update', { id: memoId, changes }),
   deleteMemo: ()          => ipcRenderer.invoke('memo:delete', memoId),
 

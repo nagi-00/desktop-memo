@@ -1,5 +1,5 @@
 /**
- * list.js — 메모 목록 뷰 로직
+ * list.js — 메모 목록 뷰 로직 (스레드/답글 지원)
  */
 import { setThemeMode } from './theme.js';
 
@@ -9,6 +9,7 @@ let allMemos       = [];
 let selectedId     = null;
 let currentFilter  = 'all';
 let searchQuery    = '';
+let expandedThreads = new Set(); // 펼쳐진 스레드 parentId
 
 // ── DOM 참조 ──
 const sidebar       = document.getElementById('memoListSidebar');
@@ -23,15 +24,12 @@ const btnClose      = document.getElementById('btnClose');
 async function init() {
   if (window.lucide) lucide.createIcons();
 
-  // 테마 모드 적용
   const settings = await api.getSettings();
   if (settings?.theme) setThemeMode(settings.theme);
 
   await loadMemos();
-
   bindEvents();
 
-  // 메모 변경 수신
   api.onMemoListUpdated(async () => {
     const prevSelected = selectedId;
     await loadMemos();
@@ -47,12 +45,60 @@ async function loadMemos() {
   renderList();
 }
 
+// ── 스레드 그룹화 ──
+function buildThreads(memos) {
+  const byId = new Map();
+  memos.forEach(m => byId.set(m.id, m));
+
+  const roots = [];
+  const children = new Map(); // parentId → [child, ...]
+
+  memos.forEach(m => {
+    if (!m.parentId || !byId.has(m.parentId)) {
+      roots.push(m);
+    } else {
+      const arr = children.get(m.parentId) || [];
+      arr.push(m);
+      children.set(m.parentId, arr);
+    }
+  });
+
+  // 각 children을 시간순 정렬 (오래된 것 먼저)
+  children.forEach(arr => arr.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+
+  // root는 최신 활동 순 (본인 또는 자식의 updatedAt 중 최신)
+  roots.sort((a, b) => {
+    const aLatest = getThreadLatest(a.id, children);
+    const bLatest = getThreadLatest(b.id, children);
+    return bLatest - aLatest;
+  });
+
+  return { roots, children };
+}
+
+function getThreadLatest(id, children) {
+  let latest = 0;
+  const memo = allMemos.find(m => m.id === id);
+  if (memo) latest = new Date(memo.updatedAt).getTime();
+  const kids = children.get(id) || [];
+  kids.forEach(k => {
+    const t = new Date(k.updatedAt).getTime();
+    if (t > latest) latest = t;
+  });
+  return latest;
+}
+
 // ── 필터링 ──
 function getFilteredMemos() {
   let list = allMemos;
 
   if (currentFilter === 'bookmarked') list = list.filter(m => m.bookmarked);
   else if (currentFilter === 'liked') list = list.filter(m => m.liked);
+  else if (currentFilter === 'threads') {
+    // 스레드에 속한 메모만 (부모이거나 자식인 메모)
+    const parentIds = new Set(list.filter(m => m.parentId).map(m => m.parentId));
+    list = list.filter(m => parentIds.has(m.id) || m.parentId);
+  }
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
@@ -68,7 +114,6 @@ function getFilteredMemos() {
 
 // ── 목록 렌더링 ──
 function renderList() {
-  // 기존 항목 제거 (emptyList 제외)
   [...sidebar.children].forEach(el => {
     if (el !== emptyList) el.remove();
   });
@@ -82,15 +127,52 @@ function renderList() {
   }
   emptyList.style.display = 'none';
 
-  memos
-    .slice()
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
-    .forEach(memo => sidebar.appendChild(buildListItem(memo)));
+  const { roots, children } = buildThreads(memos);
+
+  roots.forEach(root => {
+    const replies = children.get(root.id) || [];
+    const hasReplies = replies.length > 0;
+    const isExpanded = expandedThreads.has(root.id);
+
+    // 루트 아이템
+    const rootEl = buildListItem(root, { isThreadRoot: hasReplies, replyCount: replies.length });
+    sidebar.appendChild(rootEl);
+
+    // 스레드 토글 버튼 (답글이 있을 때)
+    if (hasReplies) {
+      const toggleEl = document.createElement('div');
+      toggleEl.className = `thread-toggle ${isExpanded ? 'expanded' : ''}`;
+      toggleEl.innerHTML = `
+        <span class="thread-line"></span>
+        <button class="thread-toggle-btn">
+          ${isExpanded ? '답글 숨기기' : `답글 ${replies.length}개 보기`}
+        </button>
+      `;
+      toggleEl.querySelector('.thread-toggle-btn').addEventListener('click', () => {
+        if (expandedThreads.has(root.id)) expandedThreads.delete(root.id);
+        else expandedThreads.add(root.id);
+        renderList();
+      });
+      sidebar.appendChild(toggleEl);
+
+      // 펼쳐진 답글
+      if (isExpanded) {
+        replies.forEach((reply, idx) => {
+          const isLast = idx === replies.length - 1;
+          const replyEl = buildListItem(reply, { isReply: true, isLastReply: isLast });
+          sidebar.appendChild(replyEl);
+        });
+      }
+    }
+  });
 }
 
-function buildListItem(memo) {
+function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastReply = false, replyCount = 0 } = {}) {
   const el = document.createElement('div');
   el.className = 'memo-list-item';
+  if (isReply) el.classList.add('reply-item');
+  if (isReply && isLastReply) el.classList.add('last-reply');
+  if (isThreadRoot && replyCount > 0) el.classList.add('thread-root');
   el.dataset.id = memo.id;
   if (memo.id === selectedId) el.classList.add('active');
 
@@ -100,7 +182,7 @@ function buildListItem(memo) {
   const badgesHtml = [
     memo.bookmarked ? '<span class="item-badge">★ 북마크</span>' : '',
     memo.liked      ? '<span class="item-badge">♥ 좋아요</span>' : '',
-    ...(memo.tags || []).slice(0, 2).map(t => `<span class="item-badge">#${t}</span>`)
+    ...(memo.tags || []).slice(0, 2).map(t => `<span class="item-badge">#${escHtml(t)}</span>`)
   ].filter(Boolean).join('');
 
   const preview = (memo.content || '').slice(0, 40) || '(내용 없음)';
@@ -108,14 +190,24 @@ function buildListItem(memo) {
     ? new Date(memo.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
     : '';
 
+  // 답글 아이템에는 연결선 표시
+  const threadLineHtml = isReply
+    ? `<div class="reply-connector"><span class="connector-line ${isLastReply ? 'last' : ''}"></span></div>`
+    : '';
+
   el.innerHTML = `
+    ${threadLineHtml}
     <div class="item-avatar" style="background:${accentBg}">
       ${memo.profile?.avatarDataUrl
         ? `<img src="${memo.profile.avatarDataUrl}" alt="">`
         : initial}
     </div>
     <div class="item-info">
-      <div class="item-name">${escHtml(memo.profile?.name || '메모')}</div>
+      <div class="item-name">
+        ${escHtml(memo.profile?.name || '메모')}
+        ${isReply ? '<span class="reply-label">답글</span>' : ''}
+        ${isThreadRoot && replyCount > 0 ? `<span class="thread-count">${replyCount}</span>` : ''}
+      </div>
       <div class="item-preview">${escHtml(preview)}</div>
       <div class="item-date">${dateStr}</div>
       ${badgesHtml ? `<div class="item-badges">${badgesHtml}</div>` : ''}
@@ -129,7 +221,6 @@ function buildListItem(memo) {
 // ── 선택 ──
 function selectMemo(id) {
   selectedId = id;
-  // 활성 클래스 갱신
   sidebar.querySelectorAll('.memo-list-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === id);
   });
@@ -138,7 +229,6 @@ function selectMemo(id) {
 
 // ── 미리보기 ──
 function renderPreview(memo) {
-  // 기존 동적 콘텐츠 제거
   [...previewPane.children].forEach(el => {
     if (el !== previewEmpty) el.remove();
   });
@@ -151,6 +241,15 @@ function renderPreview(memo) {
 
   const initial  = (memo.profile?.name || '메')[0].toUpperCase();
   const accentBg = memo.theme?.accent || 'var(--color-accent)';
+
+  // 부모 메모 정보 (답글인 경우)
+  const parentMemo = memo.parentId ? allMemos.find(m => m.id === memo.parentId) : null;
+
+  // 이 메모의 답글들
+  const replies = allMemos
+    .filter(m => m.parentId === memo.id)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
   const content  = memo.contentHtml
     ? memo.contentHtml
     : escHtml(memo.content || '(내용 없음)');
@@ -162,6 +261,22 @@ function renderPreview(memo) {
       })
     : '';
 
+  // 부모 메모 컨텍스트 표시
+  if (parentMemo) {
+    const ctx = document.createElement('div');
+    ctx.className = 'preview-thread-ctx';
+    ctx.innerHTML = `
+      <span class="thread-ctx-icon">↩</span>
+      <span class="thread-ctx-text">
+        <strong>${escHtml(parentMemo.profile?.name || '메모')}</strong>의 답글
+      </span>
+    `;
+    ctx.style.cursor = 'pointer';
+    ctx.addEventListener('click', () => selectMemo(parentMemo.id));
+    previewPane.appendChild(ctx);
+  }
+
+  // 헤더
   const header = document.createElement('div');
   header.className = 'preview-header';
   header.innerHTML = `
@@ -177,45 +292,97 @@ function renderPreview(memo) {
     </div>
   `;
 
+  // 본문
   const contentEl = document.createElement('div');
   contentEl.className = 'preview-content';
   contentEl.innerHTML = content;
 
+  // 이미지 미리보기
+  if (memo.images && memo.images.length > 0) {
+    const imgGrid = document.createElement('div');
+    imgGrid.className = 'preview-images';
+    imgGrid.setAttribute('data-count', Math.min(memo.images.length, 4));
+    memo.images.slice(0, 4).forEach(src => {
+      const img = document.createElement('img');
+      img.src = src;
+      imgGrid.appendChild(img);
+    });
+    contentEl.appendChild(imgGrid);
+  }
+
+  // 답글 스레드 표시 (미리보기 내)
+  const threadSection = document.createElement('div');
+  if (replies.length > 0) {
+    threadSection.className = 'preview-thread';
+    const threadHeader = document.createElement('div');
+    threadHeader.className = 'preview-thread-header';
+    threadHeader.textContent = `답글 ${replies.length}개`;
+    threadSection.appendChild(threadHeader);
+
+    replies.forEach(reply => {
+      const replyEl = document.createElement('div');
+      replyEl.className = 'preview-thread-item';
+      const rInitial = (reply.profile?.name || '메')[0].toUpperCase();
+      const rAccent = reply.theme?.accent || 'var(--color-accent)';
+      const rPreview = (reply.content || '').slice(0, 60) || '(내용 없음)';
+      const rDate = reply.updatedAt
+        ? new Date(reply.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
+        : '';
+      replyEl.innerHTML = `
+        <div class="thread-item-line"></div>
+        <div class="thread-item-avatar" style="background:${rAccent}">
+          ${reply.profile?.avatarDataUrl
+            ? `<img src="${reply.profile.avatarDataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : rInitial}
+        </div>
+        <div class="thread-item-body">
+          <span class="thread-item-name">${escHtml(reply.profile?.name || '메모')}</span>
+          <span class="thread-item-date">${rDate}</span>
+          <div class="thread-item-text">${escHtml(rPreview)}</div>
+        </div>
+      `;
+      replyEl.addEventListener('click', () => selectMemo(reply.id));
+      threadSection.appendChild(replyEl);
+    });
+  }
+
+  // 액션 버튼
   const actions = document.createElement('div');
   actions.className = 'preview-actions';
   actions.innerHTML = `
     <button class="preview-btn primary" data-action="open">메모 열기</button>
+    <button class="preview-btn" data-action="reply">답글</button>
     <button class="preview-btn" data-action="new">새 메모</button>
     <button class="preview-btn danger" data-action="delete">삭제</button>
   `;
   actions.querySelector('[data-action="open"]').addEventListener('click', () => {
     api.focusMemo(memo.id);
   });
+  actions.querySelector('[data-action="reply"]').addEventListener('click', () => {
+    api.createReply(memo.id);
+  });
   actions.querySelector('[data-action="new"]').addEventListener('click', () => {
     api.createMemo();
   });
   actions.querySelector('[data-action="delete"]').addEventListener('click', async () => {
     if (confirm(`"${memo.profile?.name || '메모'}"를 삭제할까요?`)) {
-      // 삭제는 IPC를 통해 main에서 처리
-      // getAllMemos로 폴링 대신 onMemoListUpdated로 자동 반영
-      await api.focusMemo(memo.id); // 창을 포커스한 뒤 삭제는 사용자가 해당 창에서 진행
+      api.focusMemo(memo.id);
     }
   });
 
   previewPane.appendChild(header);
   previewPane.appendChild(contentEl);
+  if (replies.length > 0) previewPane.appendChild(threadSection);
   previewPane.appendChild(actions);
 }
 
 // ── 이벤트 바인딩 ──
 function bindEvents() {
-  // 검색
   searchInput.addEventListener('input', () => {
     searchQuery = searchInput.value.trim();
     renderList();
   });
 
-  // 필터 칩
   document.querySelectorAll('.filter-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
@@ -225,10 +392,7 @@ function bindEvents() {
     });
   });
 
-  // 새 메모
   btnNewMemo.addEventListener('click', () => api.createMemo());
-
-  // 닫기
   btnClose.addEventListener('click', () => window.close());
 }
 

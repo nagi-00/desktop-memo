@@ -105,6 +105,20 @@ async function init() {
   // 저장된 미디어 그리드에 래퍼/이벤트 재적용
   initMediaGrids();
 
+  // 답글 컨텍스트 표시
+  if (memoData.parentId) {
+    const allMemos = await api.getAllMemos();
+    const parent = allMemos?.find(m => m.id === memoData.parentId);
+    if (parent) {
+      const ctx = document.getElementById('replyContext');
+      const ctxText = document.getElementById('replyContextText');
+      ctxText.textContent = `${parent.profile?.name || '메모'}에 대한 답글`;
+      ctx.style.display = 'flex';
+      ctx.style.cursor = 'pointer';
+      ctx.addEventListener('click', () => api.focusMemo(parent.id));
+    }
+  }
+
   // 프로필
   const profile = memoData.profile || {};
   displayName.textContent = profile.name   || '메모';
@@ -804,9 +818,9 @@ function bindEvents() {
     }
   });
 
-  // 답글 (Phase 3 placeholder)
+  // 답글 (스레드)
   btnReply.addEventListener('click', () => {
-    // TODO Phase 3: 세부 메모(답글) 윈도우 열기
+    if (memoData?.id) api.createReply(memoData.id);
   });
 
   // 심볼 버튼 → 메모 목록 열기

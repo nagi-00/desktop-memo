@@ -56,6 +56,7 @@ function buildNewMemo(overrides = {}) {
     minimized:  false,
     bookmarked: false,
     liked:      false,
+    parentId:   null,        // null = 최상위, string = 부모 메모 ID (답글/스레드)
     prevBounds: null,
     createdAt:  new Date().toISOString(),
     updatedAt:  new Date().toISOString(),
@@ -173,6 +174,25 @@ function registerIpcHandlers() {
   // 새 메모 생성
   ipcMain.handle('memo:create', () => {
     const memo = buildNewMemo();
+    const memos = getMemos();
+    memos.push(memo);
+    saveMemos(memos);
+    createMemoWindow(memo);
+    updateTrayMenu();
+    broadcastListUpdate();
+    return memo.id;
+  });
+
+  // 답글(스레드) 메모 생성
+  ipcMain.handle('memo:createReply', (_e, { parentId }) => {
+    const parent = getMemoById(parentId);
+    if (!parent) return null;
+    const memo = buildNewMemo({
+      parentId,
+      profile: { ...parent.profile },   // 부모 프로필 상속
+      theme:   { ...parent.theme },      // 부모 테마 상속
+      font:    { ...parent.font },       // 부모 폰트 상속
+    });
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);

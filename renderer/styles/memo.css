@@ -335,6 +335,27 @@
   text-align: right;
 }
 
+/* ── 답글 컨텍스트 배너 ── */
+.reply-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+.reply-context:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.reply-context-icon {
+  color: var(--color-accent);
+  font-size: 12px;
+}
+
 /* ══════════════════════════════════════════════
    PROFILE ROW (drag region)
    ══════════════════════════════════════════════ */
