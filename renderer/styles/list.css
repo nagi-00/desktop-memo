@@ -419,11 +419,20 @@ body {
 .thread-toggle .tt-arrow {
   display: inline-block;
   font-size: 9px;
-  transition: transform 0.15s ease;
+  transition: transform 0.18s ease;
   line-height: 1;
 }
 .thread-toggle[data-collapsed="true"] .tt-arrow {
   transform: rotate(-90deg);
+}
+/* 꾹 누르는 중 피드백 */
+.thread-toggle.pressing {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  transition: background 0.48s ease;
+}
+.thread-toggle.collapsed {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  opacity: 0.7;
 }
 
 /* 스레드 카운트 뱃지 */

@@ -128,12 +128,17 @@ function getCssAccentHex() {
 
 function generateTextPalette() {
   try {
-    const [h, s, l] = hexToHsl(getCssAccentHex());
-    const sat  = Math.max(s, 65);
-    const lum  = Math.max(Math.min(l, 62), 48);
-    return Array.from({ length: 5 }, (_, i) => hslToHex((h + i * 72) % 360, sat, lum));
+    const [h, s] = hexToHsl(getCssAccentHex());
+    const sat = Math.max(s, 60);
+    return [
+      hslToHex(h, Math.min(sat - 20, 80), 82),  // 가장 밝은 틴트
+      hslToHex(h, Math.min(sat,     90), 68),  // 밝은 틴트
+      hslToHex(h, Math.min(sat + 5, 95), 52),  // 기본 (accent 기준)
+      hslToHex(h, Math.min(sat + 8, 95), 38),  // 어두운 셰이드
+      hslToHex(h, Math.min(sat + 5, 90), 25),  // 가장 어두운 셰이드
+    ];
   } catch {
-    return ['#f87171', '#fbbf24', '#4ade80', '#60a5fa', '#c084fc'];
+    return ['#c4b5fd', '#a78bfa', '#7c6af7', '#5b4fcf', '#3b31a1'];
   }
 }
 
@@ -424,7 +429,7 @@ function updateMediaHeaderVisibility() {
   mediaHeader.style.display = count > 0 ? 'flex' : 'none';
   if (count === 0) {
     mediaFolded = false;
-    mediaArea.style.display = '';
+    mediaArea.classList.remove('folded');
   } else {
     const label = document.getElementById('mediaFoldLabel');
     if (label) label.textContent = mediaFolded ? `사진 ${count}장 펼치기` : `사진 ${count}장 접기`;
@@ -1479,7 +1484,7 @@ function bindEvents() {
   // 미디어 영역 접기/펼치기
   document.getElementById('btnMediaFold').addEventListener('click', () => {
     mediaFolded = !mediaFolded;
-    mediaArea.style.display = mediaFolded ? 'none' : '';
+    mediaArea.classList.toggle('folded', mediaFolded);
     updateMediaHeaderVisibility();
     const icon = document.getElementById('mediaFoldIcon');
     if (icon) {

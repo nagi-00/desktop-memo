@@ -692,9 +692,17 @@
 /* ── 미디어 영역 (텍스트 아래 고정, 트위터 스타일) ── */
 .media-area {
   flex-shrink: 0;
-  padding: 0 14px 8px; /* 좌우 패딩 통일 */
+  padding: 0 14px 8px;
   max-height: 260px;
   overflow-y: auto;
+  transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
+}
+.media-area.folded {
+  max-height: 0 !important;
+  overflow: hidden;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* ══════════════════════════════════════════════

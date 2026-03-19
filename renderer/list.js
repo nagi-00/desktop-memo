@@ -160,15 +160,36 @@ function renderList() {
       });
       const toggleBtn = rootEl.querySelector('.thread-toggle');
       if (toggleBtn) {
-        const arrowEl = toggleBtn.querySelector('.tt-arrow');
-        toggleBtn.addEventListener('click', (e) => {
+        let pressTimer = null;
+        function doToggle(e) {
           e.stopPropagation();
           const collapsed = toggleBtn.dataset.collapsed === 'true';
           const next = !collapsed;
           toggleBtn.dataset.collapsed = String(next);
           toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
+          toggleBtn.classList.toggle('collapsed', next);
           replyEls.forEach(el => el.style.display = next ? 'none' : '');
+        }
+        toggleBtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          toggleBtn.classList.add('pressing');
+          pressTimer = setTimeout(() => {
+            pressTimer = null;
+            toggleBtn.classList.remove('pressing');
+            doToggle(e);
+          }, 480);
         });
+        toggleBtn.addEventListener('pointerup', (e) => {
+          e.stopPropagation();
+          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+          toggleBtn.classList.remove('pressing');
+        });
+        toggleBtn.addEventListener('pointerleave', () => {
+          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+          toggleBtn.classList.remove('pressing');
+        });
+        // 일반 클릭은 전파 차단만 (선택 이벤트 방지)
+        toggleBtn.addEventListener('click', (e) => e.stopPropagation());
       }
     }
   });
