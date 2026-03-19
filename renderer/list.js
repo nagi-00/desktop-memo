@@ -160,36 +160,24 @@ function renderList() {
       });
       const toggleBtn = rootEl.querySelector('.thread-toggle');
       if (toggleBtn) {
-        let pressTimer = null;
-        function doToggle(e) {
+        toggleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           const collapsed = toggleBtn.dataset.collapsed === 'true';
           const next = !collapsed;
           toggleBtn.dataset.collapsed = String(next);
           toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
           toggleBtn.classList.toggle('collapsed', next);
-          replyEls.forEach(el => el.style.display = next ? 'none' : '');
-        }
-        toggleBtn.addEventListener('pointerdown', (e) => {
-          e.stopPropagation();
-          toggleBtn.classList.add('pressing');
-          pressTimer = setTimeout(() => {
-            pressTimer = null;
-            toggleBtn.classList.remove('pressing');
-            doToggle(e);
-          }, 480);
+          replyEls.forEach(el => {
+            if (next) {
+              el.style.maxHeight = el.scrollHeight + 'px';
+              requestAnimationFrame(() => { el.style.maxHeight = '0'; el.style.opacity = '0'; });
+            } else {
+              el.style.maxHeight = el.scrollHeight + 'px';
+              el.style.opacity = '1';
+              el.addEventListener('transitionend', () => { el.style.maxHeight = ''; }, { once: true });
+            }
+          });
         });
-        toggleBtn.addEventListener('pointerup', (e) => {
-          e.stopPropagation();
-          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-          toggleBtn.classList.remove('pressing');
-        });
-        toggleBtn.addEventListener('pointerleave', () => {
-          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-          toggleBtn.classList.remove('pressing');
-        });
-        // 일반 클릭은 전파 차단만 (선택 이벤트 방지)
-        toggleBtn.addEventListener('click', (e) => e.stopPropagation());
       }
     }
   });

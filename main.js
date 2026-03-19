@@ -447,6 +447,21 @@ function registerIpcHandlers() {
     listWindow.once('ready-to-show', () => listWindow.show());
     listWindow.on('closed', () => { listWindow = null; });
   });
+
+  // 이미지 파일 선택 → Base64 DataURL 반환 (renderer input.click() 미동작 대안)
+  ipcMain.handle('file:pickImage', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters: [{ name: '이미지', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    const filePath = result.filePaths[0];
+    const data = fs.readFileSync(filePath);
+    const ext  = path.extname(filePath).slice(1).toLowerCase();
+    const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+    return `data:${mime};base64,${data.toString('base64')}`;
+  });
 }
 
 // 목록 창에 메모 변경 알림

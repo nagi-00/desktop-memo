@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('memoAPI', {
     return () => ipcRenderer.removeListener('theme:modeChanged', handler);
   },
 
+  // ── 파일 선택 ──
+  pickImageFile: () => ipcRenderer.invoke('file:pickImage'),
+
   // ── 캡처 (이미지 저장 / 클립보드) ──
   captureCard: ({ rect, action }) => ipcRenderer.invoke('memo:captureCard', { id: memoId, rect, action }),
 

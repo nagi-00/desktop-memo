@@ -127,15 +127,25 @@ function getCssAccentHex() {
 }
 
 function generateTextPalette() {
+  // 디폴트 테마(accent 없음) → 빨노초파보 파스텔
+  if (!memoData?.theme?.accent) {
+    return [
+      hslToHex(  0, 72, 80),  // 연한 빨강
+      hslToHex( 46, 88, 78),  // 연한 노랑
+      hslToHex(130, 52, 76),  // 연한 초록
+      hslToHex(210, 72, 80),  // 연한 파랑
+      hslToHex(275, 68, 80),  // 연한 보라
+    ];
+  }
   try {
     const [h, s] = hexToHsl(getCssAccentHex());
     const sat = Math.max(s, 60);
     return [
-      hslToHex(h, Math.min(sat - 20, 80), 82),  // 가장 밝은 틴트
-      hslToHex(h, Math.min(sat,     90), 68),  // 밝은 틴트
-      hslToHex(h, Math.min(sat + 5, 95), 52),  // 기본 (accent 기준)
-      hslToHex(h, Math.min(sat + 8, 95), 38),  // 어두운 셰이드
-      hslToHex(h, Math.min(sat + 5, 90), 25),  // 가장 어두운 셰이드
+      hslToHex(h, Math.min(sat - 20, 80), 82),
+      hslToHex(h, Math.min(sat,     90), 68),
+      hslToHex(h, Math.min(sat + 5, 95), 52),
+      hslToHex(h, Math.min(sat + 8, 95), 38),
+      hslToHex(h, Math.min(sat + 5, 90), 25),
     ];
   } catch {
     return ['#c4b5fd', '#a78bfa', '#7c6af7', '#5b4fcf', '#3b31a1'];
@@ -1096,6 +1106,97 @@ function bindEvents() {
         }
       }
     }
+    // ── 구분선(hr-block) 방향키 탐색 ──────────────────────
+    else if (['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(e.key)) {
+      const sel2 = window.getSelection();
+      if (!sel2?.rangeCount || !sel2.isCollapsed) { handleAutoConvert(e); return; }
+      const r2   = sel2.getRangeAt(0);
+      let n2 = r2.startContainer;
+      if (n2.nodeType === Node.TEXT_NODE) n2 = n2.parentNode;
+
+      // 1) 커서가 contenteditable=false 내에 갇혀 있으면 탈출
+      let trapped = null;
+      let cur2 = n2;
+      while (cur2 && cur2 !== memoContent) {
+        if (cur2.getAttribute?.('contenteditable') === 'false') { trapped = cur2; break; }
+        cur2 = cur2.parentNode;
+      }
+      const goFwd = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+      if (trapped) {
+        e.preventDefault();
+        const target = goFwd ? trapped.nextSibling : trapped.previousSibling;
+        let dest = target;
+        if (!dest) {
+          dest = document.createElement('div');
+          dest.innerHTML = '<br>';
+          goFwd ? memoContent.appendChild(dest) : memoContent.insertBefore(dest, trapped);
+        }
+        try {
+          const rr = document.createRange();
+          rr.setStart(dest, goFwd ? 0 : (dest.childNodes.length || 0));
+          rr.collapse(true);
+          sel2.removeAllRanges(); sel2.addRange(rr);
+          memoContent.focus();
+        } catch {}
+        return;
+      }
+
+      // 2) 커서가 hr-block 인접 요소 끝/처음에 있으면 건너뜀
+      let topEl = n2;
+      while (topEl && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+      if (topEl) {
+        if (goFwd) {
+          // 현재 요소 끝인지 확인
+          const atEnd = (r2.startContainer.nodeType === Node.TEXT_NODE)
+            ? r2.startOffset >= r2.startContainer.textContent.length
+            : r2.startOffset >= r2.startContainer.childNodes.length;
+          if (atEnd) {
+            const nextEl = topEl.nextElementSibling;
+            if (nextEl?.getAttribute('contenteditable') === 'false') {
+              e.preventDefault();
+              let afterHr = nextEl.nextSibling;
+              if (!afterHr) {
+                afterHr = document.createElement('div');
+                afterHr.innerHTML = '<br>';
+                memoContent.appendChild(afterHr);
+              }
+              try {
+                const rr = document.createRange();
+                rr.setStart(afterHr, 0); rr.collapse(true);
+                sel2.removeAllRanges(); sel2.addRange(rr);
+                memoContent.focus();
+              } catch {}
+              return;
+            }
+          }
+        } else {
+          const atStart = r2.startOffset === 0;
+          if (atStart) {
+            const prevEl = topEl.previousElementSibling;
+            if (prevEl?.getAttribute('contenteditable') === 'false') {
+              e.preventDefault();
+              let beforeHr = prevEl.previousSibling;
+              if (!beforeHr) {
+                beforeHr = document.createElement('div');
+                beforeHr.innerHTML = '<br>';
+                memoContent.insertBefore(beforeHr, prevEl);
+              }
+              try {
+                const rr = document.createRange();
+                const len = beforeHr.nodeType === Node.TEXT_NODE
+                  ? beforeHr.textContent.length
+                  : beforeHr.childNodes.length;
+                rr.setStart(beforeHr, len); rr.collapse(true);
+                sel2.removeAllRanges(); sel2.addRange(rr);
+                memoContent.focus();
+              } catch {}
+              return;
+            }
+          }
+        }
+      }
+    }
+
     handleAutoConvert(e);
   });
 
@@ -1314,27 +1415,14 @@ function bindEvents() {
 
     const changeBtn = document.createElement('button');
     changeBtn.textContent = hasAvatar ? '사진 변경' : '사진 추가';
-    changeBtn.addEventListener('click', (ev) => {
+    changeBtn.addEventListener('click', async (ev) => {
       ev.stopPropagation();
       menu.remove();
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-      fileInput.style.display = 'none';
-      document.body.appendChild(fileInput);
-      fileInput.addEventListener('change', () => {
-        document.body.removeChild(fileInput);
-        const file = fileInput.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev2) => {
-          memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: ev2.target.result };
-          saveMemoChanges({ profile: memoData.profile });
-          renderAvatar();
-        };
-        reader.readAsDataURL(file);
-      });
-      fileInput.click();
+      const dataUrl = await api.pickImageFile();
+      if (!dataUrl) return;
+      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: dataUrl };
+      saveMemoChanges({ profile: memoData.profile });
+      renderAvatar();
     });
     menu.appendChild(changeBtn);
 

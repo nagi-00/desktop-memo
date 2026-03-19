@@ -145,13 +145,14 @@ body {
 
 .memo-list-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 10px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--color-border);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), max-height 0.22s ease, opacity 0.18s ease;
   position: relative;
+  overflow: hidden;
 }
 .memo-list-item:hover   { background: var(--color-surface-hover); }
 .memo-list-item.active  { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
@@ -425,14 +426,11 @@ body {
 .thread-toggle[data-collapsed="true"] .tt-arrow {
   transform: rotate(-90deg);
 }
-/* 꾹 누르는 중 피드백 */
-.thread-toggle.pressing {
-  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
-  transition: background 0.48s ease;
-}
 .thread-toggle.collapsed {
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  opacity: 0.7;
+  opacity: 0.65;
+}
+.thread-toggle:active {
+  transform: scale(0.93);
 }
 
 /* 스레드 카운트 뱃지 */
