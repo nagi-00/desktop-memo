@@ -333,12 +333,20 @@ function handleAutoConvert(e) {
   if (textBefore === '[]' || textBefore === '[ ]') {
     e.preventDefault();
     const len = textBefore.length;
-    node.textContent =
-      node.textContent.slice(0, range.startOffset - len) +
-      node.textContent.slice(range.startOffset);
-    // 커서 앞에 체크박스 삽입 (div로 감싸 — 박스만 클릭해야 토글)
+    // 트리거 문자 제거
+    const before = node.textContent.slice(0, range.startOffset - len);
+    const after  = node.textContent.slice(range.startOffset);
+    node.textContent = before + after;
+    // 커서 위치 보정
+    const r2 = document.createRange();
+    r2.setStart(node, before.length);
+    r2.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r2);
+    // 체크박스 삽입 (div — 박스만 클릭해야 토글, 텍스트 편집 가능)
     document.execCommand('insertHTML', false,
-      '<div class="cb-item"><input type="checkbox"><span>&nbsp;</span></div>');
+      '<div class="cb-item"><input type="checkbox"><span contenteditable="true">&ZeroWidthSpace;</span></div><br>');
+    scheduleSave();
     return;
   }
 }
@@ -522,12 +530,8 @@ function bindEvents() {
   // 링크 버튼
   btnLink.addEventListener('click', insertLink);
 
-  // 이미지 첨부 — Twitter-style 미디어 그리드
-  btnImage.addEventListener('click', () => imageFileInput.click());
-  imageFileInput.addEventListener('change', (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
+  // ── 미디어 그리드 헬퍼 ──────────────────────
+  function getOrCreateGrid() {
     let grid = memoContent.querySelector('.media-grid');
     if (!grid) {
       grid = document.createElement('div');
@@ -535,20 +539,89 @@ function bindEvents() {
       grid.contentEditable = 'false';
       memoContent.appendChild(grid);
     }
+    return grid;
+  }
+
+  function updateGridCount(grid) {
+    const count = grid.querySelectorAll('.img-wrap').length;
+    if (count === 0) { grid.remove(); }
+    else { grid.setAttribute('data-count', Math.min(count, 4)); }
+    scheduleSave();
+  }
+
+  function addImageToGrid(grid, src) {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
+    wrap.draggable = true;
+
+    const img = document.createElement('img');
+    img.src = src;
+    wrap.appendChild(img);
+
+    // 삭제 버튼
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'img-remove';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      wrap.remove();
+      updateGridCount(grid);
+    });
+    wrap.appendChild(removeBtn);
+
+    // 드래그 순서 변경
+    wrap.addEventListener('dragstart', (ev) => {
+      wrap.classList.add('dragging');
+      ev.dataTransfer.effectAllowed = 'move';
+      grid._dragSrc = wrap;
+    });
+    wrap.addEventListener('dragend', () => {
+      wrap.classList.remove('dragging');
+      grid.querySelectorAll('.img-wrap').forEach(w => w.classList.remove('drag-over'));
+      grid._dragSrc = null;
+      updateGridCount(grid);
+    });
+    wrap.addEventListener('dragover', (ev) => {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      if (grid._dragSrc && grid._dragSrc !== wrap) {
+        wrap.classList.add('drag-over');
+      }
+    });
+    wrap.addEventListener('dragleave', () => wrap.classList.remove('drag-over'));
+    wrap.addEventListener('drop', (ev) => {
+      ev.preventDefault();
+      wrap.classList.remove('drag-over');
+      if (grid._dragSrc && grid._dragSrc !== wrap) {
+        // 위치 교환
+        const allWraps = [...grid.querySelectorAll('.img-wrap')];
+        const fromIdx = allWraps.indexOf(grid._dragSrc);
+        const toIdx   = allWraps.indexOf(wrap);
+        if (fromIdx < toIdx) {
+          grid.insertBefore(grid._dragSrc, wrap.nextSibling);
+        } else {
+          grid.insertBefore(grid._dragSrc, wrap);
+        }
+      }
+    });
+
+    grid.appendChild(wrap);
+  }
+
+  // 이미지 첨부 — Twitter-style 미디어 그리드
+  btnImage.addEventListener('click', () => imageFileInput.click());
+  imageFileInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const grid = getOrCreateGrid();
 
     let loaded = 0;
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const img = document.createElement('img');
-        img.src = ev.target.result;
-        grid.appendChild(img);
+        addImageToGrid(grid, ev.target.result);
         loaded++;
-        if (loaded === files.length) {
-          const count = grid.querySelectorAll('img').length;
-          grid.setAttribute('data-count', Math.min(count, 4));
-          scheduleSave();
-        }
+        if (loaded === files.length) updateGridCount(grid);
       };
       reader.readAsDataURL(file);
     });
