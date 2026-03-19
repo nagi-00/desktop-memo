@@ -356,7 +356,6 @@
   font-size: 12px;
 }
 .reply-apply-parent-theme {
-  margin-left: auto;
   padding: 2px 8px;
   font-size: 10px;
   border: 1px solid var(--color-border);
@@ -371,6 +370,39 @@
   background: var(--color-surface-hover);
   color: var(--color-text);
 }
+
+/* 답글 메모 최소 컨트롤 버튼 (상태바 대신) */
+.reply-ctx-ctrls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.reply-ctx-spacer { flex: 1; }
+.reply-ctx-ctrl {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.reply-ctx-ctrl:hover { background: var(--color-surface-hover); color: var(--color-text); }
+.reply-ctx-ctrl.danger:hover {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #ef4444;
+}
+
+/* 답글 메모 — 상단바 없이 reply-context가 최상단이므로 radius 적용 */
+.memo-card.is-reply .status-bar { display: none; }
+.memo-card.is-reply .reply-context {
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  -webkit-app-region: drag;
+  cursor: default;
+}
+.memo-card.is-reply .reply-context > * { -webkit-app-region: no-drag; }
 
 /* 아바타 컨텍스트 메뉴 */
 .avatar-menu {
@@ -669,27 +701,31 @@
   min-width: 0;
   justify-content: flex-end;
   flex-wrap: nowrap;
+  overflow: hidden; /* 초과 버튼 클리핑 — 팝업 없는 버튼만 여기에 위치 */
 }
 
 /* 반응형: 창이 좁을 때 우선순위 낮은 버튼 숨김 */
 .action-bar.compact .action-icon-btn.reply,
-.action-bar.compact .action-icon-btn.text-color {
+.action-bar.compact .action-icon-btn.text-color,
+.action-bar.compact .action-icon-btn.highlight {
   display: none;
 }
 .action-bar.very-compact .action-icon-btn.reply,
 .action-bar.very-compact .action-icon-btn.text-color,
+.action-bar.very-compact .action-icon-btn.highlight,
 .action-bar.very-compact .action-icon-btn.link,
 .action-bar.very-compact .action-icon-btn.image {
   display: none;
 }
 .action-bar.ultra-compact .action-icon-btn.reply,
 .action-bar.ultra-compact .action-icon-btn.text-color,
+.action-bar.ultra-compact .action-icon-btn.highlight,
 .action-bar.ultra-compact .action-icon-btn.link,
 .action-bar.ultra-compact .action-icon-btn.image,
-.action-bar.ultra-compact .action-icon-btn.new-memo,
-.action-bar.ultra-compact .action-icon-btn.capture {
+.action-bar.ultra-compact .action-icon-btn.new-memo {
   display: none;
 }
+.action-bar.ultra-compact #captureWrap { display: none; }
 
 /* 액션 아이콘 버튼 */
 .action-icon-btn {

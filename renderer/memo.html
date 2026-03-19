@@ -154,8 +154,9 @@
       <!-- 액션 바 -->
       <div class="action-bar">
         <span class="created-date" id="createdDate"></span>
+        <!-- 버튼 영역 (overflow:hidden — 팝업 없는 버튼만) -->
         <div class="action-icons">
-          <button class="action-icon-btn reply"      id="btnReply"      title="답글 (준비 중)">
+          <button class="action-icon-btn reply"      id="btnReply"      title="답글">
             <i data-lucide="message-circle" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn link"       id="btnLink"       title="하이퍼링크 삽입 (Ctrl+K)">
@@ -164,13 +165,13 @@
           <button class="action-icon-btn text-color" id="btnTextColor"  title="글자 색상">
             <i data-lucide="type" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn highlight" id="btnHighlight" title="텍스트 하이라이트 (Ctrl+Shift+H)">
+          <button class="action-icon-btn highlight"  id="btnHighlight"  title="하이라이트 (Ctrl+Shift+H)">
             <i data-lucide="highlighter" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn image"      id="btnImage"      title="이미지 첨부">
             <i data-lucide="image" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn bookmark"   id="btnBookmark"   title="중요 북마크">
+          <button class="action-icon-btn bookmark"   id="btnBookmark"   title="북마크">
             <i data-lucide="bookmark" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn like"       id="btnLike"       title="좋아요">
@@ -179,21 +180,21 @@
           <button class="action-icon-btn new-memo"   id="btnNewMemo"    title="새 메모 (Ctrl+N)">
             <i data-lucide="plus" width="15" height="15"></i>
           </button>
-          <!-- 캡처 팝업 래퍼 -->
-          <div class="action-popup-wrap" id="captureWrap">
-            <button class="action-icon-btn capture" id="btnCapture" title="이미지로 내보내기">
-              <i data-lucide="camera" width="15" height="15"></i>
+        </div>
+        <!-- 캡처 팝업 래퍼 — action-icons 밖으로 분리 (overflow:hidden 영향 안 받음) -->
+        <div class="action-popup-wrap" id="captureWrap">
+          <button class="action-icon-btn capture" id="btnCapture" title="이미지로 내보내기">
+            <i data-lucide="camera" width="15" height="15"></i>
+          </button>
+          <div class="action-popup capture-popup" id="capturePopup">
+            <button class="capture-opt" id="btnCaptureClipboard">
+              <i data-lucide="clipboard" width="13" height="13"></i>
+              클립보드 복사
             </button>
-            <div class="action-popup capture-popup" id="capturePopup">
-              <button class="capture-opt" id="btnCaptureClipboard">
-                <i data-lucide="clipboard" width="13" height="13"></i>
-                클립보드 복사
-              </button>
-              <button class="capture-opt" id="btnCaptureSave">
-                <i data-lucide="download" width="13" height="13"></i>
-                파일로 저장
-              </button>
-            </div>
+            <button class="capture-opt" id="btnCaptureSave">
+              <i data-lucide="download" width="13" height="13"></i>
+              파일로 저장
+            </button>
           </div>
         </div>
       </div>
@@ -220,16 +221,22 @@
         <button class="img-editor-btn" id="imgRotateCW"  title="시계 회전">↻</button>
         <button class="img-editor-btn" id="imgFlipH"     title="좌우 반전">↔</button>
         <button class="img-editor-btn" id="imgFlipV"     title="상하 반전">↕</button>
+        <button class="img-editor-btn" id="imgResetTransform" title="초기화" style="margin-left:auto">↩</button>
       </div>
       <div class="img-editor-row slider-row">
-        <label>밝기</label>
-        <input type="range" id="imgBrightness" min="0" max="200" value="100">
-        <span id="imgBrightnessVal">100%</span>
+        <label>크기</label>
+        <input type="range" id="imgScale" min="20" max="400" value="100" step="5">
+        <span id="imgScaleVal">100%</span>
       </div>
       <div class="img-editor-row slider-row">
-        <label>대비</label>
-        <input type="range" id="imgContrast" min="0" max="200" value="100">
-        <span id="imgContrastVal">100%</span>
+        <label>X</label>
+        <input type="range" id="imgOffsetX" min="-300" max="300" value="0">
+        <span id="imgOffsetXVal">0</span>
+      </div>
+      <div class="img-editor-row slider-row">
+        <label>Y</label>
+        <input type="range" id="imgOffsetY" min="-300" max="300" value="0">
+        <span id="imgOffsetYVal">0</span>
       </div>
     </div>
     <div class="img-editor-footer">
