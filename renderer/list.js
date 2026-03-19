@@ -160,12 +160,12 @@ function renderList() {
       });
       const toggleBtn = rootEl.querySelector('.thread-toggle');
       if (toggleBtn) {
+        const arrowEl = toggleBtn.querySelector('.tt-arrow');
         toggleBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           const collapsed = toggleBtn.dataset.collapsed === 'true';
           const next = !collapsed;
           toggleBtn.dataset.collapsed = String(next);
-          toggleBtn.textContent = next ? '▸' : '▾';
           toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
           replyEls.forEach(el => el.style.display = next ? 'none' : '');
         });
@@ -227,7 +227,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     toggleBtn.className = 'thread-toggle';
     toggleBtn.dataset.collapsed = 'false';
     toggleBtn.title = '답글 접기';
-    toggleBtn.textContent = '▾';
+    toggleBtn.innerHTML = `<span class="tt-arrow">▾</span>${replyCount}`;
     toggleBtn.addEventListener('click', (e) => e.stopPropagation());
     el.appendChild(toggleBtn);
   }

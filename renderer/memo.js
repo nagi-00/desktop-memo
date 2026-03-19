@@ -78,6 +78,65 @@ let localFonts = null; // 캐시된 로컬 폰트 목록
 
 let savedTextRange = null; // 텍스트 색상 적용 전 선택 범위 저장
 
+// ── 색상 유틸리티 ──────────────────────────────
+function hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3), 16) / 255;
+  let g = parseInt(hex.slice(3,5), 16) / 255;
+  let b = parseInt(hex.slice(5,7), 16) / 255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h = 0, s = 0, l = (max+min)/2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+      case g: h = ((b-r)/d + 2)/6; break;
+      case b: h = ((r-g)/d + 4)/6; break;
+    }
+  }
+  return [h*360, s*100, l*100];
+}
+
+function hslToHex(h, s, l) {
+  h /= 360; s /= 100; l /= 100;
+  let r, g, b;
+  if (s === 0) { r = g = b = l; }
+  else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q-p)*6*t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q-p)*(2/3-t)*6;
+      return p;
+    };
+    const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l - q;
+    r = hue2rgb(p, q, h+1/3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h-1/3);
+  }
+  return '#' + [r,g,b].map(x => Math.round(x*255).toString(16).padStart(2,'0')).join('');
+}
+
+function getCssAccentHex() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim();
+  if (raw.startsWith('#')) return raw;
+  const m = raw.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (m) return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+  return '#7c6af7';
+}
+
+function generateTextPalette() {
+  try {
+    const [h, s, l] = hexToHsl(getCssAccentHex());
+    const sat  = Math.max(s, 65);
+    const lum  = Math.max(Math.min(l, 62), 48);
+    return Array.from({ length: 5 }, (_, i) => hslToHex((h + i * 72) % 360, sat, lum));
+  } catch {
+    return ['#f87171', '#fbbf24', '#4ade80', '#60a5fa', '#c084fc'];
+  }
+}
+
 // ── 초기화 ────────────────────────────────────
 async function init() {
   if (window.lucide) lucide.createIcons();
@@ -239,14 +298,18 @@ function updateThemeToggleIcon() {
 
 // ── 프로필 ────────────────────────────────────
 function renderAvatar() {
-  profileAvatar.innerHTML = '';
-  const name = memoData?.profile?.name || '메';
-  const img  = memoData?.profile?.avatarDataUrl;
-  if (img) {
-    const el = document.createElement('img');
-    el.src = img;
-    profileAvatar.appendChild(el);
+  const name    = memoData?.profile?.name || '메';
+  const dataUrl = memoData?.profile?.avatarDataUrl;
+  if (dataUrl) {
+    let img = profileAvatar.querySelector('img');
+    if (!img) {
+      profileAvatar.innerHTML = '';
+      img = document.createElement('img');
+      profileAvatar.appendChild(img);
+    }
+    img.src = dataUrl;
   } else {
+    profileAvatar.innerHTML = '';
     profileAvatar.textContent = name[0].toUpperCase();
   }
 }
@@ -357,11 +420,14 @@ function getOrCreateGrid() {
 }
 
 function updateMediaHeaderVisibility() {
-  const hasImages = !!mediaArea.querySelector('.img-wrap');
-  mediaHeader.style.display = hasImages ? 'flex' : 'none';
-  if (!hasImages) {
+  const count = mediaArea.querySelectorAll('.img-wrap').length;
+  mediaHeader.style.display = count > 0 ? 'flex' : 'none';
+  if (count === 0) {
     mediaFolded = false;
     mediaArea.style.display = '';
+  } else {
+    const label = document.getElementById('mediaFoldLabel');
+    if (label) label.textContent = mediaFolded ? `사진 ${count}장 펼치기` : `사진 ${count}장 접기`;
   }
 }
 
@@ -826,7 +892,27 @@ function bindEvents() {
   memoContent.addEventListener('input', scheduleSave);
 
   // HR 블록(contenteditable=false) 클릭 시 커서 탈출
-  memoContent.addEventListener('click', () => {
+  memoContent.addEventListener('click', (e) => {
+    // 패딩 영역(memoContent 자체) 클릭 → 마지막 편집 가능 요소로 커서 이동
+    if (e.target === memoContent) {
+      const lastEl = memoContent.lastElementChild;
+      if (lastEl?.getAttribute('contenteditable') === 'false') {
+        const newDiv = document.createElement('div');
+        newDiv.innerHTML = '<br>';
+        memoContent.appendChild(newDiv);
+        try {
+          const range = document.createRange();
+          range.setStart(newDiv, 0);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          memoContent.focus();
+        } catch {}
+      }
+      return;
+    }
+    // 커서가 contenteditable=false 내부에 있으면 다음 형제로 탈출
     const sel = window.getSelection();
     if (!sel?.rangeCount) return;
     let node = sel.getRangeAt(0).startContainer;
@@ -847,6 +933,7 @@ function bindEvents() {
           range.collapse(true);
           sel.removeAllRanges();
           sel.addRange(range);
+          memoContent.focus();
         } catch {}
         break;
       }
@@ -1107,27 +1194,96 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 글자 색상
-  btnTextColor.addEventListener('click', () => {
-    const sel = window.getSelection();
-    if (sel?.rangeCount && !sel.isCollapsed) {
-      savedTextRange = sel.getRangeAt(0).cloneRange();
+  // 글자 색상 팔레트 팝업
+  {
+    const tcPopup = document.createElement('div');
+    tcPopup.className = 'tc-popup';
+    tcPopup.id = 'tcPopup';
+    document.body.appendChild(tcPopup);
+
+    let tcVisible = false;
+
+    function applyTextColor(color) {
+      btnTextColor.style.setProperty('--tc-current', color);
+      memoContent.focus();
+      if (savedTextRange) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedTextRange);
+        savedTextRange = null;
+      }
+      document.execCommand('foreColor', false, color);
+      scheduleSave();
     }
-    textColorInput.click();
-  });
-  textColorInput.addEventListener('change', () => {
-    const color = textColorInput.value;
-    btnTextColor.style.setProperty('--tc-current', color);
-    memoContent.focus();
-    if (savedTextRange) {
+
+    function buildTcPopup() {
+      tcPopup.innerHTML = '';
+      const colors = generateTextPalette();
+      colors.forEach(color => {
+        const sw = document.createElement('button');
+        sw.className = 'tc-swatch';
+        sw.style.background = color;
+        sw.title = color;
+        sw.addEventListener('click', (e) => {
+          e.stopPropagation();
+          applyTextColor(color);
+          hideTcPopup();
+        });
+        tcPopup.appendChild(sw);
+      });
+      const div = document.createElement('span');
+      div.className = 'tc-divider';
+      tcPopup.appendChild(div);
+      const customBtn = document.createElement('button');
+      customBtn.className = 'tc-custom-btn';
+      customBtn.title = '커스텀 색상';
+      customBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/><line x1="12" y1="12" x2="12" y2="22"/></svg>';
+      customBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideTcPopup();
+        textColorInput.click();
+      });
+      tcPopup.appendChild(customBtn);
+    }
+
+    function showTcPopup() {
+      buildTcPopup();
+      const rect = btnTextColor.getBoundingClientRect();
+      tcPopup.style.left = `${rect.left + rect.width / 2}px`;
+      tcPopup.style.top  = `${rect.top - 10}px`;
+      tcPopup.style.transform = 'translateX(-50%) translateY(-100%) translateY(4px)';
+      tcPopup.offsetHeight; // reflow
+      tcPopup.style.transform = 'translateX(-50%) translateY(-100%)';
+      tcPopup.classList.add('visible');
+      tcVisible = true;
+    }
+
+    function hideTcPopup() {
+      tcPopup.classList.remove('visible');
+      tcVisible = false;
+    }
+
+    btnTextColor.addEventListener('click', (e) => {
+      e.stopPropagation();
       const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(savedTextRange);
-      savedTextRange = null;
-    }
-    document.execCommand('foreColor', false, color);
-    scheduleSave();
-  });
+      if (sel?.rangeCount && !sel.isCollapsed) {
+        savedTextRange = sel.getRangeAt(0).cloneRange();
+      }
+      if (tcVisible) { hideTcPopup(); return; }
+      showTcPopup();
+    });
+
+    textColorInput.addEventListener('change', () => {
+      const color = textColorInput.value;
+      applyTextColor(color);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (tcVisible && !tcPopup.contains(e.target) && e.target !== btnTextColor) {
+        hideTcPopup();
+      }
+    });
+  }
 
   // 아바타 클릭 → 컨텍스트 메뉴 (변경/삭제)
   profileAvatar.addEventListener('click', (e) => {
@@ -1324,9 +1480,8 @@ function bindEvents() {
   document.getElementById('btnMediaFold').addEventListener('click', () => {
     mediaFolded = !mediaFolded;
     mediaArea.style.display = mediaFolded ? 'none' : '';
-    const label = document.getElementById('mediaFoldLabel');
-    const icon  = document.getElementById('mediaFoldIcon');
-    if (label) label.textContent = mediaFolded ? '이미지 펼치기' : '이미지 접기';
+    updateMediaHeaderVisibility();
+    const icon = document.getElementById('mediaFoldIcon');
     if (icon) {
       icon.setAttribute('data-lucide', mediaFolded ? 'chevron-down' : 'chevron-up');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
@@ -1416,11 +1571,10 @@ function bindEvents() {
     }
   });
 
-  // 반응형 액션바: action-icons 너비에 따라 버튼 동적 숨김
-  const actionIcons = document.querySelector('.action-icons');
-  if (actionIcons && typeof ResizeObserver !== 'undefined') {
+  // 반응형 액션바: 너비에 따라 낮은 우선순위 버튼부터 동적 숨김
+  {
+    const actionIcons = document.querySelector('.action-icons');
     const BTN = 32;
-    // 낮은 우선순위(숨기기 먼저)부터 높은 우선순위 순서
     const hideOrder = [
       '.action-icon-btn.reply',
       '.action-icon-btn.text-color',
@@ -1431,14 +1585,31 @@ function bindEvents() {
       '.action-icon-btn.bookmark',
       '.action-icon-btn.new-memo',
     ];
-    new ResizeObserver(([entry]) => {
-      const slots  = Math.floor(entry.contentRect.width / BTN);
+
+    function syncActionIcons() {
+      if (!actionIcons) return;
+      const w = actionIcons.getBoundingClientRect().width;
+      if (w === 0) return;
+      const slots  = Math.floor(w / BTN);
       const toHide = Math.max(0, hideOrder.length - slots);
       hideOrder.forEach((sel, i) => {
         const btn = actionIcons.querySelector(sel);
         if (btn) btn.style.display = i < toHide ? 'none' : '';
       });
-    }).observe(actionIcons);
+    }
+
+    // 즉시 실행 (첫 렌더)
+    syncActionIcons();
+    requestAnimationFrame(syncActionIcons);
+    setTimeout(syncActionIcons, 150);
+
+    // 창 크기 변경 시
+    window.addEventListener('resize', syncActionIcons);
+
+    // 요소 크기 변경 시 (ResizeObserver)
+    if (actionIcons && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(syncActionIcons).observe(actionIcons);
+    }
   }
 }
 

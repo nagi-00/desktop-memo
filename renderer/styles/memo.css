@@ -664,26 +664,30 @@
 
 /* ── 미디어 헤더 (접기/펼치기) ── */
 .media-header {
-  padding: 2px 14px 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 14px 2px;
   flex-shrink: 0;
 }
 .media-fold-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border: 1px solid var(--color-border);
+  gap: 3px;
+  padding: 1px 6px 1px 4px;
+  border: none;
   border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--color-text-muted);
-  font-size: 11px;
+  color: var(--color-text-placeholder);
+  font-size: 10px;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
+  user-select: none;
 }
 .media-fold-btn:hover {
   background: var(--color-surface-hover);
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
+.media-fold-btn svg { opacity: 0.7; }
 
 /* ── 미디어 영역 (텍스트 아래 고정, 트위터 스타일) ── */
 .media-area {
@@ -724,10 +728,10 @@
   min-width: 0;
   justify-content: flex-end;
   flex-wrap: nowrap;
-  overflow: hidden; /* 초과 버튼 클리핑 — 팝업 없는 버튼만 여기에 위치 */
+  /* overflow 제거 — JS가 동적으로 버튼을 숨겨 클리핑 방지 */
 }
 
-/* 반응형: ResizeObserver가 JS에서 동적으로 처리 */
+/* 반응형: syncActionIcons()가 window.resize + ResizeObserver + 즉시 실행으로 처리 */
 
 /* 액션 아이콘 버튼 */
 .action-icon-btn {
@@ -770,6 +774,70 @@
   height: 3px;
   background: var(--tc-current, var(--action-like));
   border-radius: 1.5px;
+}
+
+/* 글자색 팔레트 팝업 */
+.tc-popup {
+  position: fixed;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-popup);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.tc-popup.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.tc-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  flex-shrink: 0;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.tc-swatch:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 20%, transparent);
+}
+.tc-swatch.active { outline-color: var(--color-text-muted); }
+.tc-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+.tc-custom-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--color-text-placeholder);
+  background: transparent;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.1s, color 0.1s, transform 0.1s;
+}
+.tc-custom-btn:hover {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+  transform: scale(1.15);
 }
 
 .action-icon-btn.reply:hover    { background: color-mix(in srgb, var(--action-reply)    15%, transparent); }
