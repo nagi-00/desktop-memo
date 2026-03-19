@@ -57,6 +57,18 @@ const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
+const btnFont         = document.getElementById('btnFont');
+const fontPopup       = document.getElementById('fontPopup');
+const fontFamilies    = document.getElementById('fontFamilies');
+const fontSizeSlider  = document.getElementById('fontSizeSlider');
+const fontSizeValue   = document.getElementById('fontSizeValue');
+
+const FONT_OPTIONS = [
+  { label: '기본',   family: 'system-ui, sans-serif' },
+  { label: '세리프',  family: 'Georgia, "Times New Roman", serif' },
+  { label: '고딕',   family: '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif' },
+  { label: '모노',   family: 'Consolas, "D2Coding", monospace' },
+];
 
 let savedTextRange = null; // 텍스트 색상 적용 전 선택 범위 저장
 
@@ -118,6 +130,12 @@ async function init() {
 
   // 스와치 렌더링
   renderColorSwatches();
+
+  // 폰트 UI 초기화
+  renderFontOptions();
+  const fontSize = memoData.font?.size || 14;
+  fontSizeSlider.value = fontSize;
+  fontSizeValue.textContent = `${fontSize}px`;
 
   // 이벤트
   bindEvents();
@@ -196,31 +214,35 @@ function formatDate(iso) {
 function renderColorSwatches() {
   colorSwatches.innerHTML = '';
   const currentAccent = memoData?.theme?.accent ?? null;
+  const isCustom = currentAccent !== null && !PRESETS.some(p => p.accent === currentAccent);
 
   // Default 뉴트럴 스와치
   const defBtn = document.createElement('button');
   defBtn.className = 'color-swatch';
   defBtn.style.background = 'conic-gradient(#888 0deg 180deg, #fff 180deg)';
-  defBtn.title = 'Default (테마 없음)';
+  defBtn.title = 'Default';
   if (currentAccent === null) defBtn.classList.add('selected');
-  defBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    selectAccentColor(null);
-  });
+  defBtn.addEventListener('click', (e) => { e.stopPropagation(); selectAccentColor(null); });
   colorSwatches.appendChild(defBtn);
 
+  // 프리셋 스와치
   PRESETS.filter(p => p.accent !== null).forEach(({ name, accent }) => {
     const btn = document.createElement('button');
     btn.className = 'color-swatch';
     btn.style.background = accent;
     btn.title = name;
     if (currentAccent === accent) btn.classList.add('selected');
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectAccentColor(accent);
-    });
+    btn.addEventListener('click', (e) => { e.stopPropagation(); selectAccentColor(accent); });
     colorSwatches.appendChild(btn);
   });
+
+  // 커스텀 컬러 버튼 (맨 끝)
+  const customBtn = document.createElement('button');
+  customBtn.className = 'color-swatch custom';
+  customBtn.title = '커스텀 색상';
+  if (isCustom) customBtn.classList.add('selected');
+  customBtn.addEventListener('click', (e) => { e.stopPropagation(); colorPickerCustom.click(); });
+  colorSwatches.appendChild(customBtn);
 }
 
 function selectAccentColor(hex) {
@@ -314,15 +336,9 @@ function handleAutoConvert(e) {
     node.textContent =
       node.textContent.slice(0, range.startOffset - len) +
       node.textContent.slice(range.startOffset);
-    // 커서 앞에 체크박스 삽입
-    const cb = document.createElement('label');
-    cb.className = 'cb-item';
-    cb.innerHTML = '<input type="checkbox"><span>&nbsp;</span>';
-    cb.querySelector('input').addEventListener('change', (ev) => {
-      cb.classList.toggle('checked', ev.target.checked);
-      scheduleSave();
-    });
-    document.execCommand('insertHTML', false, cb.outerHTML);
+    // 커서 앞에 체크박스 삽입 (div로 감싸 — 박스만 클릭해야 토글)
+    document.execCommand('insertHTML', false,
+      '<div class="cb-item"><input type="checkbox"><span>&nbsp;</span></div>');
     return;
   }
 }
@@ -344,8 +360,38 @@ function insertLink() {
   scheduleSave();
 }
 
+// ── 폰트 옵션 렌더 ──────────────────────────
+function renderFontOptions() {
+  fontFamilies.innerHTML = '';
+  const currentFamily = memoData?.font?.family || 'system-ui, sans-serif';
+  FONT_OPTIONS.forEach(({ label, family }) => {
+    const btn = document.createElement('button');
+    btn.className = 'font-opt';
+    btn.textContent = label;
+    btn.style.fontFamily = family;
+    if (currentFamily === family) btn.classList.add('selected');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      memoData.font = { ...(memoData.font || {}), family };
+      document.documentElement.style.setProperty('--memo-font-family', family);
+      saveMemoChanges({ font: memoData.font });
+      renderFontOptions();
+    });
+    fontFamilies.appendChild(btn);
+  });
+}
+
 // ── 이벤트 바인딩 ─────────────────────────────
 function bindEvents() {
+  // 체크박스 delegated 이벤트 (박스 자체 클릭만 토글)
+  memoContent.addEventListener('change', (e) => {
+    if (e.target.matches('.cb-item input[type="checkbox"]')) {
+      const cbItem = e.target.closest('.cb-item');
+      if (cbItem) cbItem.classList.toggle('checked', e.target.checked);
+      scheduleSave();
+    }
+  });
+
   // 콘텐츠 입력
   memoContent.addEventListener('input', scheduleSave);
 
@@ -476,20 +522,36 @@ function bindEvents() {
   // 링크 버튼
   btnLink.addEventListener('click', insertLink);
 
-  // 이미지 첨부
+  // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
   imageFileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      memoContent.focus();
-      document.execCommand('insertHTML', false,
-        `<img src="${ev.target.result}" style="max-width:75%;max-height:180px;border-radius:6px;margin:4px 0;display:block;object-fit:contain">`
-      );
-      scheduleSave();
-    };
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    let grid = memoContent.querySelector('.media-grid');
+    if (!grid) {
+      grid = document.createElement('div');
+      grid.className = 'media-grid';
+      grid.contentEditable = 'false';
+      memoContent.appendChild(grid);
+    }
+
+    let loaded = 0;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.createElement('img');
+        img.src = ev.target.result;
+        grid.appendChild(img);
+        loaded++;
+        if (loaded === files.length) {
+          const count = grid.querySelectorAll('img').length;
+          grid.setAttribute('data-count', Math.min(count, 4));
+          scheduleSave();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
     e.target.value = '';
   });
 
@@ -575,25 +637,45 @@ function bindEvents() {
     saveMemoChanges({ profile: memoData.profile });
   });
 
+  // 폰트 팝업
+  btnFont.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fontPopup.classList.toggle('visible');
+    opacityPopup.classList.remove('visible');
+    colorPopup.classList.remove('visible');
+    capturePopup.classList.remove('visible');
+  });
+  fontSizeSlider.addEventListener('input', () => {
+    const size = parseInt(fontSizeSlider.value, 10);
+    fontSizeValue.textContent = `${size}px`;
+    document.documentElement.style.setProperty('--memo-font-size', `${size}px`);
+    memoData.font = { ...(memoData.font || {}), size };
+    saveMemoChanges({ font: memoData.font });
+  });
+
   // 캡처 팝업 토글
   btnCapture.addEventListener('click', (e) => {
     e.stopPropagation();
     capturePopup.classList.toggle('visible');
+    fontPopup.classList.remove('visible');
   });
 
   // 캡처 — 상태바 제외 카드 영역 계산 후 IPC
   async function doCapture(action) {
     capturePopup.classList.remove('visible');
+    // 리페인트 대기 (팝업이 완전히 사라진 뒤 캡처)
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const memoCard  = document.querySelector('.memo-card');
     const statusBar = document.getElementById('statusBar');
-    const cardView  = document.getElementById('cardView');
-    const sbH   = statusBar.getBoundingClientRect().height;
-    const rect  = cardView.getBoundingClientRect();
-    const dpr   = window.devicePixelRatio || 1;
+    const sbRect   = statusBar.getBoundingClientRect();
+    const cardRect = memoCard.getBoundingClientRect();
+    const dpr      = window.devicePixelRatio || 1;
     const captureRect = {
-      x:      Math.round(rect.x      * dpr),
-      y:      Math.round((rect.y + sbH) * dpr),
-      width:  Math.round(rect.width  * dpr),
-      height: Math.round((rect.height - sbH) * dpr),
+      x:      Math.round(cardRect.x * dpr),
+      y:      Math.round(sbRect.bottom * dpr),
+      width:  Math.round(cardRect.width * dpr),
+      height: Math.round((cardRect.bottom - sbRect.bottom) * dpr),
     };
     try {
       await api.captureCard({ rect: captureRect, action });
@@ -607,12 +689,14 @@ function bindEvents() {
 
   // 외부 클릭 시 팝업 닫기
   document.addEventListener('click', (e) => {
-    const opWrap  = document.getElementById('opacityWrap');
-    const colWrap = document.getElementById('colorWrap');
-    const capWrap = document.getElementById('captureWrap');
+    const opWrap   = document.getElementById('opacityWrap');
+    const colWrap  = document.getElementById('colorWrap');
+    const capWrap  = document.getElementById('captureWrap');
+    const fntWrap  = document.getElementById('fontWrap');
     if (!opWrap?.contains(e.target))  opacityPopup.classList.remove('visible');
     if (!colWrap?.contains(e.target)) colorPopup.classList.remove('visible');
     if (!capWrap?.contains(e.target)) capturePopup.classList.remove('visible');
+    if (!fntWrap?.contains(e.target)) fontPopup.classList.remove('visible');
   });
 
   // 전역 단축키
