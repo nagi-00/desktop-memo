@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memo</title>
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/memo.css" />
+  <!-- Lucide icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="memo-window" id="memoWindow">
+
+  <!-- ── 타이틀바 ── -->
+  <div class="titlebar" id="titlebar">
+    <!-- 컬러 도트 -->
+    <button class="color-dot" id="colorDot" title="테마 색상 변경" aria-label="색상 선택"></button>
+
+    <!-- 태그 영역 -->
+    <div class="tags-area" id="tagsArea">
+      <!-- 태그 pills & 입력창은 JS로 렌더링 -->
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="titlebar-actions" id="titlebarActions">
+      <button class="action-btn" id="btnThemeToggle" title="다크/라이트 모드 토글">
+        <i data-lucide="sun" width="15" height="15"></i>
+      </button>
+      <button class="action-btn" id="btnPin" title="항상 위 고정">
+        <i data-lucide="pin" width="15" height="15"></i>
+      </button>
+      <button class="action-btn" id="btnOpacity" title="투명도 조절">
+        <i data-lucide="droplets" width="15" height="15"></i>
+      </button>
+      <button class="action-btn delete" id="btnDelete" title="메모 삭제">
+        <i data-lucide="trash-2" width="15" height="15"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- 컬러 피커 팝업 -->
+  <div class="color-picker-popup" id="colorPickerPopup">
+    <div class="color-swatches" id="colorSwatches"></div>
+    <input type="color" class="color-picker-custom" id="colorPickerCustom" title="커스텀 색상" />
+  </div>
+
+  <!-- 투명도 슬라이더 팝업 -->
+  <div class="opacity-slider-wrap" id="opacitySliderWrap">
+    <label>투명도</label>
+    <input type="range" class="opacity-slider" id="opacitySlider"
+           min="0.2" max="1" step="0.05" value="1" />
+    <span class="char-count" id="opacityValue">100%</span>
+  </div>
+
+  <!-- ── 본문 ── -->
+  <div class="memo-body">
+    <div
+      class="memo-content"
+      id="memoContent"
+      contenteditable="true"
+      spellcheck="false"
+      data-placeholder="메모를 입력하세요..."
+    ></div>
+  </div>
+
+  <!-- ── 하단 바 ── -->
+  <div class="memo-footer">
+    <button class="new-memo-btn" id="btnNewMemo">
+      <i data-lucide="plus" width="12" height="12"></i>
+      새 메모
+    </button>
+    <span class="char-count" id="charCount">0</span>
+  </div>
+
+</div>
+
+<script type="module" src="memo.js"></script>
+</body>
+</html>

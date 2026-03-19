@@ -1,0 +1,302 @@
+/* ── 메모 윈도우 컨테이너 ── */
+.memo-window {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base);
+}
+
+/* ── 타이틀바 ── */
+.titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--titlebar-height);
+  padding: 0 12px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.titlebar * {
+  -webkit-app-region: no-drag;
+}
+
+/* 컬러 도트 */
+.color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.color-dot:hover {
+  transform: scale(1.2);
+  border-color: var(--color-accent-hover);
+}
+
+/* 태그 영역 */
+.tags-area {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  color: var(--color-accent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: default;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+}
+.tag-pill:hover {
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+
+.tag-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-size: 12px;
+  width: 80px;
+  min-width: 40px;
+}
+.tag-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* 타이틀바 액션 버튼 */
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.titlebar:hover .titlebar-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+.action-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+.action-btn.active {
+  color: var(--color-accent);
+}
+.action-btn.delete:hover {
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+  color: #ef4444;
+}
+
+/* ── 메모 본문 ── */
+.memo-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.memo-content {
+  flex: 1;
+  padding: 14px 16px;
+  overflow-y: auto;
+  outline: none;
+  font-size: var(--memo-font-size, 14px);
+  font-family: var(--memo-font-family, system-ui);
+  line-height: 1.7;
+  color: var(--color-text);
+  word-break: break-word;
+  white-space: pre-wrap;
+  transition: color var(--transition-base);
+}
+.memo-content:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-placeholder);
+  pointer-events: none;
+}
+
+/* 마크다운 lite 스타일 */
+.memo-content strong, .memo-content b { font-weight: 700; }
+.memo-content em, .memo-content i { font-style: italic; }
+.memo-content code {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ── 하단 바 ── */
+.memo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-shrink: 0;
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.char-count {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 투명도 슬라이더 */
+.opacity-slider-wrap {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  position: absolute;
+  bottom: 44px;
+  right: 8px;
+  z-index: 100;
+  box-shadow: var(--shadow-float);
+}
+.opacity-slider-wrap.visible {
+  display: flex;
+}
+.opacity-slider-wrap label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.opacity-slider {
+  width: 80px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* 테마 모드 토글 아이콘 */
+.theme-toggle {
+  cursor: pointer;
+}
+
+/* ── 새 메모 버튼 (하단 좌측) ── */
+.new-memo-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+.new-memo-btn:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ── 컬러 피커 팝업 ── */
+.color-picker-popup {
+  display: none;
+  position: absolute;
+  top: calc(var(--titlebar-height) + 4px);
+  left: 12px;
+  z-index: 200;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  box-shadow: var(--shadow-card);
+  flex-direction: column;
+  gap: 8px;
+}
+.color-picker-popup.visible {
+  display: flex;
+}
+.color-swatches {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-width: 160px;
+}
+.color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+.color-swatch:hover,
+.color-swatch.selected {
+  transform: scale(1.2);
+  border-color: var(--color-text);
+}
+.color-picker-custom {
+  width: 100%;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+  padding: 0 2px;
+}
