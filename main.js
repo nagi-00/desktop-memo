@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -448,10 +448,10 @@ function registerIpcHandlers() {
     listWindow.on('closed', () => { listWindow = null; });
   });
 
-  // 이미지 파일 선택 → Base64 DataURL 반환 (renderer input.click() 미동작 대안)
+  // 이미지 파일 선택 → Base64 DataURL 반환
   ipcMain.handle('file:pickImage', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    const result = await dialog.showOpenDialog(win, {
+    const result = await dialog.showOpenDialog(win || undefined, {
       properties: ['openFile'],
       filters: [{ name: '이미지', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
     });
@@ -461,6 +461,22 @@ function registerIpcHandlers() {
     const ext  = path.extname(filePath).slice(1).toLowerCase();
     const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
     return `data:${mime};base64,${data.toString('base64')}`;
+  });
+
+  // 외부 URL 열기
+  ipcMain.handle('shell:openExternal', (_e, url) => {
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      shell.openExternal(url);
+    }
+  });
+
+  // 답글 스레드 접기/펼치기 — 목록 창으로 전달
+  ipcMain.handle('memo:foldThread', (_e, memoId) => {
+    if (listWindow && !listWindow.isDestroyed()) {
+      listWindow.webContents.send('thread:fold', memoId);
+    } else {
+      // 목록 창이 없으면 여기서 무시 (or 열 수 있음)
+    }
   });
 }
 

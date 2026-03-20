@@ -48,6 +48,12 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 파일 선택 ──
   pickImageFile: () => ipcRenderer.invoke('file:pickImage'),
 
+  // ── 외부 URL 열기 ──
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
+  // ── 답글 스레드 접기 ──
+  foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
+
   // ── 캡처 (이미지 저장 / 클립보드) ──
   captureCard: ({ rect, action }) => ipcRenderer.invoke('memo:captureCard', { id: memoId, rect, action }),
 
@@ -55,5 +61,11 @@ contextBridge.exposeInMainWorld('memoAPI', {
     const handler = () => callback();
     ipcRenderer.on('memo:listUpdated', handler);
     return () => ipcRenderer.removeListener('memo:listUpdated', handler);
+  },
+
+  onThreadFold: (callback) => {
+    const handler = (_e, memoId) => callback(memoId);
+    ipcRenderer.on('thread:fold', handler);
+    return () => ipcRenderer.removeListener('thread:fold', handler);
   },
 });

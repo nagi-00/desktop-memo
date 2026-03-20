@@ -37,6 +37,26 @@ async function init() {
   });
 
   api.onThemeModeChanged((mode) => setThemeMode(mode));
+
+  // 메모 창에서 보낸 스레드 접기/펼치기 요청 처리
+  if (api.onThreadFold) {
+    api.onThreadFold((memoId) => {
+      // 해당 메모가 루트이거나 답글인 경우 모두 처리
+      const btn = sidebar.querySelector(
+        `.memo-list-item[data-id="${CSS.escape(memoId)}"] .thread-toggle, ` +
+        `.memo-list-item[data-id="${CSS.escape(memoId)}"].reply-item ~ .memo-list-item .thread-toggle`
+      );
+      // 더 안전한 방법: 모든 thread-root에서 해당 memoId와 관련된 것 찾기
+      sidebar.querySelectorAll('.thread-toggle').forEach(toggleBtn => {
+        const rootEl = toggleBtn.closest('.memo-list-item');
+        if (!rootEl) return;
+        const rootId = rootEl.dataset.id;
+        if (rootId === memoId) {
+          toggleBtn.click();
+        }
+      });
+    });
+  }
 }
 
 // ── 메모 로드 ──

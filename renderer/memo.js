@@ -43,8 +43,8 @@ const colorSwatches  = document.getElementById('colorSwatches');
 const colorPickerCustom = document.getElementById('colorPickerCustom');
 const btnDelete      = document.getElementById('btnDelete');
 
-const btnReply      = document.getElementById('btnReply');
-const btnLink       = document.getElementById('btnLink');
+const btnReply       = document.getElementById('btnReply');
+const btnThreadFold  = document.getElementById('btnThreadFold');
 const btnBookmark   = document.getElementById('btnBookmark');
 const btnLike       = document.getElementById('btnLike');
 const btnNewMemo    = document.getElementById('btnNewMemo');
@@ -906,6 +906,15 @@ function bindEvents() {
   // 콘텐츠 입력
   memoContent.addEventListener('input', scheduleSave);
 
+  // 본문 내 링크 클릭 → 외부 브라우저 열기
+  memoContent.addEventListener('click', (e) => {
+    const anchor = e.target.closest('a[href]');
+    if (anchor) {
+      e.preventDefault();
+      api.openExternal(anchor.href);
+    }
+  });
+
   // HR 블록(contenteditable=false) 클릭 시 커서 탈출
   memoContent.addEventListener('click', (e) => {
     // 패딩 영역(memoContent 자체) 클릭 → 마지막 편집 가능 요소로 커서 이동
@@ -1106,99 +1115,94 @@ function bindEvents() {
         }
       }
     }
-    // ── 구분선(hr-block) 방향키 탐색 ──────────────────────
-    else if (['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(e.key)) {
-      const sel2 = window.getSelection();
-      if (!sel2?.rangeCount || !sel2.isCollapsed) { handleAutoConvert(e); return; }
-      const r2   = sel2.getRangeAt(0);
-      let n2 = r2.startContainer;
-      if (n2.nodeType === Node.TEXT_NODE) n2 = n2.parentNode;
+    handleAutoConvert(e);
+  });
 
-      // 1) 커서가 contenteditable=false 내에 갇혀 있으면 탈출
-      let trapped = null;
-      let cur2 = n2;
-      while (cur2 && cur2 !== memoContent) {
-        if (cur2.getAttribute?.('contenteditable') === 'false') { trapped = cur2; break; }
-        cur2 = cur2.parentNode;
-      }
-      const goFwd = e.key === 'ArrowRight' || e.key === 'ArrowDown';
-      if (trapped) {
+  // ── 구분선(hr-block) 방향키 탐색 — 별도 리스너 ──────────
+  memoContent.addEventListener('keydown', (e) => {
+    if (!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(e.key)) return;
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || !sel.isCollapsed) return;
+
+    const range  = sel.getRangeAt(0);
+    const goFwd  = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+
+    function moveTo(dest, atStart) {
+      try {
+        const r = document.createRange();
+        if (atStart) {
+          r.setStart(dest, 0);
+        } else {
+          const pos = dest.nodeType === Node.TEXT_NODE
+            ? dest.textContent.length
+            : dest.childNodes.length;
+          r.setStart(dest, pos);
+        }
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        memoContent.focus();
+      } catch {}
+    }
+
+    // 1) 갇힌 경우 탈출 (contenteditable=false 내부에 커서가 있는 경우)
+    let sc = range.startContainer;
+    if (sc.nodeType === Node.TEXT_NODE) sc = sc.parentNode;
+    let cur = sc;
+    while (cur && cur !== memoContent) {
+      if (cur.contentEditable === 'false') {
         e.preventDefault();
-        const target = goFwd ? trapped.nextSibling : trapped.previousSibling;
-        let dest = target;
+        const sibling = goFwd ? cur.nextSibling : cur.previousSibling;
+        let dest = sibling;
         if (!dest) {
           dest = document.createElement('div');
           dest.innerHTML = '<br>';
-          goFwd ? memoContent.appendChild(dest) : memoContent.insertBefore(dest, trapped);
+          if (goFwd) memoContent.appendChild(dest);
+          else memoContent.insertBefore(dest, cur);
         }
-        try {
-          const rr = document.createRange();
-          rr.setStart(dest, goFwd ? 0 : (dest.childNodes.length || 0));
-          rr.collapse(true);
-          sel2.removeAllRanges(); sel2.addRange(rr);
-          memoContent.focus();
-        } catch {}
+        moveTo(dest, goFwd);
         return;
       }
-
-      // 2) 커서가 hr-block 인접 요소 끝/처음에 있으면 건너뜀
-      let topEl = n2;
-      while (topEl && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
-      if (topEl) {
-        if (goFwd) {
-          // 현재 요소 끝인지 확인
-          const atEnd = (r2.startContainer.nodeType === Node.TEXT_NODE)
-            ? r2.startOffset >= r2.startContainer.textContent.length
-            : r2.startOffset >= r2.startContainer.childNodes.length;
-          if (atEnd) {
-            const nextEl = topEl.nextElementSibling;
-            if (nextEl?.getAttribute('contenteditable') === 'false') {
-              e.preventDefault();
-              let afterHr = nextEl.nextSibling;
-              if (!afterHr) {
-                afterHr = document.createElement('div');
-                afterHr.innerHTML = '<br>';
-                memoContent.appendChild(afterHr);
-              }
-              try {
-                const rr = document.createRange();
-                rr.setStart(afterHr, 0); rr.collapse(true);
-                sel2.removeAllRanges(); sel2.addRange(rr);
-                memoContent.focus();
-              } catch {}
-              return;
-            }
-          }
-        } else {
-          const atStart = r2.startOffset === 0;
-          if (atStart) {
-            const prevEl = topEl.previousElementSibling;
-            if (prevEl?.getAttribute('contenteditable') === 'false') {
-              e.preventDefault();
-              let beforeHr = prevEl.previousSibling;
-              if (!beforeHr) {
-                beforeHr = document.createElement('div');
-                beforeHr.innerHTML = '<br>';
-                memoContent.insertBefore(beforeHr, prevEl);
-              }
-              try {
-                const rr = document.createRange();
-                const len = beforeHr.nodeType === Node.TEXT_NODE
-                  ? beforeHr.textContent.length
-                  : beforeHr.childNodes.length;
-                rr.setStart(beforeHr, len); rr.collapse(true);
-                sel2.removeAllRanges(); sel2.addRange(rr);
-                memoContent.focus();
-              } catch {}
-              return;
-            }
-          }
-        }
-      }
+      cur = cur.parentNode;
     }
 
-    handleAutoConvert(e);
-  });
+    // 2) 인접 hr-block 건너뜀
+    let topEl = sc;
+    while (topEl && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+    if (!topEl) return;
+
+    if (goFwd) {
+      const rc = range.startContainer;
+      const atEnd = rc.nodeType === Node.TEXT_NODE
+        ? range.startOffset >= rc.textContent.length
+        : range.startOffset >= rc.childNodes.length;
+      if (!atEnd) return;
+      const next = topEl.nextElementSibling;
+      if (next?.contentEditable === 'false') {
+        e.preventDefault();
+        let dest = next.nextSibling;
+        if (!dest) {
+          dest = document.createElement('div');
+          dest.innerHTML = '<br>';
+          memoContent.appendChild(dest);
+        }
+        moveTo(dest, true);
+      }
+    } else {
+      if (range.startOffset !== 0) return;
+      const prev = topEl.previousElementSibling;
+      if (prev?.contentEditable === 'false') {
+        e.preventDefault();
+        let dest = prev.previousSibling;
+        if (!dest) {
+          dest = document.createElement('div');
+          dest.innerHTML = '<br>';
+          memoContent.insertBefore(dest, prev);
+        }
+        moveTo(dest, false);
+      }
+    }
+  }, true); // capture phase — 브라우저 기본 커서 이동 전에 처리
 
   // URL 붙여넣기 → 하이퍼링크 자동 변환
   memoContent.addEventListener('paste', (e) => {
@@ -1277,8 +1281,11 @@ function bindEvents() {
     updateLikeButton();
   });
 
-  // 링크 버튼
-  btnLink.addEventListener('click', insertLink);
+  // 답글 스레드 접기/펼치기 버튼
+  btnThreadFold.addEventListener('click', () => {
+    const id = memoData?.parentId || memoData?.id;
+    if (id) api.foldThread(id);
+  });
 
   // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
@@ -1672,7 +1679,7 @@ function bindEvents() {
       '.action-icon-btn.reply',
       '.action-icon-btn.text-color',
       '.action-icon-btn.highlight',
-      '.action-icon-btn.link',
+      '.action-icon-btn.thread-fold',
       '.action-icon-btn.image',
       '.action-icon-btn.like',
       '.action-icon-btn.bookmark',

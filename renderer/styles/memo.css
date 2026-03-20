@@ -760,8 +760,8 @@
 .action-icon-btn:hover { transform: scale(1.12); }
 
 /* 각 버튼별 색상 */
-.action-icon-btn.reply    { color: var(--action-reply);    }
-.action-icon-btn.link     { color: var(--action-link);     }
+.action-icon-btn.reply       { color: var(--action-reply);    }
+.action-icon-btn.thread-fold { color: var(--action-reply);    }
 .action-icon-btn.bookmark { color: var(--action-bookmark); }
 .action-icon-btn.like     { color: var(--action-like);     }
 .action-icon-btn.image    { color: var(--action-link);     }
@@ -848,8 +848,8 @@
   transform: scale(1.15);
 }
 
-.action-icon-btn.reply:hover    { background: color-mix(in srgb, var(--action-reply)    15%, transparent); }
-.action-icon-btn.link:hover     { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
+.action-icon-btn.reply:hover       { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
+.action-icon-btn.thread-fold:hover { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
 .action-icon-btn.bookmark:hover { background: color-mix(in srgb, var(--action-bookmark) 15%, transparent); }
 .action-icon-btn.like:hover     { background: color-mix(in srgb, var(--action-like)     15%, transparent); }
 .action-icon-btn.image:hover    { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
