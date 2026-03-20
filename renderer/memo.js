@@ -48,7 +48,6 @@ const btnThreadFold  = document.getElementById('btnThreadFold');
 const btnLike       = document.getElementById('btnLike');
 const btnNewMemo    = document.getElementById('btnNewMemo');
 const btnImage      = document.getElementById('btnImage');
-const btnTextColor  = document.getElementById('btnTextColor');
 const imageFileInput  = document.getElementById('imageFileInput');
 const avatarFileInput = document.getElementById('avatarFileInput');
 const textColorInput  = document.getElementById('textColorInput');
@@ -57,7 +56,6 @@ const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
-const btnHighlight    = document.getElementById('btnHighlight');
 const btnSimpleView   = document.getElementById('btnSimpleView');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
@@ -756,12 +754,14 @@ function renderFontOptions(filter = '') {
 }
 
 // ── 이미지 에디터 ────────────────────────────
-let imgEditorTarget = null; // 편집 중인 <img> 요소
-let imgEditorSrc    = new Image();
+let imgEditorTarget      = null; // 편집 중인 <img> 요소
+let imgEditorSrc         = new Image();
+let imgEditorOriginalSrc = null; // 원본 이미지 (초기화용)
 const imgEditorState = { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 };
 
 function openImageEditor(imgEl) {
-  imgEditorTarget = imgEl;
+  imgEditorTarget      = imgEl;
+  imgEditorOriginalSrc = imgEl.src; // 원본 저장
   Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
   document.getElementById('imgScale').value        = 100;
   document.getElementById('imgRotateSlider').value = 0;
@@ -796,7 +796,10 @@ function redrawEditorCanvas() {
   const fitScale  = Math.min(CANVAS_W / rotW, CANVAS_H / rotH);
   const drawScale = fitScale * (imgEditorState.scale / 100);
 
-  ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  // 배경을 테마 배경색으로 채움 (검정 여백 방지)
+  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim() || '#1a1a2e';
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   ctx.save();
   ctx.translate(CANVAS_W / 2 + imgEditorState.offsetX, CANVAS_H / 2 + imgEditorState.offsetY);
   ctx.rotate(rotRad);
@@ -825,6 +828,10 @@ function applyImageEdit() {
   offscreen.width  = CANVAS_W * DPR;
   offscreen.height = CANVAS_H * DPR;
   const ctx = offscreen.getContext('2d');
+  // 배경을 테마 배경색으로 채움
+  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim() || '#1a1a2e';
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, CANVAS_W * DPR, CANVAS_H * DPR);
   ctx.save();
   ctx.translate(
     CANVAS_W * DPR / 2 + imgEditorState.offsetX * DPR,
@@ -1205,96 +1212,19 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 글자 색상 팔레트 팝업
-  {
-    const tcPopup = document.createElement('div');
-    tcPopup.className = 'tc-popup';
-    tcPopup.id = 'tcPopup';
-    document.body.appendChild(tcPopup);
-
-    let tcVisible = false;
-
-    function applyTextColor(color) {
-      btnTextColor.style.setProperty('--tc-current', color);
-      memoContent.focus();
-      if (savedTextRange) {
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(savedTextRange);
-        savedTextRange = null;
-      }
-      document.execCommand('foreColor', false, color);
-      scheduleSave();
-    }
-
-    function buildTcPopup() {
-      tcPopup.innerHTML = '';
-      const colors = generateTextPalette();
-      colors.forEach(color => {
-        const sw = document.createElement('button');
-        sw.className = 'tc-swatch';
-        sw.style.background = color;
-        sw.title = color;
-        sw.addEventListener('click', (e) => {
-          e.stopPropagation();
-          applyTextColor(color);
-          hideTcPopup();
-        });
-        tcPopup.appendChild(sw);
-      });
-      const div = document.createElement('span');
-      div.className = 'tc-divider';
-      tcPopup.appendChild(div);
-      const customBtn = document.createElement('button');
-      customBtn.className = 'tc-custom-btn';
-      customBtn.title = '커스텀 색상';
-      customBtn.innerHTML = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 1 0 0 10A5 5 0 0 0 12 2z"/><line x1="12" y1="12" x2="12" y2="22"/></svg>';
-      customBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        hideTcPopup();
-        textColorInput.click();
-      });
-      tcPopup.appendChild(customBtn);
-    }
-
-    function showTcPopup() {
-      buildTcPopup();
-      const rect = btnTextColor.getBoundingClientRect();
-      tcPopup.style.left = `${rect.left + rect.width / 2}px`;
-      tcPopup.style.top  = `${rect.top - 10}px`;
-      tcPopup.style.transform = 'translateX(-50%) translateY(-100%) translateY(4px)';
-      tcPopup.offsetHeight; // reflow
-      tcPopup.style.transform = 'translateX(-50%) translateY(-100%)';
-      tcPopup.classList.add('visible');
-      tcVisible = true;
-    }
-
-    function hideTcPopup() {
-      tcPopup.classList.remove('visible');
-      tcVisible = false;
-    }
-
-    btnTextColor.addEventListener('click', (e) => {
-      e.stopPropagation();
+  // 글자 색상 — textColorInput (우클릭 메뉴 커스텀 색상용)
+  textColorInput.addEventListener('change', () => {
+    const color = textColorInput.value;
+    memoContent.focus();
+    if (savedTextRange) {
       const sel = window.getSelection();
-      if (sel?.rangeCount && !sel.isCollapsed) {
-        savedTextRange = sel.getRangeAt(0).cloneRange();
-      }
-      if (tcVisible) { hideTcPopup(); return; }
-      showTcPopup();
-    });
-
-    textColorInput.addEventListener('change', () => {
-      const color = textColorInput.value;
-      applyTextColor(color);
-    });
-
-    document.addEventListener('click', (e) => {
-      if (tcVisible && !tcPopup.contains(e.target) && e.target !== btnTextColor) {
-        hideTcPopup();
-      }
-    });
-  }
+      sel.removeAllRanges();
+      sel.addRange(savedTextRange);
+      savedTextRange = null;
+    }
+    document.execCommand('foreColor', false, color);
+    scheduleSave();
+  });
 
   // 아바타 클릭 → 파일 선택 후 에디터 자동 오픈
   profileAvatar.addEventListener('click', async (e) => {
@@ -1355,75 +1285,55 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 버블 아이콘 선택 팝업
+  // 버블 아이콘 인라인 편집
   {
-    const PRESETS_ICONS = ['📝','📌','💡','⭐','🎯','✅','🔥','❤️','🔖','🗒️','📅','🔔'];
-    const pickerEl    = document.getElementById('bubblePicker');
-    const presetsEl   = document.getElementById('bubblePickerPresets');
-    const pickerInput = document.getElementById('bubblePickerInput');
-    const applyBtn    = document.getElementById('bubblePickerApply');
+    const iconInput = document.getElementById('bubbleIconInput');
 
     function applyBubbleIcon(val) {
       const trimmed = val.trim() || '📝';
       memoData.profile = { ...(memoData.profile || {}), bubbleIcon: trimmed };
       bubbleIcon.textContent = trimmed;
-      // 텍스트 길이에 따라 폰트 크기 축소
       const len = [...trimmed].length;
-      bubbleIcon.style.fontSize = len <= 1 ? '22px' : len <= 2 ? '16px' : '11px';
+      bubbleIcon.style.fontSize = len <= 1 ? '16px' : len <= 2 ? '12px' : '9px';
       saveMemoChanges({ profile: memoData.profile });
-    }
-
-    function buildPicker() {
-      presetsEl.innerHTML = '';
-      const current = memoData?.profile?.bubbleIcon || '📝';
-      PRESETS_ICONS.forEach(icon => {
-        const btn = document.createElement('button');
-        btn.className = 'bubble-preset-btn' + (icon === current ? ' selected' : '');
-        btn.textContent = icon;
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          applyBubbleIcon(icon);
-          pickerEl.style.display = 'none';
-        });
-        presetsEl.appendChild(btn);
-      });
-      pickerInput.value = current;
     }
 
     bubbleEditBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (pickerEl.style.display !== 'none') {
-        pickerEl.style.display = 'none';
+      if (iconInput.classList.contains('active')) {
+        applyBubbleIcon(iconInput.value);
+        iconInput.classList.remove('active');
         return;
       }
-      buildPicker();
-      pickerEl.style.display = 'block';
-      pickerInput.focus();
-      pickerInput.select();
+      iconInput.value = memoData?.profile?.bubbleIcon || '📝';
+      iconInput.classList.add('active');
+      iconInput.focus();
+      iconInput.select();
     });
 
-    applyBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      applyBubbleIcon(pickerInput.value);
-      pickerEl.style.display = 'none';
-    });
-    pickerInput?.addEventListener('keydown', (ev) => {
+    iconInput?.addEventListener('keydown', (ev) => {
       ev.stopPropagation();
-      if (ev.key === 'Enter') { ev.preventDefault(); applyBubbleIcon(pickerInput.value); pickerEl.style.display = 'none'; }
-      if (ev.key === 'Escape') { ev.preventDefault(); pickerEl.style.display = 'none'; }
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        applyBubbleIcon(iconInput.value);
+        iconInput.classList.remove('active');
+      }
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        iconInput.classList.remove('active');
+      }
     });
-
-    // 외부 클릭 시 닫기
-    document.addEventListener('click', (e) => {
-      if (pickerEl.style.display !== 'none' && !pickerEl.contains(e.target) && e.target !== bubbleEditBtn) {
-        pickerEl.style.display = 'none';
+    iconInput?.addEventListener('blur', () => {
+      if (iconInput.classList.contains('active')) {
+        applyBubbleIcon(iconInput.value);
+        iconInput.classList.remove('active');
       }
     });
 
     // 초기 아이콘 크기 적용
     const initIcon = memoData?.profile?.bubbleIcon || '📝';
     const initLen = [...initIcon].length;
-    bubbleIcon.style.fontSize = initLen <= 1 ? '22px' : initLen <= 2 ? '16px' : '11px';
+    bubbleIcon.style.fontSize = initLen <= 1 ? '16px' : initLen <= 2 ? '12px' : '9px';
   }
 
   // 답글 (스레드)
@@ -1534,8 +1444,7 @@ function bindEvents() {
     }
   });
 
-  // 하이라이트 버튼
-  btnHighlight.addEventListener('click', toggleHighlight);
+  // 하이라이트 버튼 (우클릭 메뉴에서만 사용 — action bar 버튼 삭제됨)
 
   // ── 간단히 보기 토글 ──────────────────────────
   btnSimpleView?.addEventListener('click', () => {
@@ -1600,18 +1509,43 @@ function bindEvents() {
         sep1.className = 'fmt-sep';
         fmtMenu.appendChild(sep1);
 
-        const colorDotFmt = document.createElement('button');
-        colorDotFmt.className = 'fmt-btn';
-        colorDotFmt.title = '글자 색상';
-        colorDotFmt.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:var(--tc-current,#f87171);display:inline-block;border:1.5px solid rgba(128,128,128,0.4)"></span>';
-        colorDotFmt.addEventListener('mousedown', (ev) => {
+        // 글자색 팔레트 — action bar의 tcPopup과 동일한 5색 + 커스텀
+        const fmtColors = generateTextPalette();
+        fmtColors.forEach(color => {
+          const sw = document.createElement('button');
+          sw.className = 'fmt-btn fmt-color-swatch';
+          sw.title = color;
+          sw.innerHTML = `<span style="width:14px;height:14px;border-radius:50%;background:${color};display:inline-block;border:1.5px solid rgba(128,128,128,0.3);flex-shrink:0"></span>`;
+          sw.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            const sel2 = window.getSelection();
+            if (sel2?.rangeCount && !sel2.isCollapsed) savedTextRange = sel2.getRangeAt(0).cloneRange();
+            memoContent.focus();
+            if (savedTextRange) {
+              const s2 = window.getSelection();
+              s2.removeAllRanges();
+              s2.addRange(savedTextRange);
+              savedTextRange = null;
+            }
+            document.execCommand('foreColor', false, color);
+            scheduleSave();
+            hideFmtMenu();
+          });
+          fmtMenu.appendChild(sw);
+        });
+        // 커스텀 색상
+        const customColorBtn = document.createElement('button');
+        customColorBtn.className = 'fmt-btn fmt-color-swatch';
+        customColorBtn.title = '커스텀 색상';
+        customColorBtn.innerHTML = '<span style="width:14px;height:14px;border-radius:50%;border:1.5px dashed rgba(160,160,160,0.7);display:inline-block;flex-shrink:0"></span>';
+        customColorBtn.addEventListener('mousedown', (ev) => {
           ev.preventDefault();
-          hideFmtMenu();
           const sel2 = window.getSelection();
           if (sel2?.rangeCount && !sel2.isCollapsed) savedTextRange = sel2.getRangeAt(0).cloneRange();
+          hideFmtMenu();
           textColorInput.click();
         });
-        fmtMenu.appendChild(colorDotFmt);
+        fmtMenu.appendChild(customColorBtn);
 
         const sep2 = document.createElement('span');
         sep2.className = 'fmt-sep';
@@ -1717,6 +1651,29 @@ function bindEvents() {
   });
   document.getElementById('imgEditorApply').addEventListener('click', applyImageEdit);
 
+  // 초기화: 원본 이미지로 완전히 되돌리기 (적용 후에도 가능)
+  document.getElementById('imgEditorReset')?.addEventListener('click', () => {
+    if (!imgEditorTarget || !imgEditorOriginalSrc) return;
+    imgEditorTarget.src = imgEditorOriginalSrc;
+    // 아바타면 프로필에도 저장
+    if (imgEditorTarget.closest('#profileAvatar')) {
+      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: imgEditorOriginalSrc };
+      saveMemoChanges({ profile: memoData.profile });
+      renderAvatar();
+    } else {
+      scheduleSave();
+    }
+    // 에디터 상태도 리셋 후 원본으로 재로드
+    Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
+    document.getElementById('imgScale').value        = 100;
+    document.getElementById('imgRotateSlider').value = 0;
+    document.getElementById('imgScaleVal').textContent  = '100%';
+    document.getElementById('imgRotateVal').textContent = '0°';
+    imgEditorSrc = new Image();
+    imgEditorSrc.onload = redrawEditorCanvas;
+    imgEditorSrc.src = imgEditorOriginalSrc;
+  });
+
   document.getElementById('imgFlipH').addEventListener('click', () => {
     imgEditorState.flipH = !imgEditorState.flipH;
     redrawEditorCanvas();
@@ -1792,8 +1749,6 @@ function bindEvents() {
     const BTN = 32;
     const hideOrder = [
       '.action-icon-btn.reply',
-      '.action-icon-btn.text-color',
-      '.action-icon-btn.highlight',
       '.action-icon-btn.thread-fold',
       '.action-icon-btn.font',
       '.action-icon-btn.image',

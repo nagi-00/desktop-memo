@@ -19,17 +19,10 @@
     <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
       <span class="bubble-icon" id="bubbleIcon">📝</span>
       <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
-        <i data-lucide="pencil" width="9" height="9"></i>
+        <i data-lucide="pencil" width="8" height="8"></i>
       </button>
-    </div>
-    <!-- 아이콘 선택 팝업 -->
-    <div class="bubble-picker" id="bubblePicker" style="display:none">
-      <div class="bubble-picker-presets" id="bubblePickerPresets"></div>
-      <div class="bubble-picker-sep"></div>
-      <div class="bubble-picker-input-row">
-        <input type="text" class="bubble-picker-input" id="bubblePickerInput" placeholder="이모지 또는 텍스트..." maxlength="4" />
-        <button class="bubble-picker-apply" id="bubblePickerApply">적용</button>
-      </div>
+      <!-- 인라인 아이콘 편집 입력 -->
+      <input type="text" class="bubble-icon-input" id="bubbleIconInput" maxlength="4" placeholder="📝" />
     </div>
   </div>
 
@@ -173,12 +166,6 @@
           <button class="action-icon-btn thread-fold" id="btnThreadFold" title="답글 스레드 접기/펼치기">
             <i data-lucide="chevrons-up-down" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn text-color" id="btnTextColor"  title="글자 색상">
-            <i data-lucide="type" width="15" height="15"></i>
-          </button>
-          <button class="action-icon-btn highlight"  id="btnHighlight"  title="하이라이트 (Ctrl+Shift+H)">
-            <i data-lucide="highlighter" width="15" height="15"></i>
-          </button>
           <!-- 글꼴 설정 (액션바) -->
           <div class="action-popup-wrap" id="fontWrap">
             <button class="action-icon-btn font" id="btnFont" title="글꼴 설정">
@@ -256,6 +243,7 @@
       </div>
     </div>
     <div class="img-editor-footer">
+      <button class="img-editor-btn cancel" id="imgEditorReset" title="원본 이미지로 초기화">초기화</button>
       <button class="img-editor-btn cancel" id="imgEditorCancel">취소</button>
       <button class="img-editor-btn apply" id="imgEditorApply">적용</button>
     </div>

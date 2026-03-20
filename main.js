@@ -70,7 +70,7 @@ function buildNewMemo(overrides = {}) {
 // ──────────────────────────────────────────
 // 메모 윈도우 생성
 // ──────────────────────────────────────────
-function createMemoWindow(memoData) {
+function createMemoWindow(memoData, options = {}) {
   const {
     id,
     window: bounds = {},
@@ -199,6 +199,20 @@ function createMemoWindow(memoData) {
 
     // 창 닫힐 때 핸들러 정리
     win.on('closed', () => detach());
+
+    // 즉시 부착 옵션: 생성 시 바로 부모 아래에 붙음
+    if (options.immediateAttach && !options.immediateAttach.isDestroyed()) {
+      win.once('show', () => {
+        const parentWin = options.immediateAttach;
+        if (parentWin && !parentWin.isDestroyed()) {
+          const pb = parentWin.getBounds();
+          _syncing = true;
+          win.setPosition(Math.round(pb.x), Math.round(pb.y + pb.height + 2));
+          _syncing = false;
+          attach(parentWin);
+        }
+      });
+    }
   }
 
   memoWindows.set(id, win);
@@ -297,12 +311,12 @@ function registerIpcHandlers() {
       profile: { ...parent.profile },
       theme:   { ...parent.theme },
       font:    { ...parent.font },
-      window:  { x: replyX, y: replyY, width: replyWidth, height: 420 },
+      window:  { x: replyX, y: replyY, width: replyWidth, height: 180 },
     });
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);
-    createMemoWindow(memo);
+    createMemoWindow(memo, { immediateAttach: attachAbove });
     updateTrayMenu();
     broadcastListUpdate();
     return memo.id;

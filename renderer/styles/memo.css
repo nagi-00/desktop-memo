@@ -27,19 +27,19 @@
 .memo-root.minimized .bubble-view { display: flex; }
 .memo-root.minimized .card-view   { display: none; }
 
-/* 폴더 모양 버블 버튼 */
+/* 폴더 모양 버블 버튼 — 60% 크기, 무광택 */
 .bubble-btn {
   position: relative;
-  width: 64px;
-  height: 52px;
-  border-radius: 0 10px 10px 10px; /* 폴더 본체 — 좌상단 탭 없음 */
+  width: 40px;
+  height: 32px;
+  border-radius: 0 7px 7px 7px; /* 폴더 본체 */
   background: var(--color-accent);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 7px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.2);
   -webkit-app-region: no-drag;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   overflow: visible;
@@ -48,36 +48,30 @@
 .bubble-btn::before {
   content: '';
   position: absolute;
-  top: -10px;
+  top: -6px;
   left: 0;
-  width: 26px;
-  height: 11px;
+  width: 16px;
+  height: 7px;
   background: var(--color-accent);
-  border-radius: 5px 5px 0 0;
+  border-radius: 3px 3px 0 0;
   pointer-events: none;
 }
-/* 폴더 광택 */
-.bubble-btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(160deg, rgba(255,255,255,0.18) 0%, transparent 55%);
-  border-radius: inherit;
-  pointer-events: none;
-}
+/* 광택 제거 */
+.bubble-btn::after { display: none; }
+
 .bubble-btn:hover {
-  transform: scale(1.06) translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  transform: scale(1.07) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 .bubble-btn:active { transform: scale(0.94); }
 
 /* 버블 아이콘 */
 .bubble-icon {
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1;
   position: relative;
   z-index: 1;
-  max-width: 52px;
+  max-width: 32px;
   text-align: center;
   word-break: break-all;
   display: block;
@@ -86,12 +80,12 @@
 /* 버블 아이콘 편집 버튼 */
 .bubble-edit-btn {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 18px;
-  height: 18px;
-  background: rgba(0,0,0,0.55);
-  border: 1.5px solid rgba(255,255,255,0.3);
+  bottom: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  background: rgba(0,0,0,0.6);
+  border: 1.5px solid rgba(255,255,255,0.35);
   border-radius: 50%;
   color: #fff;
   cursor: pointer;
@@ -102,6 +96,25 @@
   z-index: 10;
 }
 .bubble-btn:hover .bubble-edit-btn { display: flex; }
+
+/* 버블 인라인 아이콘 편집 입력 */
+.bubble-icon-input {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  border: none;
+  border-radius: 0 7px 7px 7px;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  outline: 1.5px solid rgba(255,255,255,0.5);
+  z-index: 20;
+  -webkit-app-region: no-drag;
+  cursor: text;
+  padding: 0;
+}
+.bubble-icon-input.active { display: block; }
 
 /* 버블 아이콘 선택 팝업 */
 .bubble-picker {
@@ -471,6 +484,8 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background var(--transition-fast), color var(--transition-fast);
+  -webkit-app-region: no-drag;
+  pointer-events: all;
 }
 .reply-apply-parent-theme:hover {
   background: var(--color-surface-hover);
@@ -548,7 +563,17 @@
 
 .memo-card.simple-mode .simple-drag-strip { display: block; }
 .memo-card.simple-mode .simple-restore-btn { display: flex; }
-.memo-card.simple-mode .status-bar { display: none; }
+/* 간단히 보기: 상태바는 유지하되 핀 버튼만 표시 */
+.memo-card.simple-mode .status-bar-inner {
+  background: transparent;
+  border-bottom: none;
+  padding: 3px 5px;
+  -webkit-app-region: no-drag;
+}
+.memo-card.simple-mode .status-bar .sb-btn:not(#btnPin),
+.memo-card.simple-mode .status-bar .sb-popup-wrap,
+.memo-card.simple-mode .status-bar .sb-spacer,
+.memo-card.simple-mode .status-bar .sb-color-dot { display: none; }
 .memo-card.simple-mode .profile-row { display: none; }
 .memo-card.simple-mode .action-bar { display: none; }
 .memo-card.simple-mode .reply-context { display: none !important; }
@@ -1216,7 +1241,8 @@
   gap: 0;
   width: min(420px, 90vw);
   max-height: 90vh;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .img-editor-header {
@@ -1365,8 +1391,8 @@
   pointer-events: auto;
 }
 .fmt-btn {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
@@ -1379,6 +1405,7 @@
   justify-content: center;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
+.fmt-btn.fmt-color-swatch { width: 28px; height: 32px; }
 .fmt-btn:hover {
   background: var(--color-surface-hover);
   color: var(--color-text);
