@@ -7,14 +7,15 @@ import { generatePalette, applyPalette, resetPalette, setThemeMode, PRESETS } fr
 const api = window.memoAPI;
 
 // ── 상태 ──────────────────────────────────────
-let memoData     = null;
-let currentMode  = 'dark';
-let isPinned     = false;
-let isMinimized  = false;
-let isBookmarked = false;
-let isLiked      = false;
-let saveTimer    = null;
-let mediaFolded  = false;
+let memoData      = null;
+let currentMode   = 'dark';
+let isPinned      = false;
+let isMinimized   = false;
+let isLiked       = false;
+let isSimpleMode  = false;
+let saveTimer     = null;
+let mediaFolded   = false;
+let selectedHrBlock = null; // 현재 선택된 HR 블록
 
 // ── DOM 참조 ──────────────────────────────────
 const memoRoot    = document.getElementById('memoRoot');
@@ -45,7 +46,6 @@ const btnDelete      = document.getElementById('btnDelete');
 
 const btnReply       = document.getElementById('btnReply');
 const btnThreadFold  = document.getElementById('btnThreadFold');
-const btnBookmark   = document.getElementById('btnBookmark');
 const btnLike       = document.getElementById('btnLike');
 const btnNewMemo    = document.getElementById('btnNewMemo');
 const btnImage      = document.getElementById('btnImage');
@@ -59,6 +59,7 @@ const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
 const btnHighlight    = document.getElementById('btnHighlight');
+const btnSimpleView   = document.getElementById('btnSimpleView');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
@@ -216,17 +217,6 @@ async function init() {
       replyCtx.style.display = 'flex';
       ctxText.style.cursor = 'pointer';
       ctxText.addEventListener('click', () => api.focusMemo(parent.id));
-
-      // 원본 테마 적용 버튼
-      const btnApplyParentTheme = document.getElementById('btnApplyParentTheme');
-      btnApplyParentTheme.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const parentAccent = parent.theme?.accent ?? null;
-        memoData.theme = { ...(memoData.theme || {}), accent: parentAccent };
-        applyTheme(parentAccent, currentMode);
-        saveMemoChanges({ theme: memoData.theme });
-        renderColorSwatches();
-      });
     } else {
       // 부모 메모를 못 찾아도 context bar 표시
       const ctxText = document.getElementById('replyContextText');
@@ -253,15 +243,19 @@ async function init() {
   isPinned = memoData.pinned || false;
   updatePinButton();
 
+  // 간단히 보기 복원
+  if (memoData.simpleMode) {
+    isSimpleMode = true;
+    document.querySelector('.memo-card').classList.add('simple-mode');
+  }
+
   // 투명도
   const opacity = memoData.opacity ?? 1.0;
   opacitySlider.value = opacity;
   opacityValue.textContent = `${Math.round(opacity * 100)}%`;
 
-  // 북마크 / 좋아요
-  isBookmarked = memoData.bookmarked || false;
-  isLiked      = memoData.liked      || false;
-  updateBookmarkButton();
+  // 좋아요
+  isLiked = memoData.liked || false;
   updateLikeButton();
 
   // 버블 아이콘
@@ -338,11 +332,7 @@ function updatePinButton() {
   if (window.lucide) lucide.createIcons({ nodes: [icon] });
 }
 
-// ── 북마크 / 좋아요 버튼 (아이콘 유지, SVG fill 채색) ──
-function updateBookmarkButton() {
-  btnBookmark.classList.toggle('active', isBookmarked);
-}
-
+// ── 좋아요 버튼 ──
 function updateLikeButton() {
   btnLike.classList.toggle('active', isLiked);
 }
@@ -1267,13 +1257,6 @@ function bindEvents() {
   // 새 메모
   btnNewMemo.addEventListener('click', () => api.createMemo());
 
-  // 북마크
-  btnBookmark.addEventListener('click', () => {
-    isBookmarked = !isBookmarked;
-    saveMemoChanges({ bookmarked: isBookmarked });
-    updateBookmarkButton();
-  });
-
   // 좋아요
   btnLike.addEventListener('click', () => {
     isLiked = !isLiked;
@@ -1398,59 +1381,45 @@ function bindEvents() {
     });
   }
 
-  // 아바타 클릭 → 컨텍스트 메뉴 (변경/삭제)
-  profileAvatar.addEventListener('click', (e) => {
+  // 아바타 클릭 → 바로 파일 선택 창 열기
+  profileAvatar.addEventListener('click', async (e) => {
     e.stopPropagation();
-    // 기존 메뉴 제거
+    const dataUrl = await api.pickImageFile();
+    if (!dataUrl) return;
+    memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: dataUrl };
+    saveMemoChanges({ profile: memoData.profile });
+    renderAvatar();
+  });
+  // 아바타 우클릭 → 삭제 옵션
+  profileAvatar.addEventListener('contextmenu', (e) => {
+    if (!memoData?.profile?.avatarDataUrl) return;
+    e.preventDefault();
+    e.stopPropagation();
     document.querySelectorAll('.avatar-menu').forEach(m => m.remove());
-
-    const hasAvatar = !!memoData?.profile?.avatarDataUrl;
     const menu = document.createElement('div');
     menu.className = 'avatar-menu';
-
-    if (hasAvatar) {
-      const editBtn = document.createElement('button');
-      editBtn.textContent = '사진 편집';
-      editBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        menu.remove();
-        const img = profileAvatar.querySelector('img');
-        if (img) openImageEditor(img);
-      });
-      menu.appendChild(editBtn);
-    }
-
-    const changeBtn = document.createElement('button');
-    changeBtn.textContent = hasAvatar ? '사진 변경' : '사진 추가';
-    changeBtn.addEventListener('click', async (ev) => {
+    profileAvatar.style.position = 'relative';
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '사진 편집';
+    editBtn.addEventListener('click', (ev) => {
       ev.stopPropagation();
       menu.remove();
-      const dataUrl = await api.pickImageFile();
-      if (!dataUrl) return;
-      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: dataUrl };
+      const img = profileAvatar.querySelector('img');
+      if (img) openImageEditor(img);
+    });
+    menu.appendChild(editBtn);
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'danger';
+    removeBtn.textContent = '사진 삭제';
+    removeBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      menu.remove();
+      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: null };
       saveMemoChanges({ profile: memoData.profile });
       renderAvatar();
     });
-    menu.appendChild(changeBtn);
-
-    if (hasAvatar) {
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'danger';
-      removeBtn.textContent = '사진 삭제';
-      removeBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        menu.remove();
-        memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: null };
-        saveMemoChanges({ profile: memoData.profile });
-        renderAvatar();
-      });
-      menu.appendChild(removeBtn);
-    }
-
-    profileAvatar.style.position = 'relative';
+    menu.appendChild(removeBtn);
     profileAvatar.appendChild(menu);
-
-    // 외부 클릭 시 메뉴 닫기
     const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
   });
@@ -1467,17 +1436,34 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 버블 아이콘 편집
+  // 버블 아이콘 편집 — 인라인 입력 오버레이
   bubbleEditBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    const current = memoData?.profile?.bubbleIcon || '📝';
-    const icon = prompt('아이콘 이모지를 입력하세요:', current);
-    if (icon !== null) {
-      const trimmed = icon.trim() || '📝';
-      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: trimmed };
-      bubbleIcon.textContent = trimmed;
+    // 기존 오버레이 제거
+    bubbleBtn.querySelectorAll('.bubble-icon-edit').forEach(el => el.remove());
+    const overlay = document.createElement('div');
+    overlay.className = 'bubble-icon-edit';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = memoData?.profile?.bubbleIcon || '📝';
+    input.maxLength = 2;
+    overlay.appendChild(input);
+    bubbleBtn.appendChild(overlay);
+    input.focus();
+    input.select();
+    const apply = () => {
+      const val = input.value.trim() || '📝';
+      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: val };
+      bubbleIcon.textContent = val;
       saveMemoChanges({ profile: memoData.profile });
-    }
+      overlay.remove();
+    };
+    input.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); apply(); }
+      if (ev.key === 'Escape') { ev.preventDefault(); overlay.remove(); }
+    });
+    input.addEventListener('blur', apply);
   });
 
   // 답글 (스레드)
@@ -1591,6 +1577,203 @@ function bindEvents() {
   // 하이라이트 버튼
   btnHighlight.addEventListener('click', toggleHighlight);
 
+  // ── 간단히 보기 토글 ──────────────────────────
+  btnSimpleView?.addEventListener('click', () => {
+    isSimpleMode = !isSimpleMode;
+    document.querySelector('.memo-card').classList.toggle('simple-mode', isSimpleMode);
+    const icon = btnSimpleView.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', isSimpleMode ? 'eye' : 'eye-off');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
+    saveMemoChanges({ simpleMode: isSimpleMode });
+  });
+
+  // 간단히 보기 상태에서 우클릭 → 자세히 보기
+  document.querySelector('.memo-card').addEventListener('contextmenu', (e) => {
+    if (!isSimpleMode) return;
+    if (e.target.closest('.memo-content')) return; // 텍스트 선택 우클릭은 별도 처리
+    e.preventDefault();
+    e.stopPropagation();
+    // 자세히 보기 메뉴
+    document.querySelectorAll('.simple-restore-menu').forEach(m => m.remove());
+    const menu = document.createElement('div');
+    menu.className = 'simple-restore-menu avatar-menu';
+    menu.style.position = 'fixed';
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top  = `${e.clientY}px`;
+    menu.style.zIndex = '9999';
+    const restoreBtn = document.createElement('button');
+    restoreBtn.textContent = '자세히 보기';
+    restoreBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      menu.remove();
+      isSimpleMode = false;
+      document.querySelector('.memo-card').classList.remove('simple-mode');
+      const icon = btnSimpleView?.querySelector('[data-lucide]');
+      if (icon) {
+        icon.setAttribute('data-lucide', 'eye-off');
+        if (window.lucide) lucide.createIcons({ nodes: [icon] });
+      }
+      saveMemoChanges({ simpleMode: false });
+    });
+    menu.appendChild(restoreBtn);
+    document.body.appendChild(menu);
+    const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  });
+
+  // ── HR 블록 클릭 선택 ──────────────────────────
+  memoContent.addEventListener('click', (e) => {
+    const hrBlock = e.target.closest('.hr-block');
+    if (hrBlock) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (selectedHrBlock && selectedHrBlock !== hrBlock) {
+        selectedHrBlock.classList.remove('hr-selected');
+      }
+      selectedHrBlock = hrBlock;
+      hrBlock.classList.add('hr-selected');
+    }
+  }, true);
+
+  // HR 선택 시 Delete/Backspace 삭제
+  document.addEventListener('keydown', (e) => {
+    if (!selectedHrBlock) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      const next = selectedHrBlock.nextSibling;
+      selectedHrBlock.remove();
+      selectedHrBlock = null;
+      if (next) {
+        try {
+          const range = document.createRange();
+          range.setStart(next, 0);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          memoContent.focus();
+        } catch {}
+      }
+      scheduleSave();
+    } else if (!e.key.startsWith('Arrow')) {
+      selectedHrBlock.classList.remove('hr-selected');
+      selectedHrBlock = null;
+    }
+  });
+
+  // ── 우클릭 서식 메뉴 (텍스트 선택 시) ───────────
+  {
+    let fmtMenu = null;
+
+    function hideFmtMenu() {
+      if (fmtMenu) { fmtMenu.remove(); fmtMenu = null; }
+    }
+
+    function showFmtMenu(x, y) {
+      hideFmtMenu();
+      fmtMenu = document.createElement('div');
+      fmtMenu.className = 'fmt-menu';
+
+      const makeBtn = (label, cmd, val) => {
+        const btn = document.createElement('button');
+        btn.className = 'fmt-btn';
+        btn.textContent = label;
+        btn.title = cmd;
+        btn.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          memoContent.focus();
+          document.execCommand(cmd, false, val || null);
+          scheduleSave();
+          hideFmtMenu();
+        });
+        return btn;
+      };
+
+      fmtMenu.appendChild(makeBtn('B',  'bold'));
+      fmtMenu.appendChild(makeBtn('I',  'italic'));
+      fmtMenu.appendChild(makeBtn('U',  'underline'));
+      fmtMenu.appendChild(makeBtn('S',  'strikeThrough'));
+
+      const sep1 = document.createElement('span');
+      sep1.className = 'fmt-sep';
+      fmtMenu.appendChild(sep1);
+
+      // 글자색 도트
+      const colorDotFmt = document.createElement('button');
+      colorDotFmt.className = 'fmt-btn';
+      colorDotFmt.title = '글자 색상';
+      colorDotFmt.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:var(--tc-current,#f87171);display:inline-block;border:1.5px solid rgba(128,128,128,0.4)"></span>';
+      colorDotFmt.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        hideFmtMenu();
+        const sel = window.getSelection();
+        if (sel?.rangeCount && !sel.isCollapsed) {
+          savedTextRange = sel.getRangeAt(0).cloneRange();
+        }
+        textColorInput.click();
+      });
+      fmtMenu.appendChild(colorDotFmt);
+
+      const sep2 = document.createElement('span');
+      sep2.className = 'fmt-sep';
+      fmtMenu.appendChild(sep2);
+
+      // 링크 버튼
+      const linkBtn = document.createElement('button');
+      linkBtn.className = 'fmt-btn';
+      linkBtn.title = '링크 삽입';
+      linkBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+      linkBtn.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        hideFmtMenu();
+        insertLink();
+      });
+      fmtMenu.appendChild(linkBtn);
+
+      // 하이라이트 버튼
+      const hlBtn = document.createElement('button');
+      hlBtn.className = 'fmt-btn';
+      hlBtn.title = '하이라이트';
+      hlBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>';
+      hlBtn.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        hideFmtMenu();
+        toggleHighlight();
+      });
+      fmtMenu.appendChild(hlBtn);
+
+      document.body.appendChild(fmtMenu);
+
+      // 화면 경계 보정
+      const rect = fmtMenu.getBoundingClientRect();
+      let fx = x, fy = y - rect.height - 8;
+      if (fx + rect.width > window.innerWidth)  fx = window.innerWidth - rect.width - 4;
+      if (fy < 0) fy = y + 8;
+      fmtMenu.style.left = `${fx}px`;
+      fmtMenu.style.top  = `${fy}px`;
+    }
+
+    memoContent.addEventListener('contextmenu', (e) => {
+      const sel = window.getSelection();
+      const hasSelection = sel && !sel.isCollapsed && sel.toString().trim().length > 0;
+      if (!hasSelection) {
+        hideFmtMenu();
+        return; // 기본 컨텍스트 메뉴 허용
+      }
+      e.preventDefault();
+      showFmtMenu(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (fmtMenu && !fmtMenu.contains(e.target)) hideFmtMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (fmtMenu && e.key === 'Escape') hideFmtMenu();
+    });
+  }
+
   // 이미지 에디터 이벤트
   document.getElementById('imgEditorClose').addEventListener('click', () => {
     document.getElementById('imgEditorOverlay').classList.remove('visible');
@@ -1661,6 +1844,13 @@ function bindEvents() {
     if (!colWrap?.contains(e.target)) colorPopup.classList.remove('visible');
     if (!capWrap?.contains(e.target)) capturePopup.classList.remove('visible');
     if (!fntWrap?.contains(e.target)) fontPopup.classList.remove('visible');
+    // HR 선택 해제
+    if (!e.target.closest?.('.hr-block')) {
+      if (selectedHrBlock) {
+        selectedHrBlock.classList.remove('hr-selected');
+        selectedHrBlock = null;
+      }
+    }
   });
 
   // 전역 단축키
@@ -1680,9 +1870,9 @@ function bindEvents() {
       '.action-icon-btn.text-color',
       '.action-icon-btn.highlight',
       '.action-icon-btn.thread-fold',
+      '.action-icon-btn.font',
       '.action-icon-btn.image',
       '.action-icon-btn.like',
-      '.action-icon-btn.bookmark',
       '.action-icon-btn.new-memo',
     ];
 

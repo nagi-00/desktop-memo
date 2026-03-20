@@ -80,16 +80,16 @@ function createMemoWindow(memoData) {
   } = memoData;
 
   // 최소화 상태면 작게 시작
-  const winWidth  = minimized ? 80  : (bounds.width  || 320);
-  const winHeight = minimized ? 80  : (bounds.height || 420);
+  const winWidth  = minimized ? 88  : (bounds.width  || 320);
+  const winHeight = minimized ? 88  : (bounds.height || 420);
 
   const win = new BrowserWindow({
     x: bounds.x,
     y: bounds.y,
     width:     winWidth,
     height:    winHeight,
-    minWidth:  minimized ? 64  : 260,
-    minHeight: minimized ? 64  : 200,
+    minWidth:  minimized ? 88  : 260,
+    minHeight: minimized ? 88  : 200,
     frame:      false,
     transparent:true,
     resizable:  !minimized,
@@ -140,6 +140,23 @@ function createMemoWindow(memoData) {
     memoWindows.delete(id);
     updateTrayMenu();
   });
+
+  // 자식 메모: 부모 바로 아래로 이동 시 자동 스냅
+  if (memoData.parentId) {
+    const SNAP_THRESHOLD = 40;
+    win.on('moved', () => {
+      if (win.isDestroyed()) return;
+      const parentWin = memoWindows.get(memoData.parentId);
+      if (!parentWin || parentWin.isDestroyed()) return;
+      const pb = parentWin.getBounds();
+      const cb = win.getBounds();
+      const snapX = pb.x;
+      const snapY = pb.y + pb.height + 2;
+      if (Math.abs(cb.x - snapX) < SNAP_THRESHOLD && Math.abs(cb.y - snapY) < SNAP_THRESHOLD) {
+        win.setPosition(Math.round(snapX), Math.round(snapY));
+      }
+    });
+  }
 
   memoWindows.set(id, win);
   return win;
@@ -242,10 +259,7 @@ function registerIpcHandlers() {
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);
-    const replyWin = createMemoWindow(memo);
-    if (attachAbove && !attachAbove.isDestroyed()) {
-      attachChildWindow(attachAbove, replyWin);
-    }
+    createMemoWindow(memo);
     updateTrayMenu();
     broadcastListUpdate();
     return memo.id;
@@ -335,7 +349,7 @@ function registerIpcHandlers() {
       const prev = win.getBounds();
       updateMemoField(id, 'prevBounds', prev);
       win.setResizable(false);
-      win.setSize(72, 72);
+      win.setSize(88, 88);
     } else {
       // 이전 크기로 복원
       const memo = getMemoById(id);
@@ -470,12 +484,25 @@ function registerIpcHandlers() {
     }
   });
 
-  // 답글 스레드 접기/펼치기 — 목록 창으로 전달
-  ipcMain.handle('memo:foldThread', (_e, memoId) => {
+  // 답글 스레드 접기/펼치기 — 자식 창 숨기기/보이기 + 목록창 동기화
+  ipcMain.handle('memo:foldThread', (_e, rootId) => {
+    const memos = getMemos();
+    const children = memos.filter(m => m.parentId === rootId);
+    if (children.length > 0) {
+      const anyVisible = children.some(m => {
+        const w = memoWindows.get(m.id);
+        return w && !w.isDestroyed() && w.isVisible();
+      });
+      for (const m of children) {
+        const w = memoWindows.get(m.id);
+        if (w && !w.isDestroyed()) {
+          if (anyVisible) w.hide();
+          else w.show();
+        }
+      }
+    }
     if (listWindow && !listWindow.isDestroyed()) {
-      listWindow.webContents.send('thread:fold', memoId);
-    } else {
-      // 목록 창이 없으면 여기서 무시 (or 열 수 있음)
+      listWindow.webContents.send('thread:fold', rootId);
     }
   });
 }
@@ -564,24 +591,7 @@ app.whenReady().then(async () => {
     for (const memo of memos) createMemoWindow(memo);
   }
 
-  // 답글 창을 부모 창 아래에 재부착 (시작 시)
-  const sorted = [...memos].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-  const attached = new Set();
-  function attachThread(memoId) {
-    if (attached.has(memoId)) return;
-    attached.add(memoId);
-    const kids = sorted.filter(m => m.parentId === memoId);
-    let prevWin = memoWindows.get(memoId);
-    for (const kid of kids) {
-      const kidWin = memoWindows.get(kid.id);
-      if (prevWin && !prevWin.isDestroyed() && kidWin && !kidWin.isDestroyed()) {
-        attachChildWindow(prevWin, kidWin);
-      }
-      prevWin = kidWin;
-      attachThread(kid.id);
-    }
-  }
-  sorted.filter(m => !m.parentId).forEach(m => attachThread(m.id));
+  // (자식 창은 createMemoWindow 내의 snap 동작으로 자유롭게 이동 가능)
 
   updateTrayMenu();
 });

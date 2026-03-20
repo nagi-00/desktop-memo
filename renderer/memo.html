@@ -71,23 +71,12 @@
             </div>
           </div>
 
-          <!-- 글꼴 설정 -->
-          <div class="sb-popup-wrap" id="fontWrap">
-            <button class="sb-btn" id="btnFont" title="글꼴 설정">
-              <i data-lucide="a-large-small" width="13" height="13"></i>
-            </button>
-            <div class="sb-popup font-popup" id="fontPopup">
-              <input type="text" class="font-search" id="fontSearch" placeholder="폰트 검색..." />
-              <div class="font-families" id="fontFamilies"></div>
-              <div class="font-size-row">
-                <span class="popup-label">크기</span>
-                <input type="range" id="fontSizeSlider" min="10" max="24" step="1" value="14" />
-                <span id="fontSizeValue">14px</span>
-              </div>
-            </div>
-          </div>
-
           <div class="sb-spacer"></div>
+
+          <!-- 간단히 보기 -->
+          <button class="sb-btn" id="btnSimpleView" title="간단히 보기">
+            <i data-lucide="eye-off" width="13" height="13"></i>
+          </button>
 
           <!-- 삭제 -->
           <button class="sb-btn delete" id="btnDelete" title="메모 삭제">
@@ -101,7 +90,6 @@
       <div class="reply-context" id="replyContext" style="display:none">
         <span class="reply-context-icon">↩</span>
         <span class="reply-context-text" id="replyContextText"></span>
-        <button class="reply-apply-parent-theme" id="btnApplyParentTheme" title="원본 테마 적용">원본 테마 적용</button>
       </div>
 
       <!-- 프로필 행 (drag region) -->
@@ -168,7 +156,7 @@
             <i data-lucide="message-circle" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn thread-fold" id="btnThreadFold" title="답글 스레드 접기/펼치기">
-            <i data-lucide="git-branch" width="15" height="15"></i>
+            <i data-lucide="chevrons-up-down" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn text-color" id="btnTextColor"  title="글자 색상">
             <i data-lucide="type" width="15" height="15"></i>
@@ -176,11 +164,23 @@
           <button class="action-icon-btn highlight"  id="btnHighlight"  title="하이라이트 (Ctrl+Shift+H)">
             <i data-lucide="highlighter" width="15" height="15"></i>
           </button>
+          <!-- 글꼴 설정 (액션바) -->
+          <div class="action-popup-wrap" id="fontWrap">
+            <button class="action-icon-btn font" id="btnFont" title="글꼴 설정">
+              <i data-lucide="a-large-small" width="15" height="15"></i>
+            </button>
+            <div class="action-popup font-popup" id="fontPopup">
+              <input type="text" class="font-search" id="fontSearch" placeholder="폰트 검색..." />
+              <div class="font-families" id="fontFamilies"></div>
+              <div class="font-size-row">
+                <span class="popup-label">크기</span>
+                <input type="range" id="fontSizeSlider" min="10" max="24" step="1" value="14" />
+                <span id="fontSizeValue">14px</span>
+              </div>
+            </div>
+          </div>
           <button class="action-icon-btn image"      id="btnImage"      title="이미지 첨부">
             <i data-lucide="image" width="15" height="15"></i>
-          </button>
-          <button class="action-icon-btn bookmark"   id="btnBookmark"   title="북마크">
-            <i data-lucide="bookmark" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn like"       id="btnLike"       title="좋아요">
             <i data-lucide="heart" width="15" height="15"></i>

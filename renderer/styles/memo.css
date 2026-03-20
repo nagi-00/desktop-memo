@@ -19,36 +19,35 @@
   height: 100%;
   align-items: center;
   justify-content: center;
+  /* 전체가 드래그 영역 — 버튼 내부는 no-drag */
+  -webkit-app-region: drag;
+  position: relative;
 }
 
 .memo-root.minimized .bubble-view { display: flex; }
 .memo-root.minimized .card-view   { display: none; }
 
-.bubble-view {
-  -webkit-app-region: drag;
-  position: relative;
-}
-
 .bubble-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
   background: var(--color-accent);
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
-  box-shadow: var(--shadow-card);
+  font-size: 28px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   -webkit-app-region: no-drag;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  position: relative;
 }
 .bubble-btn:hover {
   transform: scale(1.06);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
 }
-.bubble-btn:active { transform: scale(0.97); }
+.bubble-btn:active { transform: scale(0.94); }
 
 /* 버블 아이콘 편집 버튼 (bubble-btn 안에 중첩) */
 .bubble-btn { position: relative; }
@@ -397,12 +396,33 @@
 
 /* 답글 메모 — 상단바 없이 reply-context가 최상단이므로 radius 적용 */
 .memo-card.is-reply .status-bar { display: none; }
+.memo-card.is-reply .profile-row { display: none; }
+.memo-card.is-reply .action-bar .reply,
+.memo-card.is-reply .action-bar .thread-fold,
+.memo-card.is-reply .action-bar .like { display: none; }
 .memo-card.is-reply .reply-context {
   border-radius: var(--radius-card) var(--radius-card) 0 0;
   -webkit-app-region: drag;
   cursor: default;
 }
 .memo-card.is-reply .reply-context > * { -webkit-app-region: no-drag; }
+
+/* ══════════════════════════════════════════════
+   SIMPLE MODE (간단히 보기)
+   ══════════════════════════════════════════════ */
+.memo-card.simple-mode .status-bar { display: none; }
+.memo-card.simple-mode .profile-row { display: none; }
+.memo-card.simple-mode .action-bar { display: none; }
+.memo-card.simple-mode .memo-content {
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+  -webkit-app-region: drag;
+}
+.memo-card.simple-mode .memo-content > * { -webkit-app-region: no-drag; }
+.memo-card.simple-mode .media-header { display: none !important; }
+.memo-card.simple-mode .memo-body {
+  border-radius: var(--radius-card);
+}
 
 /* 아바타 컨텍스트 메뉴 */
 .avatar-menu {
@@ -762,7 +782,6 @@
 /* 각 버튼별 색상 */
 .action-icon-btn.reply       { color: var(--action-reply);    }
 .action-icon-btn.thread-fold { color: var(--action-reply);    }
-.action-icon-btn.bookmark { color: var(--action-bookmark); }
 .action-icon-btn.like     { color: var(--action-like);     }
 .action-icon-btn.image    { color: var(--action-link);     }
 .action-icon-btn.new-memo { color: var(--color-text-muted);}
@@ -850,20 +869,12 @@
 
 .action-icon-btn.reply:hover       { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
 .action-icon-btn.thread-fold:hover { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
-.action-icon-btn.bookmark:hover { background: color-mix(in srgb, var(--action-bookmark) 15%, transparent); }
 .action-icon-btn.like:hover     { background: color-mix(in srgb, var(--action-like)     15%, transparent); }
 .action-icon-btn.image:hover    { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
 .action-icon-btn.text-color:hover { background: var(--color-surface-hover); }
 .action-icon-btn.new-memo:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 /* 토글 활성 상태 — 트위터 방식: SVG fill 채색 */
-.action-icon-btn.bookmark.active {
-  color: var(--action-bookmark);
-}
-.action-icon-btn.bookmark.active svg {
-  fill: currentColor;
-  stroke: none;
-}
 .action-icon-btn.like.active {
   color: var(--action-like);
 }
@@ -1205,7 +1216,106 @@
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
+  border-radius: 3px;
+  transition: background var(--transition-fast);
 }
+.memo-content .hr-block.hr-selected {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  outline: 1px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── 서식 우클릭 메뉴 ── */
+.fmt-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popup);
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  padding: 4px 6px;
+  align-items: center;
+  pointer-events: auto;
+}
+.fmt-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.fmt-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+.fmt-btn.active { color: var(--color-accent); }
+.fmt-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+.fmt-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tc-current, #f87171);
+  border: 1.5px solid var(--color-border);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+.fmt-color-dot:hover { transform: scale(1.2); }
+
+/* ── 버블 아이콘 편집 오버레이 ── */
+.bubble-icon-edit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.7);
+  border-radius: 18px;
+  z-index: 20;
+  -webkit-app-region: no-drag;
+}
+.bubble-icon-edit input {
+  width: 40px;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #fff;
+  color: #fff;
+  font-size: 22px;
+  text-align: center;
+  outline: none;
+  padding: 0;
+}
+
+/* ── 폰트 팝업 (액션바 위치) ── */
+.action-popup.font-popup {
+  min-width: 200px;
+  max-width: 260px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.action-popup.font-popup.visible { display: flex; }
+.action-icon-btn.font { color: var(--color-text-muted); }
+.action-icon-btn.font:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 /* ── 이미지 에디터 캔버스 커서 ── */
 #imgEditorCanvas { cursor: grab; }
