@@ -19,8 +19,17 @@
     <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
       <span class="bubble-icon" id="bubbleIcon">📝</span>
       <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
-        <i data-lucide="pencil" width="10" height="10"></i>
+        <i data-lucide="pencil" width="9" height="9"></i>
       </button>
+    </div>
+    <!-- 아이콘 선택 팝업 -->
+    <div class="bubble-picker" id="bubblePicker" style="display:none">
+      <div class="bubble-picker-presets" id="bubblePickerPresets"></div>
+      <div class="bubble-picker-sep"></div>
+      <div class="bubble-picker-input-row">
+        <input type="text" class="bubble-picker-input" id="bubblePickerInput" placeholder="이모지 또는 텍스트..." maxlength="4" />
+        <button class="bubble-picker-apply" id="bubblePickerApply">적용</button>
+      </div>
     </div>
   </div>
 
@@ -31,6 +40,11 @@
 
     <!-- ── 카드 본체 ── -->
     <div class="memo-card">
+      <!-- 간단히 보기 모드 드래그 핸들 + 복원 버튼 -->
+      <div class="simple-drag-strip" id="simpleDragStrip"></div>
+      <button class="simple-restore-btn" id="btnRestoreDetail" title="자세히 보기">
+        <i data-lucide="eye" width="11" height="11"></i>
+      </button>
 
       <!-- ── 상태바 (상단 고정) ── -->
       <div class="status-bar" id="statusBar">
@@ -90,6 +104,7 @@
       <div class="reply-context" id="replyContext" style="display:none">
         <span class="reply-context-icon">↩</span>
         <span class="reply-context-text" id="replyContextText"></span>
+        <button class="reply-apply-parent-theme" id="btnApplyParentTheme" title="원본 테마 적용" style="display:none">원본 테마 적용</button>
       </div>
 
       <!-- 프로필 행 (drag region) -->

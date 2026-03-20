@@ -113,8 +113,7 @@ function getFilteredMemos() {
 
   let list = allMemos;
 
-  if (currentFilter === 'bookmarked') list = list.filter(m => m.bookmarked);
-  else if (currentFilter === 'liked') list = list.filter(m => m.liked);
+  if (currentFilter === 'liked') list = list.filter(m => m.liked);
   else if (currentFilter === 'threads') {
     const parentIds = new Set(list.filter(m => m.parentId).map(m => m.parentId));
     list = list.filter(m => parentIds.has(m.id) || m.parentId);
@@ -222,8 +221,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
   const accentBg = memo.theme?.accent || 'var(--color-accent)';
 
   const badgesHtml = [
-    memo.bookmarked ? '<span class="item-badge">★ 북마크</span>' : '',
-    memo.liked      ? '<span class="item-badge">♥ 좋아요</span>' : '',
+    memo.liked ? '<span class="item-badge">♥ 좋아요</span>' : '',
     ...(memo.tags || []).slice(0, 2).map(t => `<span class="item-badge">#${escHtml(t)}</span>`)
   ].filter(Boolean).join('');
 

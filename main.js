@@ -141,21 +141,64 @@ function createMemoWindow(memoData) {
     updateTrayMenu();
   });
 
-  // 자식 메모: 부모 바로 아래로 이동 시 자동 스냅
+  // 자식 메모: 부모 아래로 이동 시 스냅 + 그룹 이동
   if (memoData.parentId) {
-    const SNAP_THRESHOLD = 40;
+    const SNAP_DIST  = 50;
+    let attached     = false;
+    let _syncing     = false;
+    let _parentMoveHandler = null;
+
+    const detach = () => {
+      if (!attached) return;
+      attached = false;
+      const pw = memoWindows.get(memoData.parentId);
+      if (pw && !pw.isDestroyed() && _parentMoveHandler) {
+        pw.removeListener('move', _parentMoveHandler);
+      }
+      _parentMoveHandler = null;
+    };
+
+    const attach = (parentWin) => {
+      if (attached) return;
+      attached = true;
+      _parentMoveHandler = () => {
+        if (win.isDestroyed() || _syncing) return;
+        const pw = memoWindows.get(memoData.parentId);
+        if (!pw || pw.isDestroyed()) return;
+        const pb = pw.getBounds();
+        _syncing = true;
+        win.setPosition(pb.x, pb.y + pb.height + 2);
+        _syncing = false;
+      };
+      parentWin.on('move', _parentMoveHandler);
+    };
+
     win.on('moved', () => {
-      if (win.isDestroyed()) return;
+      if (win.isDestroyed() || _syncing) return;
       const parentWin = memoWindows.get(memoData.parentId);
       if (!parentWin || parentWin.isDestroyed()) return;
-      const pb = parentWin.getBounds();
-      const cb = win.getBounds();
+      const pb  = parentWin.getBounds();
+      const cb  = win.getBounds();
       const snapX = pb.x;
       const snapY = pb.y + pb.height + 2;
-      if (Math.abs(cb.x - snapX) < SNAP_THRESHOLD && Math.abs(cb.y - snapY) < SNAP_THRESHOLD) {
-        win.setPosition(Math.round(snapX), Math.round(snapY));
+      const dist  = Math.hypot(cb.x - snapX, cb.y - snapY);
+
+      if (attached) {
+        // 멀리 드래그하면 분리
+        if (dist > SNAP_DIST * 3) detach();
+      } else {
+        // 가까우면 스냅 + 그룹화
+        if (dist < SNAP_DIST) {
+          _syncing = true;
+          win.setPosition(Math.round(snapX), Math.round(snapY));
+          _syncing = false;
+          attach(parentWin);
+        }
       }
     });
+
+    // 창 닫힐 때 핸들러 정리
+    win.on('closed', () => detach());
   }
 
   memoWindows.set(id, win);

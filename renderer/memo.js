@@ -15,7 +15,6 @@ let isLiked       = false;
 let isSimpleMode  = false;
 let saveTimer     = null;
 let mediaFolded   = false;
-let selectedHrBlock = null; // 현재 선택된 HR 블록
 
 // ── DOM 참조 ──────────────────────────────────
 const memoRoot    = document.getElementById('memoRoot');
@@ -180,6 +179,12 @@ async function init() {
     memoContent.textContent = memoData.content;
   }
 
+  // 구형 hr-block → <hr> 마이그레이션
+  memoContent.querySelectorAll('.hr-block').forEach(block => {
+    const hr = document.createElement('hr');
+    block.parentNode.replaceChild(hr, block);
+  });
+
   // 저장된 미디어 그리드에 래퍼/이벤트 재적용
   initMediaGrids();
 
@@ -217,6 +222,19 @@ async function init() {
       replyCtx.style.display = 'flex';
       ctxText.style.cursor = 'pointer';
       ctxText.addEventListener('click', () => api.focusMemo(parent.id));
+      // 원본 테마 적용 버튼 복원
+      const btnApplyParentTheme = document.getElementById('btnApplyParentTheme');
+      if (btnApplyParentTheme) {
+        btnApplyParentTheme.style.display = '';
+        btnApplyParentTheme.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const parentAccent = parent.theme?.accent ?? null;
+          memoData.theme = { ...(memoData.theme || {}), accent: parentAccent };
+          applyTheme(parentAccent, currentMode);
+          saveMemoChanges({ theme: memoData.theme });
+          renderColorSwatches();
+        });
+      }
     } else {
       // 부모 메모를 못 찾아도 context bar 표시
       const ctxText = document.getElementById('replyContextText');
@@ -967,23 +985,6 @@ function bindEvents() {
     else if (mod && e.key === 'z')                       { e.preventDefault(); document.execCommand('undo'); }
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
-    } else if (e.key === 'Backspace' && !mod) {
-      // 구분선(HR) 앞에서 Backspace → HR 삭제
-      const sel = window.getSelection();
-      if (sel?.rangeCount && sel.isCollapsed && sel.getRangeAt(0).startOffset === 0) {
-        let node = sel.getRangeAt(0).startContainer;
-        if (node.nodeType === Node.TEXT_NODE) node = node.parentNode;
-        let el = node;
-        while (el && el.parentNode !== memoContent) el = el.parentNode;
-        if (el) {
-          const prev = el.previousElementSibling;
-          if (prev?.tagName === 'HR' || prev?.classList.contains('hr-block')) {
-            e.preventDefault();
-            prev.remove();
-            scheduleSave();
-          }
-        }
-      }
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
@@ -1065,7 +1066,7 @@ function bindEvents() {
         }
       }
     } else if (e.key === '-') {
-      // --- 입력 시 수평 구분선으로 자동 변환
+      // --- 입력 시 수평 구분선으로 자동 변환 (<hr> — 텍스트 흐름 안에서 동작)
       const sel = window.getSelection();
       if (sel?.rangeCount) {
         const range = sel.getRangeAt(0);
@@ -1074,32 +1075,32 @@ function bindEvents() {
           const textBefore = node.textContent.slice(0, range.startOffset);
           if (textBefore === '--') {
             e.preventDefault();
-            node.textContent = node.textContent.slice(range.startOffset);
-            const r2 = document.createRange();
-            r2.setStart(node, 0); r2.collapse(true);
-            sel.removeAllRanges(); sel.addRange(r2);
-            document.execCommand('insertHTML', false, '<div class="hr-block" contenteditable="false"><hr></div>');
-            // hr-block 뒤로 커서 이동 (contenteditable=false 탈출)
-            {
-              const blocks = memoContent.querySelectorAll('.hr-block');
-              const lastBlock = blocks[blocks.length - 1];
-              if (lastBlock) {
-                let next = lastBlock.nextSibling;
-                if (!next) {
-                  const newDiv = document.createElement('div');
-                  newDiv.innerHTML = '<br>';
-                  lastBlock.parentNode.insertBefore(newDiv, lastBlock.nextSibling);
-                  next = newDiv;
-                }
-                try {
-                  const r2 = document.createRange();
-                  r2.setStart(next, 0);
-                  r2.collapse(true);
-                  sel.removeAllRanges();
-                  sel.addRange(r2);
-                } catch {}
-              }
+            // 트리거 문자(--) 제거
+            node.textContent =
+              node.textContent.slice(0, range.startOffset - 2) +
+              node.textContent.slice(range.startOffset);
+            // 현재 블록의 최상위 요소 찾기
+            let topEl = node;
+            while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+            // <hr> 삽입
+            const hr = document.createElement('hr');
+            memoContent.insertBefore(hr, topEl.nextSibling);
+            // hr 뒤에 새 줄 (없으면 생성)
+            let nextEl = hr.nextSibling;
+            if (!nextEl) {
+              nextEl = document.createElement('div');
+              nextEl.innerHTML = '<br>';
+              memoContent.appendChild(nextEl);
             }
+            // 커서를 hr 다음 줄로 이동
+            try {
+              const r2 = document.createRange();
+              r2.setStart(nextEl, 0);
+              r2.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(r2);
+              memoContent.focus();
+            } catch {}
             scheduleSave();
           }
         }
@@ -1107,92 +1108,6 @@ function bindEvents() {
     }
     handleAutoConvert(e);
   });
-
-  // ── 구분선(hr-block) 방향키 탐색 — 별도 리스너 ──────────
-  memoContent.addEventListener('keydown', (e) => {
-    if (!['ArrowRight','ArrowLeft','ArrowDown','ArrowUp'].includes(e.key)) return;
-    const sel = window.getSelection();
-    if (!sel?.rangeCount || !sel.isCollapsed) return;
-
-    const range  = sel.getRangeAt(0);
-    const goFwd  = e.key === 'ArrowRight' || e.key === 'ArrowDown';
-
-    function moveTo(dest, atStart) {
-      try {
-        const r = document.createRange();
-        if (atStart) {
-          r.setStart(dest, 0);
-        } else {
-          const pos = dest.nodeType === Node.TEXT_NODE
-            ? dest.textContent.length
-            : dest.childNodes.length;
-          r.setStart(dest, pos);
-        }
-        r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
-        memoContent.focus();
-      } catch {}
-    }
-
-    // 1) 갇힌 경우 탈출 (contenteditable=false 내부에 커서가 있는 경우)
-    let sc = range.startContainer;
-    if (sc.nodeType === Node.TEXT_NODE) sc = sc.parentNode;
-    let cur = sc;
-    while (cur && cur !== memoContent) {
-      if (cur.contentEditable === 'false') {
-        e.preventDefault();
-        const sibling = goFwd ? cur.nextSibling : cur.previousSibling;
-        let dest = sibling;
-        if (!dest) {
-          dest = document.createElement('div');
-          dest.innerHTML = '<br>';
-          if (goFwd) memoContent.appendChild(dest);
-          else memoContent.insertBefore(dest, cur);
-        }
-        moveTo(dest, goFwd);
-        return;
-      }
-      cur = cur.parentNode;
-    }
-
-    // 2) 인접 hr-block 건너뜀
-    let topEl = sc;
-    while (topEl && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
-    if (!topEl) return;
-
-    if (goFwd) {
-      const rc = range.startContainer;
-      const atEnd = rc.nodeType === Node.TEXT_NODE
-        ? range.startOffset >= rc.textContent.length
-        : range.startOffset >= rc.childNodes.length;
-      if (!atEnd) return;
-      const next = topEl.nextElementSibling;
-      if (next?.contentEditable === 'false') {
-        e.preventDefault();
-        let dest = next.nextSibling;
-        if (!dest) {
-          dest = document.createElement('div');
-          dest.innerHTML = '<br>';
-          memoContent.appendChild(dest);
-        }
-        moveTo(dest, true);
-      }
-    } else {
-      if (range.startOffset !== 0) return;
-      const prev = topEl.previousElementSibling;
-      if (prev?.contentEditable === 'false') {
-        e.preventDefault();
-        let dest = prev.previousSibling;
-        if (!dest) {
-          dest = document.createElement('div');
-          dest.innerHTML = '<br>';
-          memoContent.insertBefore(dest, prev);
-        }
-        moveTo(dest, false);
-      }
-    }
-  }, true); // capture phase — 브라우저 기본 커서 이동 전에 처리
 
   // URL 붙여넣기 → 하이퍼링크 자동 변환
   memoContent.addEventListener('paste', (e) => {
@@ -1381,7 +1296,7 @@ function bindEvents() {
     });
   }
 
-  // 아바타 클릭 → 바로 파일 선택 창 열기
+  // 아바타 클릭 → 파일 선택 후 에디터 자동 오픈
   profileAvatar.addEventListener('click', async (e) => {
     e.stopPropagation();
     const dataUrl = await api.pickImageFile();
@@ -1389,6 +1304,10 @@ function bindEvents() {
     memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: dataUrl };
     saveMemoChanges({ profile: memoData.profile });
     renderAvatar();
+    // 선택한 이미지 즉시 에디터로 오픈
+    await new Promise(r => requestAnimationFrame(r));
+    const img = profileAvatar.querySelector('img');
+    if (img) openImageEditor(img);
   });
   // 아바타 우클릭 → 삭제 옵션
   profileAvatar.addEventListener('contextmenu', (e) => {
@@ -1436,35 +1355,76 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 버블 아이콘 편집 — 인라인 입력 오버레이
-  bubbleEditBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    // 기존 오버레이 제거
-    bubbleBtn.querySelectorAll('.bubble-icon-edit').forEach(el => el.remove());
-    const overlay = document.createElement('div');
-    overlay.className = 'bubble-icon-edit';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = memoData?.profile?.bubbleIcon || '📝';
-    input.maxLength = 2;
-    overlay.appendChild(input);
-    bubbleBtn.appendChild(overlay);
-    input.focus();
-    input.select();
-    const apply = () => {
-      const val = input.value.trim() || '📝';
-      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: val };
-      bubbleIcon.textContent = val;
+  // 버블 아이콘 선택 팝업
+  {
+    const PRESETS_ICONS = ['📝','📌','💡','⭐','🎯','✅','🔥','❤️','🔖','🗒️','📅','🔔'];
+    const pickerEl    = document.getElementById('bubblePicker');
+    const presetsEl   = document.getElementById('bubblePickerPresets');
+    const pickerInput = document.getElementById('bubblePickerInput');
+    const applyBtn    = document.getElementById('bubblePickerApply');
+
+    function applyBubbleIcon(val) {
+      const trimmed = val.trim() || '📝';
+      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: trimmed };
+      bubbleIcon.textContent = trimmed;
+      // 텍스트 길이에 따라 폰트 크기 축소
+      const len = [...trimmed].length;
+      bubbleIcon.style.fontSize = len <= 1 ? '22px' : len <= 2 ? '16px' : '11px';
       saveMemoChanges({ profile: memoData.profile });
-      overlay.remove();
-    };
-    input.addEventListener('keydown', (ev) => {
-      ev.stopPropagation();
-      if (ev.key === 'Enter') { ev.preventDefault(); apply(); }
-      if (ev.key === 'Escape') { ev.preventDefault(); overlay.remove(); }
+    }
+
+    function buildPicker() {
+      presetsEl.innerHTML = '';
+      const current = memoData?.profile?.bubbleIcon || '📝';
+      PRESETS_ICONS.forEach(icon => {
+        const btn = document.createElement('button');
+        btn.className = 'bubble-preset-btn' + (icon === current ? ' selected' : '');
+        btn.textContent = icon;
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          applyBubbleIcon(icon);
+          pickerEl.style.display = 'none';
+        });
+        presetsEl.appendChild(btn);
+      });
+      pickerInput.value = current;
+    }
+
+    bubbleEditBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (pickerEl.style.display !== 'none') {
+        pickerEl.style.display = 'none';
+        return;
+      }
+      buildPicker();
+      pickerEl.style.display = 'block';
+      pickerInput.focus();
+      pickerInput.select();
     });
-    input.addEventListener('blur', apply);
-  });
+
+    applyBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      applyBubbleIcon(pickerInput.value);
+      pickerEl.style.display = 'none';
+    });
+    pickerInput?.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') { ev.preventDefault(); applyBubbleIcon(pickerInput.value); pickerEl.style.display = 'none'; }
+      if (ev.key === 'Escape') { ev.preventDefault(); pickerEl.style.display = 'none'; }
+    });
+
+    // 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+      if (pickerEl.style.display !== 'none' && !pickerEl.contains(e.target) && e.target !== bubbleEditBtn) {
+        pickerEl.style.display = 'none';
+      }
+    });
+
+    // 초기 아이콘 크기 적용
+    const initIcon = memoData?.profile?.bubbleIcon || '📝';
+    const initLen = [...initIcon].length;
+    bubbleIcon.style.fontSize = initLen <= 1 ? '22px' : initLen <= 2 ? '16px' : '11px';
+  }
 
   // 답글 (스레드)
   btnReply.addEventListener('click', () => {
@@ -1589,79 +1549,18 @@ function bindEvents() {
     saveMemoChanges({ simpleMode: isSimpleMode });
   });
 
-  // 간단히 보기 상태에서 우클릭 → 자세히 보기
-  document.querySelector('.memo-card').addEventListener('contextmenu', (e) => {
-    if (!isSimpleMode) return;
-    if (e.target.closest('.memo-content')) return; // 텍스트 선택 우클릭은 별도 처리
-    e.preventDefault();
-    e.stopPropagation();
-    // 자세히 보기 메뉴
-    document.querySelectorAll('.simple-restore-menu').forEach(m => m.remove());
-    const menu = document.createElement('div');
-    menu.className = 'simple-restore-menu avatar-menu';
-    menu.style.position = 'fixed';
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top  = `${e.clientY}px`;
-    menu.style.zIndex = '9999';
-    const restoreBtn = document.createElement('button');
-    restoreBtn.textContent = '자세히 보기';
-    restoreBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      menu.remove();
-      isSimpleMode = false;
-      document.querySelector('.memo-card').classList.remove('simple-mode');
-      const icon = btnSimpleView?.querySelector('[data-lucide]');
-      if (icon) {
-        icon.setAttribute('data-lucide', 'eye-off');
-        if (window.lucide) lucide.createIcons({ nodes: [icon] });
-      }
-      saveMemoChanges({ simpleMode: false });
-    });
-    menu.appendChild(restoreBtn);
-    document.body.appendChild(menu);
-    const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
-    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  // 간단히 보기 복원 버튼
+  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => {
+    isSimpleMode = false;
+    document.querySelector('.memo-card').classList.remove('simple-mode');
+    const icon = btnSimpleView?.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', 'eye-off');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
+    saveMemoChanges({ simpleMode: false });
   });
 
-  // ── HR 블록 클릭 선택 ──────────────────────────
-  memoContent.addEventListener('click', (e) => {
-    const hrBlock = e.target.closest('.hr-block');
-    if (hrBlock) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (selectedHrBlock && selectedHrBlock !== hrBlock) {
-        selectedHrBlock.classList.remove('hr-selected');
-      }
-      selectedHrBlock = hrBlock;
-      hrBlock.classList.add('hr-selected');
-    }
-  }, true);
-
-  // HR 선택 시 Delete/Backspace 삭제
-  document.addEventListener('keydown', (e) => {
-    if (!selectedHrBlock) return;
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault();
-      const next = selectedHrBlock.nextSibling;
-      selectedHrBlock.remove();
-      selectedHrBlock = null;
-      if (next) {
-        try {
-          const range = document.createRange();
-          range.setStart(next, 0);
-          range.collapse(true);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-          memoContent.focus();
-        } catch {}
-      }
-      scheduleSave();
-    } else if (!e.key.startsWith('Arrow')) {
-      selectedHrBlock.classList.remove('hr-selected');
-      selectedHrBlock = null;
-    }
-  });
 
   // ── 우클릭 서식 메뉴 (텍스트 선택 시) ───────────
   {
@@ -1671,82 +1570,85 @@ function bindEvents() {
       if (fmtMenu) { fmtMenu.remove(); fmtMenu = null; }
     }
 
-    function showFmtMenu(x, y) {
+    function showFmtMenu(x, y, hasSelection = false, insertHrFn = null) {
       hideFmtMenu();
       fmtMenu = document.createElement('div');
       fmtMenu.className = 'fmt-menu';
 
-      const makeBtn = (label, cmd, val) => {
-        const btn = document.createElement('button');
-        btn.className = 'fmt-btn';
-        btn.textContent = label;
-        btn.title = cmd;
-        btn.addEventListener('mousedown', (ev) => {
+      if (hasSelection) {
+        const makeBtn = (label, cmd, val) => {
+          const btn = document.createElement('button');
+          btn.className = 'fmt-btn';
+          btn.textContent = label;
+          btn.title = cmd;
+          btn.addEventListener('mousedown', (ev) => {
+            ev.preventDefault();
+            memoContent.focus();
+            document.execCommand(cmd, false, val || null);
+            scheduleSave();
+            hideFmtMenu();
+          });
+          return btn;
+        };
+
+        fmtMenu.appendChild(makeBtn('B', 'bold'));
+        fmtMenu.appendChild(makeBtn('I', 'italic'));
+        fmtMenu.appendChild(makeBtn('U', 'underline'));
+        fmtMenu.appendChild(makeBtn('S', 'strikeThrough'));
+
+        const sep1 = document.createElement('span');
+        sep1.className = 'fmt-sep';
+        fmtMenu.appendChild(sep1);
+
+        const colorDotFmt = document.createElement('button');
+        colorDotFmt.className = 'fmt-btn';
+        colorDotFmt.title = '글자 색상';
+        colorDotFmt.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:var(--tc-current,#f87171);display:inline-block;border:1.5px solid rgba(128,128,128,0.4)"></span>';
+        colorDotFmt.addEventListener('mousedown', (ev) => {
           ev.preventDefault();
-          memoContent.focus();
-          document.execCommand(cmd, false, val || null);
-          scheduleSave();
           hideFmtMenu();
+          const sel2 = window.getSelection();
+          if (sel2?.rangeCount && !sel2.isCollapsed) savedTextRange = sel2.getRangeAt(0).cloneRange();
+          textColorInput.click();
         });
-        return btn;
-      };
+        fmtMenu.appendChild(colorDotFmt);
 
-      fmtMenu.appendChild(makeBtn('B',  'bold'));
-      fmtMenu.appendChild(makeBtn('I',  'italic'));
-      fmtMenu.appendChild(makeBtn('U',  'underline'));
-      fmtMenu.appendChild(makeBtn('S',  'strikeThrough'));
+        const sep2 = document.createElement('span');
+        sep2.className = 'fmt-sep';
+        fmtMenu.appendChild(sep2);
 
-      const sep1 = document.createElement('span');
-      sep1.className = 'fmt-sep';
-      fmtMenu.appendChild(sep1);
+        const linkBtn = document.createElement('button');
+        linkBtn.className = 'fmt-btn';
+        linkBtn.title = '링크 삽입';
+        linkBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+        linkBtn.addEventListener('mousedown', (ev) => { ev.preventDefault(); hideFmtMenu(); insertLink(); });
+        fmtMenu.appendChild(linkBtn);
 
-      // 글자색 도트
-      const colorDotFmt = document.createElement('button');
-      colorDotFmt.className = 'fmt-btn';
-      colorDotFmt.title = '글자 색상';
-      colorDotFmt.innerHTML = '<span style="width:12px;height:12px;border-radius:50%;background:var(--tc-current,#f87171);display:inline-block;border:1.5px solid rgba(128,128,128,0.4)"></span>';
-      colorDotFmt.addEventListener('mousedown', (ev) => {
-        ev.preventDefault();
-        hideFmtMenu();
-        const sel = window.getSelection();
-        if (sel?.rangeCount && !sel.isCollapsed) {
-          savedTextRange = sel.getRangeAt(0).cloneRange();
+        const hlBtn = document.createElement('button');
+        hlBtn.className = 'fmt-btn';
+        hlBtn.title = '하이라이트';
+        hlBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>';
+        hlBtn.addEventListener('mousedown', (ev) => { ev.preventDefault(); hideFmtMenu(); toggleHighlight(); });
+        fmtMenu.appendChild(hlBtn);
+
+        if (insertHrFn) {
+          const sep3 = document.createElement('span');
+          sep3.className = 'fmt-sep';
+          fmtMenu.appendChild(sep3);
         }
-        textColorInput.click();
-      });
-      fmtMenu.appendChild(colorDotFmt);
+      }
 
-      const sep2 = document.createElement('span');
-      sep2.className = 'fmt-sep';
-      fmtMenu.appendChild(sep2);
-
-      // 링크 버튼
-      const linkBtn = document.createElement('button');
-      linkBtn.className = 'fmt-btn';
-      linkBtn.title = '링크 삽입';
-      linkBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
-      linkBtn.addEventListener('mousedown', (ev) => {
-        ev.preventDefault();
-        hideFmtMenu();
-        insertLink();
-      });
-      fmtMenu.appendChild(linkBtn);
-
-      // 하이라이트 버튼
-      const hlBtn = document.createElement('button');
-      hlBtn.className = 'fmt-btn';
-      hlBtn.title = '하이라이트';
-      hlBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>';
-      hlBtn.addEventListener('mousedown', (ev) => {
-        ev.preventDefault();
-        hideFmtMenu();
-        toggleHighlight();
-      });
-      fmtMenu.appendChild(hlBtn);
+      // 구분선 삽입 버튼 (항상 표시)
+      if (insertHrFn) {
+        const hrBtn = document.createElement('button');
+        hrBtn.className = 'fmt-btn';
+        hrBtn.title = '구분선 삽입';
+        hrBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/></svg>';
+        hrBtn.addEventListener('mousedown', (ev) => { ev.preventDefault(); hideFmtMenu(); insertHrFn(); });
+        fmtMenu.appendChild(hrBtn);
+      }
 
       document.body.appendChild(fmtMenu);
-
-      // 화면 경계 보정
       const rect = fmtMenu.getBoundingClientRect();
       let fx = x, fy = y - rect.height - 8;
       if (fx + rect.width > window.innerWidth)  fx = window.innerWidth - rect.width - 4;
@@ -1755,15 +1657,45 @@ function bindEvents() {
       fmtMenu.style.top  = `${fy}px`;
     }
 
+    // 구분선 삽입 함수 (우클릭 메뉴 & 키보드에서 사용)
+    function insertHr() {
+      memoContent.focus();
+      const sel2 = window.getSelection();
+      const hr = document.createElement('hr');
+      if (sel2?.rangeCount) {
+        const r = sel2.getRangeAt(0);
+        r.deleteContents();
+        // 현재 위치 기준 삽입
+        let topEl = r.startContainer;
+        if (topEl.nodeType === Node.TEXT_NODE) topEl = topEl.parentNode;
+        while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+        memoContent.insertBefore(hr, topEl.nextSibling);
+      } else {
+        memoContent.appendChild(hr);
+      }
+      // hr 다음에 새 줄 보장
+      let nextEl = hr.nextSibling;
+      if (!nextEl) {
+        nextEl = document.createElement('div');
+        nextEl.innerHTML = '<br>';
+        memoContent.appendChild(nextEl);
+      }
+      try {
+        const r2 = document.createRange();
+        r2.setStart(nextEl, 0);
+        r2.collapse(true);
+        sel2.removeAllRanges();
+        sel2.addRange(r2);
+        memoContent.focus();
+      } catch {}
+      scheduleSave();
+    }
+
     memoContent.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
       const sel = window.getSelection();
       const hasSelection = sel && !sel.isCollapsed && sel.toString().trim().length > 0;
-      if (!hasSelection) {
-        hideFmtMenu();
-        return; // 기본 컨텍스트 메뉴 허용
-      }
-      e.preventDefault();
-      showFmtMenu(e.clientX, e.clientY);
+      showFmtMenu(e.clientX, e.clientY, hasSelection, insertHr);
     });
 
     document.addEventListener('click', (e) => {
@@ -1844,13 +1776,6 @@ function bindEvents() {
     if (!colWrap?.contains(e.target)) colorPopup.classList.remove('visible');
     if (!capWrap?.contains(e.target)) capturePopup.classList.remove('visible');
     if (!fntWrap?.contains(e.target)) fontPopup.classList.remove('visible');
-    // HR 선택 해제
-    if (!e.target.closest?.('.hr-block')) {
-      if (selectedHrBlock) {
-        selectedHrBlock.classList.remove('hr-selected');
-        selectedHrBlock = null;
-      }
-    }
   });
 
   // 전역 단축키
