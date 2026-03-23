@@ -52,6 +52,7 @@ const imageFileInput  = document.getElementById('imageFileInput');
 const avatarFileInput = document.getElementById('avatarFileInput');
 const textColorInput  = document.getElementById('textColorInput');
 const bubbleEditBtn   = document.getElementById('bubbleEditBtn');
+const bubbleOpenBtn   = document.getElementById('bubbleOpenBtn');
 const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
@@ -220,17 +221,29 @@ async function init() {
       replyCtx.style.display = 'flex';
       ctxText.style.cursor = 'pointer';
       ctxText.addEventListener('click', () => api.focusMemo(parent.id));
-      // 원본 테마 적용 버튼 복원
+      // 원본 테마 적용 버튼 — mousedown 사용 (drag region 안에서도 동작)
       const btnApplyParentTheme = document.getElementById('btnApplyParentTheme');
       if (btnApplyParentTheme) {
         btnApplyParentTheme.style.display = '';
-        btnApplyParentTheme.addEventListener('click', (e) => {
+        // mousedown: 드래그 영역에서도 이벤트 수신, 매 클릭마다 최신 부모 데이터 조회
+        btnApplyParentTheme.addEventListener('mousedown', async (e) => {
+          e.preventDefault();
           e.stopPropagation();
-          const parentAccent = parent.theme?.accent ?? null;
+          // 최신 부모 데이터 조회 (부모 테마가 변경된 경우 반영)
+          const freshMemos = await api.getAllMemos();
+          const freshParent = freshMemos?.find(m => m.id === memoData.parentId);
+          if (!freshParent) return;
+          const parentAccent = freshParent.theme?.accent ?? null;
           memoData.theme = { ...(memoData.theme || {}), accent: parentAccent };
           applyTheme(parentAccent, currentMode);
-          saveMemoChanges({ theme: memoData.theme });
           renderColorSwatches();
+          // 부모 폰트도 동기화
+          if (freshParent.font) {
+            memoData.font = { ...freshParent.font };
+            document.documentElement.style.setProperty('--memo-font-family', memoData.font.family || 'system-ui');
+            document.documentElement.style.setProperty('--memo-font-size', `${memoData.font.size || 14}px`);
+          }
+          saveMemoChanges({ theme: memoData.theme, font: memoData.font });
         });
       }
     } else {
@@ -690,17 +703,28 @@ function handleAutoConvert(e) {
 // ── 링크 삽입 (Ctrl+K) ────────────────────────
 function insertLink() {
   const sel = window.getSelection();
+  // prompt() 호출 전에 선택 범위 저장 (prompt가 selection을 초기화함)
+  const savedRange = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
   const selectedText = sel?.toString().trim() || '';
+
   const url = prompt('URL을 입력하세요:', 'https://');
-  if (!url) return;
+  if (!url || url === 'https://') return;
+
   const text = selectedText || url;
+  const accent = getCssAccentHex();
+  const linkHtml = `<a href="${url}" target="_blank" rel="noopener" style="color:${accent};font-weight:700;">${text}</a>`;
+
   memoContent.focus();
-  if (selectedText) {
-    document.execCommand('createLink', false, url);
-  } else {
-    document.execCommand('insertHTML', false,
-      `<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  if (savedRange) {
+    s.addRange(savedRange);
+    // 선택된 텍스트가 있으면 대체, 없으면 커서 위치에 삽입
+    if (!savedRange.collapsed) {
+      savedRange.deleteContents();
+    }
   }
+  document.execCommand('insertHTML', false, linkHtml);
   scheduleSave();
 }
 
@@ -760,20 +784,29 @@ let imgEditorOriginalSrc = null; // 원본 이미지 (초기화용)
 const imgEditorState = { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 };
 
 function openImageEditor(imgEl) {
-  imgEditorTarget      = imgEl;
-  imgEditorOriginalSrc = imgEl.src; // 원본 저장
+  imgEditorTarget = imgEl;
+  // dataset.originalSrc: 최초 한 번만 설정 → 적용 후 재편집 시에도 진짜 원본 유지
+  if (!imgEl.dataset.originalSrc) imgEl.dataset.originalSrc = imgEl.src;
+  imgEditorOriginalSrc = imgEl.dataset.originalSrc;
+
   Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
-  document.getElementById('imgScale').value        = 100;
-  document.getElementById('imgRotateSlider').value = 0;
+  document.getElementById('imgScale').value           = 100;
+  document.getElementById('imgRotateSlider').value    = 0;
   document.getElementById('imgScaleVal').textContent  = '100%';
   document.getElementById('imgRotateVal').textContent = '0°';
+
+  // 프로필 아바타 편집 시 원형 가이드 표시
+  const circleOverlay = document.getElementById('imgEditorCircleOverlay');
+  if (circleOverlay) {
+    circleOverlay.classList.toggle('visible', !!imgEl.closest('#profileAvatar'));
+  }
 
   imgEditorSrc = new Image();
   imgEditorSrc.onload = () => {
     redrawEditorCanvas();
     document.getElementById('imgEditorOverlay').classList.add('visible');
   };
-  imgEditorSrc.src = imgEl.src;
+  imgEditorSrc.src = imgEl.src; // 현재 (편집된) 이미지로 시작
 }
 
 function redrawEditorCanvas() {
@@ -852,6 +885,7 @@ function applyImageEdit() {
     scheduleSave();
   }
   document.getElementById('imgEditorOverlay').classList.remove('visible');
+  document.getElementById('imgEditorCircleOverlay')?.classList.remove('visible');
   imgEditorTarget = null;
 }
 
@@ -1149,7 +1183,7 @@ function bindEvents() {
 
   // 최소화 ↔ 복원
   btnMinimize.addEventListener('click', () => setMinimized(true));
-  bubbleBtn.addEventListener('click',   () => setMinimized(false));
+  bubbleOpenBtn?.addEventListener('click', () => setMinimized(false));
 
   // 테마 토글
   btnThemeToggle.addEventListener('click', async () => {
@@ -1509,7 +1543,7 @@ function bindEvents() {
         sep1.className = 'fmt-sep';
         fmtMenu.appendChild(sep1);
 
-        // 글자색 팔레트 — action bar의 tcPopup과 동일한 5색 + 커스텀
+        // 글자색 팔레트 — 5색 + 커스텀
         const fmtColors = generateTextPalette();
         fmtColors.forEach(color => {
           const sw = document.createElement('button');
@@ -1640,15 +1674,16 @@ function bindEvents() {
     });
   }
 
+  // 이미지 에디터 닫기 헬퍼
+  function closeImageEditor() {
+    document.getElementById('imgEditorOverlay').classList.remove('visible');
+    document.getElementById('imgEditorCircleOverlay')?.classList.remove('visible');
+    imgEditorTarget = null;
+  }
+
   // 이미지 에디터 이벤트
-  document.getElementById('imgEditorClose').addEventListener('click', () => {
-    document.getElementById('imgEditorOverlay').classList.remove('visible');
-    imgEditorTarget = null;
-  });
-  document.getElementById('imgEditorCancel').addEventListener('click', () => {
-    document.getElementById('imgEditorOverlay').classList.remove('visible');
-    imgEditorTarget = null;
-  });
+  document.getElementById('imgEditorClose').addEventListener('click', closeImageEditor);
+  document.getElementById('imgEditorCancel').addEventListener('click', closeImageEditor);
   document.getElementById('imgEditorApply').addEventListener('click', applyImageEdit);
 
   // 초기화: 원본 이미지로 완전히 되돌리기 (적용 후에도 가능)

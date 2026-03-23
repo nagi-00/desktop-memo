@@ -16,13 +16,18 @@
        BUBBLE VIEW (최소화 상태)
   ══════════════════════════════════ -->
   <div class="bubble-view" id="bubbleView">
-    <div class="bubble-btn" id="bubbleBtn" title="클릭하여 열기">
+    <!-- 포스트잇 스타일 — 전체가 드래그 영역, 버튼들만 no-drag -->
+    <div class="sticky-note" id="bubbleBtn">
       <span class="bubble-icon" id="bubbleIcon">📝</span>
+      <input type="text" class="bubble-icon-input" id="bubbleIconInput" maxlength="4" placeholder="📝" />
+      <!-- 열기 버튼 (no-drag) -->
+      <button class="bubble-open-btn" id="bubbleOpenBtn" title="열기">
+        <i data-lucide="maximize-2" width="9" height="9"></i>
+      </button>
+      <!-- 아이콘 편집 버튼 (no-drag) -->
       <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
         <i data-lucide="pencil" width="8" height="8"></i>
       </button>
-      <!-- 인라인 아이콘 편집 입력 -->
-      <input type="text" class="bubble-icon-input" id="bubbleIconInput" maxlength="4" placeholder="📝" />
     </div>
   </div>
 
@@ -224,6 +229,7 @@
     </div>
     <div class="img-editor-canvas-wrap">
       <canvas id="imgEditorCanvas"></canvas>
+      <div class="img-editor-circle-overlay" id="imgEditorCircleOverlay"></div>
     </div>
     <div class="img-editor-controls">
       <div class="img-editor-row">
