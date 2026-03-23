@@ -24,6 +24,9 @@ const btnExport       = document.getElementById('btnExport');
 const btnShortcutHelp = document.getElementById('btnShortcutHelp');
 const resizeHandle    = document.getElementById('listResizeHandle');
 const tagFilterChips  = document.getElementById('tagFilterChips');
+const btnStickyNotes  = document.getElementById('btnStickyNotes');
+
+let isStickyNotesMode = false;
 const tagAddBar       = document.getElementById('tagAddBar');
 const tagAddChips     = document.getElementById('tagAddChips');
 const tagAddInput     = document.getElementById('tagAddInput');
@@ -34,6 +37,8 @@ async function init() {
 
   const settings = await api.getSettings();
   if (settings?.theme) setThemeMode(settings.theme);
+  isStickyNotesMode = settings?.stickyNotesMode || false;
+  btnStickyNotes?.classList.toggle('sn-active', isStickyNotesMode);
 
   await loadMemos();
   bindEvents();
@@ -301,6 +306,38 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
   }
 
   el.addEventListener('click', () => selectMemo(memo.id));
+
+  // 우클릭 → 컨텍스트 메뉴
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectMemo(memo.id);
+    if (isTrashItem) {
+      showListContextMenu([
+        { label: '복원', action: () => api.restoreFromTrash(memo.id) },
+        'sep',
+        { label: '영구 삭제', danger: true, action: () => {
+          if (confirm('영구적으로 삭제할까요? 복구할 수 없습니다.')) {
+            api.emptyTrash();
+            selectedId = null;
+            renderList();
+            renderPreview(null);
+          }
+        }},
+      ], e.clientX, e.clientY);
+    } else {
+      showListContextMenu([
+        { label: '메모 열기',  action: () => api.focusMemo(memo.id) },
+        { label: '답글 작성',  action: () => api.createReply(memo.id) },
+        'sep',
+        { label: '삭제', danger: true, action: async () => {
+          await api.deleteById(memo.id);
+          selectedId = null;
+        }},
+      ], e.clientX, e.clientY);
+    }
+  });
+
   return el;
 }
 
@@ -517,24 +554,13 @@ function renderPreview(memo, isTrash = false) {
       }
     });
   } else {
+    // 일반 메모: 우클릭 메뉴로 이동 (열기/답글/삭제)
+    // 미리보기 패널에는 빠르게 열기 버튼만 남김
     actions.innerHTML = `
       <button class="preview-btn primary" data-action="open">메모 열기</button>
-      <button class="preview-btn" data-action="reply">답글</button>
-      <button class="preview-btn" data-action="new">새 메모</button>
-      <button class="preview-btn danger" data-action="delete">삭제</button>
     `;
     actions.querySelector('[data-action="open"]').addEventListener('click', () => {
       api.focusMemo(memo.id);
-    });
-    actions.querySelector('[data-action="reply"]').addEventListener('click', () => {
-      api.createReply(memo.id);
-    });
-    actions.querySelector('[data-action="new"]').addEventListener('click', () => {
-      api.createMemo();
-    });
-    actions.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      await api.deleteById(memo.id);
-      selectedId = null;
     });
   }
 
@@ -570,6 +596,28 @@ function bindEvents() {
   });
 
   btnNewMemo.addEventListener('click', () => api.createMemo());
+
+  // Sticky Notes 모드 토글
+  btnStickyNotes?.addEventListener('click', async () => {
+    isStickyNotesMode = !isStickyNotesMode;
+    await api.setStickyNotesMode(isStickyNotesMode);
+    btnStickyNotes.classList.toggle('sn-active', isStickyNotesMode);
+  });
+
+  // 사이드바 빈 공간 우클릭 → 새 메모 / 선택 삭제
+  sidebar.addEventListener('contextmenu', (e) => {
+    if (e.target.closest('.memo-list-item')) return; // 항목 우클릭은 항목이 처리
+    e.preventDefault();
+    const items = [{ label: '새 메모', action: () => api.createMemo() }];
+    if (selectedId) {
+      items.push('sep');
+      items.push({ label: '선택 삭제', danger: true, action: async () => {
+        await api.deleteById(selectedId);
+        selectedId = null;
+      }});
+    }
+    showListContextMenu(items, e.clientX, e.clientY);
+  });
   btnClose.addEventListener('click', () => window.close());
   btnTrayList?.addEventListener('click', () => api.hideList());
 
@@ -629,6 +677,41 @@ function bindEvents() {
       document.body.style.userSelect = '';
     });
   }
+}
+
+// ── 컨텍스트 메뉴 ──
+function showListContextMenu(items, x, y) {
+  document.getElementById('listContextMenu')?.remove();
+  const menu = document.createElement('div');
+  menu.id = 'listContextMenu';
+  menu.className = 'list-context-menu';
+  menu.style.left = `${x}px`;
+  menu.style.top  = `${y}px`;
+
+  items.forEach(item => {
+    if (item === 'sep') {
+      const d = document.createElement('div');
+      d.className = 'ctx-sep';
+      menu.appendChild(d);
+    } else {
+      const btn = document.createElement('button');
+      btn.className = 'ctx-item' + (item.danger ? ' danger' : '');
+      btn.textContent = item.label;
+      btn.addEventListener('click', (e) => { e.stopPropagation(); menu.remove(); item.action(); });
+      menu.appendChild(btn);
+    }
+  });
+
+  document.body.appendChild(menu);
+  // 화면 밖으로 나가면 위치 조정
+  const r = menu.getBoundingClientRect();
+  if (r.right  > window.innerWidth)  menu.style.left = `${x - r.width}px`;
+  if (r.bottom > window.innerHeight) menu.style.top  = `${y - r.height}px`;
+
+  const close = (e) => {
+    if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', close, true); }
+  };
+  setTimeout(() => document.addEventListener('mousedown', close, true), 0);
 }
 
 // ── 유틸 ──

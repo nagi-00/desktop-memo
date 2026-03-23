@@ -24,10 +24,11 @@ async function initStore() {
     defaults: {
       memos: [],
       globalSettings: {
-        theme:       'dark',
-        accentColor: null,   // null = 뉴트럴 기본
-        font:        { family: 'system-ui', size: 14 },
-        savedProfiles: []
+        theme:          'dark',
+        accentColor:    null,
+        font:           { family: 'system-ui', size: 14 },
+        savedProfiles:  [],
+        stickyNotesMode: false
       }
     }
   });
@@ -610,6 +611,15 @@ function registerIpcHandlers() {
     memos[idx].updatedAt = new Date().toISOString();
     saveMemos(memos);
     broadcastListUpdate();
+    return true;
+  });
+
+  // Sticky Notes 모드 토글 — 모든 창에 브로드캐스트
+  ipcMain.handle('settings:setStickyNotesMode', (_e, enabled) => {
+    store.set('globalSettings.stickyNotesMode', enabled);
+    BrowserWindow.getAllWindows().forEach(w => {
+      if (!w.isDestroyed()) w.webContents.send('stickyNotes:modeChanged', enabled);
+    });
     return true;
   });
 

@@ -163,6 +163,17 @@ async function init() {
 
   if (!memoData) return;
 
+  // Sticky Notes 모드 초기 적용
+  if (settings?.stickyNotesMode) {
+    document.querySelector('.memo-card')?.classList.add('sticky-notes-mode');
+  }
+  api.onStickyNotesModeChanged?.((enabled) => {
+    document.querySelector('.memo-card')?.classList.toggle('sticky-notes-mode', enabled);
+  });
+
+  // Sticky Notes 모드: 목록 열기 버튼
+  document.getElementById('btnOpenListSN')?.addEventListener('click', () => api.openList());
+
   // 테마
   applyTheme(memoData.theme?.accent ?? null, currentMode);
   updateThemeToggleIcon();
@@ -1044,6 +1055,26 @@ function bindEvents() {
     }
   });
 
+  // ── 링크 호버 툴팁 ──────────────────────────────
+  const linkTooltip = document.createElement('div');
+  linkTooltip.className = 'link-tooltip';
+  document.body.appendChild(linkTooltip);
+
+  memoContent.addEventListener('mouseover', (e) => {
+    const a = e.target.closest('a[href]');
+    if (!a) return;
+    linkTooltip.textContent = a.getAttribute('href');
+    const rect = a.getBoundingClientRect();
+    linkTooltip.style.left = `${Math.min(rect.left, window.innerWidth - 280)}px`;
+    linkTooltip.style.top  = `${rect.bottom + 4}px`;
+    linkTooltip.classList.add('visible');
+  });
+  memoContent.addEventListener('mouseout', (e) => {
+    const a = e.target.closest('a[href]');
+    if (a && !a.contains(e.relatedTarget)) linkTooltip.classList.remove('visible');
+  });
+  memoContent.addEventListener('mouseleave', () => linkTooltip.classList.remove('visible'));
+
   // HR 블록(contenteditable=false) 클릭 시 커서 탈출
   memoContent.addEventListener('click', (e) => {
     // 패딩 영역(memoContent 자체) 클릭 → 마지막 편집 가능 요소로 커서 이동
@@ -1418,7 +1449,13 @@ function bindEvents() {
     document.querySelectorAll('.avatar-menu').forEach(m => m.remove());
     const menu = document.createElement('div');
     menu.className = 'avatar-menu';
-    profileAvatar.style.position = 'relative';
+
+    // overflow:hidden인 .avatar 안에 붙이면 잘리므로 body에 fixed 포지셔닝으로 추가
+    const ar = profileAvatar.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top  = `${ar.bottom + 4}px`;
+    menu.style.left = `${ar.left}px`;
+    menu.style.zIndex = '9999';
 
     if (memoData?.profile?.avatarDataUrl) {
       const editBtn = document.createElement('button');
@@ -1469,7 +1506,7 @@ function bindEvents() {
     });
     menu.appendChild(loadProfileBtn);
 
-    profileAvatar.appendChild(menu);
+    document.body.appendChild(menu);
     const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
   });

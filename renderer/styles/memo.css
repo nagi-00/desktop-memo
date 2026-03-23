@@ -619,16 +619,14 @@
   display: block;
 }
 
-/* 아바타 컨텍스트 메뉴 */
+/* 아바타 컨텍스트 메뉴 — position:fixed로 JS에서 직접 배치 (overflow:hidden 회피) */
 .avatar-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
-  z-index: 300;
+  z-index: 9999;
+  -webkit-app-region: no-drag;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1439,12 +1437,34 @@
   box-shadow: var(--shadow-popup);
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;          /* 창이 좁을 때 자동 줄 바꿈 */
+  max-width: calc(100vw - 16px);
   gap: 2px;
   padding: 4px 6px;
   align-items: center;
   pointer-events: auto;
-  -webkit-app-region: no-drag; /* 드래그 영역 위에 표시되어도 클릭 보장 */
+  -webkit-app-region: no-drag;
 }
+
+/* ── 링크 호버 툴팁 ── */
+.link-tooltip {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  -webkit-app-region: no-drag;
+}
+.link-tooltip.visible { opacity: 1; }
 .fmt-btn {
   width: 32px;
   height: 32px;
@@ -1527,3 +1547,35 @@
 /* ── 이미지 에디터 캔버스 커서 ── */
 #imgEditorCanvas { cursor: grab; }
 #imgEditorCanvas:active { cursor: grabbing; }
+
+/* ══════════════════════════════════════════════
+   STICKY NOTES 모드 (위젯 모드)
+   ══════════════════════════════════════════════ */
+
+/* 목록 열기 버튼 — 평소엔 숨김, Sticky Notes 모드에서만 표시 */
+#btnOpenListSN { display: none; }
+.memo-card.sticky-notes-mode #btnOpenListSN { display: flex; }
+
+/* Sticky Notes 모드: 프로필 행 / 액션 바 숨김 */
+.memo-card.sticky-notes-mode .profile-row { display: none; }
+.memo-card.sticky-notes-mode .action-bar { display: none; }
+.memo-card.sticky-notes-mode .reply-context { display: none !important; }
+.memo-card.sticky-notes-mode .media-header { display: none !important; }
+.memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
+.memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
+
+/* 상태바: 목록 버튼 / 핀 / 투명도 / 색상 / 숨기기만 표시 */
+.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(#btnOpenListSN) { display: none; }
+.memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
+.memo-card.sticky-notes-mode .status-bar .sb-spacer { display: none; }
+
+/* 상태바를 메모 색상 기반 반투명으로 */
+.memo-card.sticky-notes-mode .status-bar-inner {
+  background: color-mix(in srgb, var(--color-accent, var(--color-surface)) 12%, var(--color-surface));
+  border-bottom-color: color-mix(in srgb, var(--color-accent, var(--color-border)) 20%, var(--color-border));
+}
+
+/* 콘텐츠 위쪽 여백 조정 */
+.memo-card.sticky-notes-mode .memo-content {
+  padding-top: 8px;
+}

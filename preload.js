@@ -66,6 +66,14 @@ contextBridge.exposeInMainWorld('memoAPI', {
   saveProfile:   (profile) => ipcRenderer.invoke('profiles:save', profile),
   deleteProfile: (name)    => ipcRenderer.invoke('profiles:delete', name),
 
+  // ── Sticky Notes 모드 ──
+  setStickyNotesMode: (enabled) => ipcRenderer.invoke('settings:setStickyNotesMode', enabled),
+  onStickyNotesModeChanged: (callback) => {
+    const handler = (_e, enabled) => callback(enabled);
+    ipcRenderer.on('stickyNotes:modeChanged', handler);
+    return () => ipcRenderer.removeListener('stickyNotes:modeChanged', handler);
+  },
+
   // ── 답글 스레드 접기 ──
   foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 
