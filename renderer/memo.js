@@ -59,6 +59,7 @@ const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
 const btnSimpleView       = document.getElementById('btnSimpleView');
 const btnLock             = document.getElementById('btnLock');
+const lockOverlay         = document.getElementById('lockOverlay');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
@@ -1607,17 +1608,65 @@ function bindEvents() {
   }
 
   // ── 잠금 토글 (클릭/편집 차단) ──────────────────
-  function applyLock(locked) {
-    isLocked = locked;
-    document.querySelector('.memo-card').classList.toggle('locked', locked);
-    memoContent.contentEditable = locked ? 'false' : 'true';
+  let _relockCleanup = null; // 임시 잠금 해제 리스너 정리 함수
+
+  function _setLockIcon(locked) {
     const icon = btnLock?.querySelector('[data-lucide]');
     if (icon) {
       icon.setAttribute('data-lucide', locked ? 'lock' : 'lock-open');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
     }
+  }
+
+  function applyLock(locked) {
+    // 임시 잠금 해제 상태이면 리스너 정리
+    if (_relockCleanup) { _relockCleanup(); _relockCleanup = null; }
+    isLocked = locked;
+    document.querySelector('.memo-card').classList.toggle('locked', locked);
+    memoContent.contentEditable = locked ? 'false' : 'true';
+    _setLockIcon(locked);
     saveMemoChanges({ isLocked: locked });
   }
+
+  // ── 더블클릭으로 임시 잠금 해제, 외부 클릭/포커스 아웃 시 재잠금 ──
+  function tempUnlock() {
+    if (!isLocked || _relockCleanup) return;
+    const card = document.querySelector('.memo-card');
+    card.classList.remove('locked');
+    memoContent.contentEditable = 'true';
+    _setLockIcon(false);
+    memoContent.focus();
+
+    function relock() {
+      if (!_relockCleanup) return;
+      _relockCleanup = null;
+      card.classList.add('locked');
+      memoContent.contentEditable = 'false';
+      _setLockIcon(true);
+      document.removeEventListener('mousedown', onOutside, true);
+      window.removeEventListener('blur', relock);
+    }
+    function onOutside(e) {
+      if (!card.contains(e.target)) relock();
+    }
+
+    _relockCleanup = () => {
+      document.removeEventListener('mousedown', onOutside, true);
+      window.removeEventListener('blur', relock);
+    };
+    // dblclick의 mousedown이 즉시 relock을 트리거하지 않도록 딜레이
+    setTimeout(() => {
+      document.addEventListener('mousedown', onOutside, true);
+      window.addEventListener('blur', relock);
+    }, 200);
+  }
+
+  // 잠금 오버레이: 더블클릭 → 임시 해제, 휠 → 스크롤 포워딩
+  lockOverlay?.addEventListener('dblclick', tempUnlock);
+  lockOverlay?.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    memoContent.scrollTop += e.deltaY;
+  }, { passive: false });
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));

@@ -585,7 +585,7 @@
   padding: 3px 5px;
   -webkit-app-region: no-drag;
 }
-.memo-card.simple-mode .status-bar .sb-btn:not(#btnPin),
+.memo-card.simple-mode .status-bar .sb-btn:not(#btnPin):not(#btnLock),
 .memo-card.simple-mode .status-bar .sb-popup-wrap,
 .memo-card.simple-mode .status-bar .sb-spacer,
 .memo-card.simple-mode .status-bar .sb-color-dot { display: none; }
@@ -602,23 +602,21 @@
 }
 
 /* ══════════════════════════════════════════════
-   LOCKED MODE (잠금 — 클릭/드래그 차단)
+   LOCKED MODE (잠금 — 클릭/드래그 차단, 스크롤은 허용)
    ══════════════════════════════════════════════ */
-.memo-card.locked .memo-content {
-  pointer-events: none;
-  user-select: none;
-}
-.memo-card.locked .memo-body {
-  overflow: hidden;
-  position: relative;
-}
-/* 콘텐츠 위에 투명 오버레이 — 모든 클릭/드래그 차단 */
-.memo-card.locked .memo-body::after {
-  content: '';
+.lock-overlay {
+  display: none;
   position: absolute;
   inset: 0;
   z-index: 5;
   cursor: default;
+  -webkit-app-region: no-drag;
+}
+.memo-card.locked .memo-body {
+  position: relative;
+}
+.memo-card.locked .lock-overlay {
+  display: block;
 }
 
 /* 아바타 컨텍스트 메뉴 */
