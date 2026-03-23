@@ -11,6 +11,10 @@ let selectedId     = null;
 let currentFilter  = 'all';
 let searchQuery    = '';
 
+// 다중 선택 삭제 모드
+let isMultiSelectMode = false;
+let multiSelectIds    = new Set();
+
 // ── DOM 참조 ──
 const sidebar         = document.getElementById('memoListSidebar');
 const emptyList       = document.getElementById('emptyList');
@@ -322,7 +326,26 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     el.appendChild(toggleBtn);
   }
 
-  el.addEventListener('click', () => selectMemo(memo.id));
+  // 다중 선택 모드: 체크박스 추가
+  if (isMultiSelectMode && !isTrashItem) {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'ms-checkbox';
+    cb.checked = multiSelectIds.has(memo.id);
+    cb.addEventListener('change', (e) => {
+      e.stopPropagation();
+      if (cb.checked) multiSelectIds.add(memo.id);
+      else multiSelectIds.delete(memo.id);
+      _updateMultiSelectBar();
+    });
+    el.prepend(cb);
+    el.addEventListener('click', () => {
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event('change'));
+    });
+  } else {
+    el.addEventListener('click', () => selectMemo(memo.id));
+  }
 
   // 우클릭 → 컨텍스트 메뉴
   el.addEventListener('contextmenu', (e) => {
@@ -777,13 +800,14 @@ function bindEvents() {
   sidebar.addEventListener('contextmenu', (e) => {
     if (e.target.closest('.memo-list-item')) return; // 항목 우클릭은 항목이 처리
     e.preventDefault();
+    if (isMultiSelectMode) {
+      showListContextMenu([{ label: '선택 모드 취소', action: exitMultiSelectMode }], e.clientX, e.clientY);
+      return;
+    }
     const items = [{ label: '새 메모', action: () => api.createMemo() }];
-    if (selectedId) {
+    if (currentFilter !== 'trash' && allMemos.length > 0) {
       items.push('sep');
-      items.push({ label: '선택 삭제', danger: true, action: async () => {
-        await api.deleteById(selectedId);
-        selectedId = null;
-      }});
+      items.push({ label: '선택 삭제', danger: true, action: enterMultiSelectMode });
     }
     showListContextMenu(items, e.clientX, e.clientY);
   });
@@ -839,6 +863,7 @@ function bindEvents() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      if (isMultiSelectMode) { exitMultiSelectMode(); return; }
       document.getElementById('shortcutOverlay')?.classList.remove('visible');
       document.getElementById('settingsOverlay')?.classList.remove('visible');
       hideWelcomeOverlay();
@@ -920,6 +945,56 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// ── 다중 선택 모드 ──
+function enterMultiSelectMode() {
+  isMultiSelectMode = true;
+  multiSelectIds.clear();
+  sidebar.classList.add('multi-select-mode');
+  renderList();
+  _showMultiSelectBar();
+}
+
+function exitMultiSelectMode() {
+  isMultiSelectMode = false;
+  multiSelectIds.clear();
+  sidebar.classList.remove('multi-select-mode');
+  renderList();
+  document.getElementById('multiSelectBar')?.remove();
+}
+
+function _showMultiSelectBar() {
+  document.getElementById('multiSelectBar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'multiSelectBar';
+  bar.className = 'multi-select-bar';
+  bar.innerHTML = `
+    <span class="ms-count">0개 선택됨</span>
+    <div class="ms-actions">
+      <button class="ms-cancel-btn">취소</button>
+      <button class="ms-delete-btn" disabled>삭제</button>
+    </div>
+  `;
+  sidebar.insertBefore(bar, sidebar.firstChild);
+
+  bar.querySelector('.ms-cancel-btn').addEventListener('click', exitMultiSelectMode);
+  bar.querySelector('.ms-delete-btn').addEventListener('click', async () => {
+    if (!multiSelectIds.size) return;
+    if (!confirm(`선택한 ${multiSelectIds.size}개의 메모를 삭제할까요?`)) return;
+    for (const id of multiSelectIds) {
+      await api.deleteById(id);
+    }
+    if (multiSelectIds.has(selectedId)) selectedId = null;
+    exitMultiSelectMode();
+  });
+}
+
+function _updateMultiSelectBar() {
+  const bar = document.getElementById('multiSelectBar');
+  if (!bar) return;
+  bar.querySelector('.ms-count').textContent = `${multiSelectIds.size}개 선택됨`;
+  bar.querySelector('.ms-delete-btn').disabled = multiSelectIds.size === 0;
 }
 
 function showToast(msg) {

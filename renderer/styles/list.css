@@ -816,6 +816,49 @@ body {
 }
 
 /* ══════════════════════════════════════════════
+   다중 선택 모드
+   ══════════════════════════════════════════════ */
+.multi-select-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.ms-count { color: var(--color-text-dim); }
+.ms-actions { display: flex; gap: 6px; }
+.ms-cancel-btn, .ms-delete-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: background 0.15s;
+}
+.ms-cancel-btn:hover { background: var(--color-surface-hover); }
+.ms-delete-btn { border-color: #ef4444; color: #ef4444; }
+.ms-delete-btn:not(:disabled):hover { background: color-mix(in srgb, #ef4444 15%, transparent); }
+.ms-delete-btn:disabled { opacity: 0.4; cursor: default; }
+
+.ms-checkbox {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+.multi-select-mode .memo-list-item { cursor: pointer; }
+
+/* ══════════════════════════════════════════════
    미리보기: 이미지 그리드
    ══════════════════════════════════════════════ */
 /* ── 미리보기: 이미지 그리드 ── */

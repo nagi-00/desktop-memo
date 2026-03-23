@@ -170,18 +170,25 @@ function getCssAccentHex() {
 }
 
 function generateTextPalette() {
-  // 디폴트 테마(accent 없음) → 빨노초파보 파스텔
-  if (!memoData?.theme?.accent) {
+  // 무채색 판별 헬퍼
+  function isAchromatic(s) { return s < 15; }
+  function grayscalePalette() {
     return [
-      hslToHex(  0, 72, 80),  // 연한 빨강
-      hslToHex( 46, 88, 78),  // 연한 노랑
-      hslToHex(130, 52, 76),  // 연한 초록
-      hslToHex(210, 72, 80),  // 연한 파랑
-      hslToHex(275, 68, 80),  // 연한 보라
+      hslToHex(0, 0, 85),
+      hslToHex(0, 0, 68),
+      hslToHex(0, 0, 50),
+      hslToHex(0, 0, 32),
+      hslToHex(0, 0, 15),
     ];
+  }
+
+  // 디폴트 테마(accent 없음) → 무채색 계열
+  if (!memoData?.theme?.accent) {
+    return grayscalePalette();
   }
   try {
     const [h, s] = hexToHsl(getCssAccentHex());
+    if (isAchromatic(s)) return grayscalePalette();
     const sat = Math.max(s, 60);
     return [
       hslToHex(h, Math.min(sat - 20, 80), 82),
@@ -952,13 +959,21 @@ function openImageEditor(imgEl) {
 
   // 프로필 아바타 편집 시 원형 가이드 표시
   const circleOverlay = document.getElementById('imgEditorCircleOverlay');
+  const isProfileAvatar = !!imgEl.closest('#profileAvatar');
   if (circleOverlay) {
-    circleOverlay.classList.toggle('visible', !!imgEl.closest('#profileAvatar'));
+    circleOverlay.classList.toggle('visible', isProfileAvatar);
   }
 
   imgEditorSrc = new Image();
   imgEditorSrc.onload = () => {
     redrawEditorCanvas();
+    // 원형 가이드 크기를 캔버스 실제 표시 크기 기준으로 동적 계산
+    if (isProfileAvatar && circleOverlay) {
+      const canvas = document.getElementById('imgEditorCanvas');
+      const size = Math.min(canvas.offsetWidth, canvas.offsetHeight);
+      circleOverlay.style.width  = size + 'px';
+      circleOverlay.style.height = size + 'px';
+    }
     document.getElementById('imgEditorOverlay').classList.add('visible');
   };
   imgEditorSrc.src = imgEl.src; // 현재 (편집된) 이미지로 시작
@@ -1808,12 +1823,21 @@ function bindEvents() {
     }, 200);
   }
 
-  // 잠금 오버레이: 더블클릭 → 임시 해제, 휠 → 스크롤 포워딩
+  // 잠금 오버레이: 더블클릭 → 임시 해제, 휠 → 스크롤 포워딩, 체크박스 클릭 통과
   lockOverlay?.addEventListener('dblclick', tempUnlock);
   lockOverlay?.addEventListener('wheel', (e) => {
     e.preventDefault();
     memoContent.scrollTop += e.deltaY;
   }, { passive: false });
+  lockOverlay?.addEventListener('mousedown', (e) => {
+    // 오버레이 아래 체크박스를 클릭한 경우 클릭 이벤트 포워딩
+    lockOverlay.style.pointerEvents = 'none';
+    const below = document.elementFromPoint(e.clientX, e.clientY);
+    lockOverlay.style.pointerEvents = '';
+    if (below?.matches('.cb-item input[type="checkbox"]')) {
+      below.click();
+    }
+  });
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));
