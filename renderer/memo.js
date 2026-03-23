@@ -12,6 +12,7 @@ let currentMode   = 'dark';
 let isPinned      = false;
 let isLiked       = false;
 let isSimpleMode  = false;
+let isLocked      = false;
 let saveTimer     = null;
 let mediaFolded   = false;
 
@@ -57,6 +58,7 @@ const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
 const btnSimpleView       = document.getElementById('btnSimpleView');
+const btnLock             = document.getElementById('btnLock');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
@@ -271,14 +273,24 @@ async function init() {
   isPinned = memoData.pinned || false;
   updatePinButton();
 
-  // 잠금 모드 복원
+  // 간단히 보기 모드 복원
   if (memoData.simpleMode) {
     isSimpleMode = true;
     document.querySelector('.memo-card').classList.add('simple-mode');
-    memoContent.contentEditable = 'false';
     const icon = btnSimpleView?.querySelector('[data-lucide]');
     if (icon) {
       icon.setAttribute('data-lucide', 'eye');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
+  }
+  // 잠금 모드 복원
+  if (memoData.isLocked) {
+    isLocked = true;
+    document.querySelector('.memo-card').classList.add('locked');
+    memoContent.contentEditable = 'false';
+    const icon = btnLock?.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', 'lock');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
     }
   }
@@ -422,6 +434,22 @@ function hideWindow() {
   api.hideWindow().catch(console.error);
 }
 
+// ── 커서 자동 스크롤 ───────────────────────────
+function scrollToCursor() {
+  const sel = window.getSelection();
+  if (!sel?.rangeCount) return;
+  const range = sel.getRangeAt(0).cloneRange();
+  range.collapse(true);
+  const rect = range.getBoundingClientRect();
+  if (!rect.width && !rect.height) return; // 빈 rect
+  const bodyRect = memoContent.getBoundingClientRect();
+  if (rect.bottom > bodyRect.bottom - 4) {
+    memoContent.scrollTop += rect.bottom - bodyRect.bottom + 24;
+  } else if (rect.top < bodyRect.top + 4) {
+    memoContent.scrollTop -= bodyRect.top - rect.top + 24;
+  }
+}
+
 // ── 저장 ──────────────────────────────────────
 function scheduleSave() {
   clearTimeout(saveTimer);
@@ -432,7 +460,21 @@ function scheduleSave() {
     memoData.contentHtml = contentHtml;
     memoData.content     = content;
     memoData.images      = images;
-    saveMemoChanges({ contentHtml, content, images });
+
+    // 해시태그 자동 감지 및 태그 병합
+    const hashMatches = content.match(/#([가-힣a-zA-Z0-9_]+)/g) || [];
+    const detectedTags = hashMatches.map(t => t.slice(1));
+    let changes = { contentHtml, content, images };
+    if (detectedTags.length > 0) {
+      const existing = memoData.tags || [];
+      const merged = [...new Set([...existing, ...detectedTags])];
+      if (merged.length > existing.length) {
+        memoData.tags = merged;
+        changes.tags = merged;
+      }
+    }
+
+    saveMemoChanges(changes);
   }, 500);
 }
 
@@ -987,7 +1029,10 @@ function bindEvents() {
   });
 
   // 콘텐츠 입력
-  memoContent.addEventListener('input', scheduleSave);
+  memoContent.addEventListener('input', () => {
+    scheduleSave();
+    requestAnimationFrame(scrollToCursor);
+  });
 
   // 본문 내 링크 클릭 → 외부 브라우저 열기
   memoContent.addEventListener('click', (e) => {
@@ -1239,6 +1284,8 @@ function bindEvents() {
       }
     }
     handleAutoConvert(e);
+    // Enter 후 커서가 보이도록 스크롤
+    if (e.key === 'Enter') requestAnimationFrame(scrollToCursor);
   });
 
   // URL 붙여넣기 → 하이퍼링크 자동 변환
@@ -1547,24 +1594,36 @@ function bindEvents() {
 
   // 하이라이트 버튼 (우클릭 메뉴에서만 사용 — action bar 버튼 삭제됨)
 
-  // ── 잠금 토글 (simple-mode = 콘텐츠 잠금) ────────
-  function applyLockMode(locked) {
-    isSimpleMode = locked;
-    document.querySelector('.memo-card').classList.toggle('simple-mode', locked);
-    // 콘텐츠 편집 가능 여부 제어
-    memoContent.contentEditable = locked ? 'false' : 'true';
+  // ── 간단히 보기 토글 (UI 크롬 숨기기) ────────────
+  function applySimpleMode(simple) {
+    isSimpleMode = simple;
+    document.querySelector('.memo-card').classList.toggle('simple-mode', simple);
     const icon = btnSimpleView?.querySelector('[data-lucide]');
     if (icon) {
-      icon.setAttribute('data-lucide', locked ? 'eye' : 'eye-off');
+      icon.setAttribute('data-lucide', simple ? 'eye' : 'eye-off');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
     }
-    saveMemoChanges({ simpleMode: locked });
+    saveMemoChanges({ simpleMode: simple });
   }
 
-  btnSimpleView?.addEventListener('click', () => applyLockMode(!isSimpleMode));
+  // ── 잠금 토글 (클릭/편집 차단) ──────────────────
+  function applyLock(locked) {
+    isLocked = locked;
+    document.querySelector('.memo-card').classList.toggle('locked', locked);
+    memoContent.contentEditable = locked ? 'false' : 'true';
+    const icon = btnLock?.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', locked ? 'lock' : 'lock-open');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
+    saveMemoChanges({ isLocked: locked });
+  }
 
-  // 잠금 복원 버튼
-  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => applyLockMode(false));
+  btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
+  btnLock?.addEventListener('click', () => applyLock(!isLocked));
+
+  // 잠금 복원 버튼 — 간단히 보기만 해제 (잠금은 독립적)
+  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => applySimpleMode(false));
 
 
   // ── 우클릭 서식 메뉴 (텍스트 선택 시) ───────────

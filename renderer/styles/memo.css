@@ -253,6 +253,8 @@
     border-color var(--transition-base);
 }
 .status-bar-inner > * { -webkit-app-region: no-drag; }
+/* 빈 공간(스페이서)은 드래그 가능하게 재지정 */
+.status-bar-inner .sb-spacer { -webkit-app-region: drag; }
 
 .sb-spacer { flex: 1; }
 
@@ -547,7 +549,7 @@
    ══════════════════════════════════════════════ */
 .simple-drag-strip {
   display: none;
-  height: 12px;
+  height: 22px;
   flex-shrink: 0;
   -webkit-app-region: drag;
   border-radius: var(--radius-card) var(--radius-card) 0 0;
@@ -593,17 +595,25 @@
 .memo-card.simple-mode .memo-content {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6px 14px 12px;
-  pointer-events: none;
-  user-select: none;
 }
 .memo-card.simple-mode .media-header { display: none !important; }
 .memo-card.simple-mode .memo-body {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
-  overflow: hidden; /* 스크롤 차단 */
+}
+
+/* ══════════════════════════════════════════════
+   LOCKED MODE (잠금 — 클릭/드래그 차단)
+   ══════════════════════════════════════════════ */
+.memo-card.locked .memo-content {
+  pointer-events: none;
+  user-select: none;
+}
+.memo-card.locked .memo-body {
+  overflow: hidden;
   position: relative;
 }
 /* 콘텐츠 위에 투명 오버레이 — 모든 클릭/드래그 차단 */
-.memo-card.simple-mode .memo-body::after {
+.memo-card.locked .memo-body::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -1435,6 +1445,7 @@
   padding: 4px 6px;
   align-items: center;
   pointer-events: auto;
+  -webkit-app-region: no-drag; /* 드래그 영역 위에 표시되어도 클릭 보장 */
 }
 .fmt-btn {
   width: 32px;
