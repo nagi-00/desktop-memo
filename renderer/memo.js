@@ -344,13 +344,19 @@ function applyTheme(accentHex, mode) {
     resetPalette();
     setThemeMode(mode);
     colorDot.style.background = 'var(--color-accent)';
-    return;
+  } else {
+    const palette = generatePalette(accentHex, mode);
+    applyPalette(palette);
+    setThemeMode(mode);
+    colorDot.style.background = accentHex;
+    if (colorPickerCustom) colorPickerCustom.value = accentHex;
   }
-  const palette = generatePalette(accentHex, mode);
-  applyPalette(palette);
-  setThemeMode(mode);
-  colorDot.style.background = accentHex;
-  if (colorPickerCustom) colorPickerCustom.value = accentHex;
+  // Strip inline color from links so CSS var(--color-accent) takes effect
+  memoContent?.querySelectorAll('a[style]').forEach(a => {
+    a.style.removeProperty('color');
+    a.style.removeProperty('font-weight');
+    if (!a.getAttribute('style')) a.removeAttribute('style');
+  });
 }
 
 function updateThemeToggleIcon() {
@@ -794,8 +800,7 @@ function _applyLink() {
   if (!url || url === 'https://') return;
 
   const text = _linkSelectedText || url;
-  const accent = getCssAccentHex();
-  const linkHtml = `<a href="${url}" target="_blank" rel="noopener" style="color:${accent};font-weight:700;">${escHtml(text)}</a>`;
+  const linkHtml = `<a href="${url}" target="_blank" rel="noopener">${escHtml(text)}</a>`;
 
   memoContent.focus();
   const s = window.getSelection();
