@@ -1053,6 +1053,8 @@
 .media-grid .img-wrap {
   position: relative;
   overflow: hidden;
+  /* 투명 PNG의 투명 영역이 현재 테마 배경색을 따르도록 명시 */
+  background: var(--color-bg);
 }
 .media-grid .img-wrap img {
   width: 100%;

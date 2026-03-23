@@ -620,14 +620,49 @@ function fmt(command, value = null) {
  * `1.` 등    → 번호 리스트
  * `[]`       → 체크박스
  */
+// ── 자동 변환 공통 헬퍼 ─────────────────────────
+/**
+ * 커서가 있는 memoContent 직접 자식 블록을 반환.
+ * execCommand('insertOrderedList') 는 빈 블록에서 윗줄 내용을 흡수하는 버그가
+ * 있으므로, 직접 <ol>/<ul>을 생성해 블록을 교체한다.
+ */
+function _currentBlock(node) {
+  let el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+  while (el && el.parentNode !== memoContent) el = el.parentNode;
+  return el ?? null;
+}
+
+function _replaceBlockWithList(blockEl, listTag, node) {
+  const list = document.createElement(listTag);
+  const li   = document.createElement('li');
+  list.appendChild(li);
+
+  if (blockEl && blockEl !== memoContent) {
+    // 블록 안에 트리거 이외의 텍스트가 있으면 li 안으로 이동
+    const remaining = blockEl.textContent.trim();
+    if (remaining) li.textContent = remaining;
+    blockEl.replaceWith(list);
+  } else {
+    // 직접 자식이 아닌 경우(드문 케이스) — 커서 위치에 삽입
+    memoContent.appendChild(list);
+  }
+
+  const nr = document.createRange();
+  nr.setStart(li, 0);
+  nr.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(nr);
+}
+
 function handleAutoConvert(e) {
   if (e.key !== ' ') return;
 
   const sel = window.getSelection();
   if (!sel.rangeCount) return;
 
-  const range    = sel.getRangeAt(0);
-  const node     = range.startContainer;
+  const range = sel.getRangeAt(0);
+  const node  = range.startContainer;
   if (node.nodeType !== Node.TEXT_NODE) return;
 
   const textBefore = node.textContent.slice(0, range.startOffset);
@@ -635,60 +670,44 @@ function handleAutoConvert(e) {
   // 불릿 리스트: `- ` or `* `
   if (textBefore === '-' || textBefore === '*') {
     e.preventDefault();
-    // 트리거 문자 제거
     node.textContent =
       node.textContent.slice(0, range.startOffset - textBefore.length) +
       node.textContent.slice(range.startOffset);
-    const r2 = document.createRange();
-    r2.setStart(node, 0); r2.collapse(true);
-    sel.removeAllRanges(); sel.addRange(r2);
-    document.execCommand('insertUnorderedList', false, null);
+    _replaceBlockWithList(_currentBlock(node), 'ul', node);
     return;
   }
 
-  // 번호 리스트: `1.` `2.` 등
-  if (/^\d+\.$/.test(textBefore)) {
+  // 번호 리스트: `1.` `2.` 등 — 트리거가 줄 전체여야 함
+  if (/^\d+\.$/.test(textBefore) && textBefore.length === node.textContent.trim().length) {
     e.preventDefault();
-    const len = textBefore.length;
-    node.textContent =
-      node.textContent.slice(0, range.startOffset - len) +
-      node.textContent.slice(range.startOffset);
-    const r2 = document.createRange();
-    r2.setStart(node, 0); r2.collapse(true);
-    sel.removeAllRanges(); sel.addRange(r2);
-    document.execCommand('insertOrderedList', false, null);
+    node.textContent = ''; // 트리거 전체 제거
+    _replaceBlockWithList(_currentBlock(node), 'ol', node);
     return;
   }
 
   // 체크박스: `[]` or `[ ]`
   if (textBefore === '[]' || textBefore === '[ ]') {
     e.preventDefault();
-    const len = textBefore.length;
+    const len    = textBefore.length;
     const offset = range.startOffset;
 
-    // 텍스트 노드를 분리: 트리거 문자 앞 | 체크박스 위치 | 나머지
-    const parentEl = node.parentNode;
-    const textAfter = node.splitText(offset);            // 커서 뒤 텍스트
-    node.textContent = node.textContent.slice(0, offset - len); // 트리거 제거
+    const parentEl  = node.parentNode;
+    const textAfter = node.splitText(offset);
+    node.textContent = node.textContent.slice(0, offset - len);
 
-    // 체크박스 요소 생성
-    const cb = document.createElement('div');
+    const cb    = document.createElement('div');
     cb.className = 'cb-item';
     const input = document.createElement('input');
-    input.type = 'checkbox';
-    const span = document.createElement('span');
-    span.textContent = '\u00A0'; // non-breaking space placeholder
+    input.type  = 'checkbox';
+    const span  = document.createElement('span');
+    span.textContent = '\u00A0';
     cb.appendChild(input);
     cb.appendChild(span);
-
-    // 트리거 텍스트 노드와 나머지 사이에 삽입
     parentEl.insertBefore(cb, textAfter);
 
-    // 빈 텍스트 노드 정리
-    if (!node.textContent) node.remove();
+    if (!node.textContent)     node.remove();
     if (!textAfter.textContent) textAfter.remove();
 
-    // 커서를 span 안에 배치
     const nr = document.createRange();
     nr.selectNodeContents(span);
     nr.collapse(false);

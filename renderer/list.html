@@ -26,6 +26,10 @@
       <i data-lucide="plus" width="12" height="12"></i>
       새 메모
     </button>
+    <!-- 트레이로 최소화 -->
+    <button class="btn-tray-list" id="btnTrayList" title="트레이로 최소화">
+      <i data-lucide="minus" width="14" height="14"></i>
+    </button>
     <button class="btn-close-list" id="btnClose" title="닫기">
       <i data-lucide="x" width="14" height="14"></i>
     </button>
@@ -58,6 +62,9 @@
       </div>
       <!-- 항목은 JS로 렌더링 -->
     </div>
+
+    <!-- 드래그 리사이즈 핸들 -->
+    <div class="list-resize-handle" id="listResizeHandle"></div>
 
     <!-- 우측: 미리보기 -->
     <div class="list-preview" id="previewPane">

@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('memoAPI', {
 
   // ── 메모 목록 / 공통 ──
   openList:   ()     => ipcRenderer.invoke('memo:openList'),
+  hideList:   ()     => ipcRenderer.invoke('list:hide'),
   getAllMemos: ()     => ipcRenderer.invoke('memo:getAll'),
   focusMemo:  (id)   => ipcRenderer.invoke('memo:focus', id),
 

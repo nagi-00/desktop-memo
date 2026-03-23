@@ -80,6 +80,25 @@ body {
 }
 .btn-new-memo:hover { opacity: 0.85; }
 
+/* 트레이 최소화 버튼 */
+.btn-tray-list {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.btn-tray-list:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
 /* 닫기 버튼 */
 .btn-close-list {
   width: 26px;
@@ -137,10 +156,33 @@ body {
 /* ── 사이드바 (메모 목록) ── */
 .list-sidebar {
   width: var(--list-sidebar-width);
-  border-right: 1px solid var(--color-border);
+  min-width: 140px;
+  border-right: none; /* 핸들이 구분선 역할 */
   overflow-y: auto;
   flex-shrink: 0;
   background: var(--color-surface);
+}
+
+/* ── 리사이즈 핸들 ── */
+.list-resize-handle {
+  width: 4px;
+  flex-shrink: 0;
+  background: var(--color-border);
+  cursor: col-resize;
+  position: relative;
+  transition: background var(--transition-fast);
+  -webkit-app-region: no-drag;
+}
+/* 클릭 영역을 좌우로 확장 (시각적 너비보다 넓게) */
+.list-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -5px; right: -5px;
+}
+.list-resize-handle:hover,
+.list-resize-handle.dragging {
+  background: var(--color-accent);
 }
 
 .memo-list-item {

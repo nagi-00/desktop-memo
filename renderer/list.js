@@ -19,6 +19,8 @@ const previewEmpty  = document.getElementById('previewEmpty');
 const searchInput   = document.getElementById('searchInput');
 const btnNewMemo    = document.getElementById('btnNewMemo');
 const btnClose      = document.getElementById('btnClose');
+const btnTrayList   = document.getElementById('btnTrayList');
+const resizeHandle  = document.getElementById('listResizeHandle');
 
 // ── 초기화 ──
 async function init() {
@@ -473,6 +475,37 @@ function bindEvents() {
 
   btnNewMemo.addEventListener('click', () => api.createMemo());
   btnClose.addEventListener('click', () => window.close());
+  btnTrayList?.addEventListener('click', () => api.hideList());
+
+  // ── 좌우 구분선 드래그 리사이즈 ──
+  if (resizeHandle) {
+    let _drag = null;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const curWidth = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--list-sidebar-width'), 10
+      ) || 240;
+      _drag = { startX: e.clientX, startWidth: curWidth };
+      resizeHandle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!_drag) return;
+      const newWidth = Math.max(140, Math.min(440, _drag.startWidth + e.clientX - _drag.startX));
+      document.documentElement.style.setProperty('--list-sidebar-width', `${newWidth}px`);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!_drag) return;
+      _drag = null;
+      resizeHandle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  }
 }
 
 // ── 유틸 ──

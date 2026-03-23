@@ -79,17 +79,18 @@ function createMemoWindow(memoData, options = {}) {
     minimized = false,
   } = memoData;
 
-  // 최소화 상태면 작게 시작
-  const winWidth  = minimized ? 88  : (bounds.width  || 320);
-  const winHeight = minimized ? 88  : (bounds.height || 420);
+  // 최소화 상태면 작게 시작 (포스트잇 54px + 여백 = 64px)
+  const BUBBLE_SIZE = 64;
+  const winWidth  = minimized ? BUBBLE_SIZE : (bounds.width  || 320);
+  const winHeight = minimized ? BUBBLE_SIZE : (bounds.height || 420);
 
   const win = new BrowserWindow({
     x: bounds.x,
     y: bounds.y,
     width:     winWidth,
     height:    winHeight,
-    minWidth:  minimized ? 88  : 260,
-    minHeight: minimized ? 88  : 200,
+    minWidth:  minimized ? BUBBLE_SIZE : 260,
+    minHeight: minimized ? BUBBLE_SIZE : 200,
     frame:      false,
     transparent:true,
     resizable:  !minimized,
@@ -406,7 +407,7 @@ function registerIpcHandlers() {
       const prev = win.getBounds();
       updateMemoField(id, 'prevBounds', prev);
       win.setResizable(false);
-      win.setSize(88, 88);
+      win.setSize(64, 64);
     } else {
       // 이전 크기로 복원
       const memo = getMemoById(id);
@@ -493,9 +494,10 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 메모 목록 창 열기
+  // 메모 목록 창 열기 (숨겨진 상태면 show)
   ipcMain.handle('memo:openList', () => {
     if (listWindow && !listWindow.isDestroyed()) {
+      if (!listWindow.isVisible()) listWindow.show();
       listWindow.focus();
       return;
     }
@@ -517,6 +519,11 @@ function registerIpcHandlers() {
     listWindow.loadFile(path.join(__dirname, 'renderer', 'list.html'));
     listWindow.once('ready-to-show', () => listWindow.show());
     listWindow.on('closed', () => { listWindow = null; });
+  });
+
+  // 메모 목록 창 트레이로 숨기기
+  ipcMain.handle('list:hide', () => {
+    if (listWindow && !listWindow.isDestroyed()) listWindow.hide();
   });
 
   // 이미지 파일 선택 → Base64 DataURL 반환
