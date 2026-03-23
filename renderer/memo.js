@@ -22,29 +22,40 @@ const CLOVER_SVG = `<svg viewBox="0 0 100 118" fill="none" width="20" height="20
   <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 
+// 채워진 아이콘 SVG 빌더 (viewBox 24×24, fill="currentColor")
+function _filledSvg(path, w = 20) {
+  return `<svg viewBox="0 0 24 24" fill="currentColor" width="${w}" height="${w}" aria-hidden="true">${path}</svg>`;
+}
+const _FILLED = {
+  heart:    `<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+  moon:     `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`,
+  star:     `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
+  bird:     `<path d="M22 3.5c-2 1.5-5 2.5-8 2C13 4 11.5 3 9.5 3 6.5 3 4 5.5 4 8.5c0 2 1 3.7 2.5 4.8L3.5 15h3.7C8.7 17.4 11 19 13.5 19 18 19 22 15.5 22 11c0-2.8-1.2-5.3-3-7.5H22z"/>`,
+  'file-text': `<path d="M13.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8.5z"/><polygon points="13.5,2 13.5,8.5 20,8.5" fill="white"/><rect x="8" y="13" width="8" height="1.5" fill="white"/><rect x="8" y="16.5" width="6" height="1.5" fill="white"/><rect x="8" y="9.5" width="3" height="1.5" fill="white"/>`,
+  pencil:   `<path d="M17.5 2.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 13.5-13.5z"/>`,
+  bookmark: `<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>`,
+  leaf:     `<path d="M17 8C8 10 5.9 16.17 3.82 21.34a.3.3 0 0 0 .32.41C9.17 21.22 16 18.47 17.5 11.82L21 8h-4zM5 21l7-7"/>`,
+  'flower-2': `<circle cx="12" cy="6" r="3.5"/><circle cx="18" cy="10" r="3.5"/><circle cx="18" cy="17" r="3.5"/><circle cx="12" cy="21" r="3.5"/><circle cx="6" cy="17" r="3.5"/><circle cx="6" cy="10" r="3.5"/><circle cx="12" cy="13.5" r="4"/>`,
+};
+
 const SYMBOL_ICONS = [
   { id: 'clover',    label: '클로버', svg: CLOVER_SVG },
-  { id: 'heart',     label: '하트',   lucide: 'heart' },
-  { id: 'moon',      label: '달',     lucide: 'moon' },
-  { id: 'star',      label: '별',     lucide: 'star' },
-  { id: 'bird',      label: '새',     lucide: 'bird' },
-  { id: 'file-text', label: '메모',   lucide: 'file-text' },
-  { id: 'pencil',    label: '연필',   lucide: 'pencil' },
-  { id: 'bookmark',  label: '북마크', lucide: 'bookmark' },
-  { id: 'leaf',      label: '잎',     lucide: 'leaf' },
-  { id: 'flower-2',  label: '꽃',     lucide: 'flower-2' },
+  { id: 'heart',     label: '하트',   svg: _filledSvg(_FILLED.heart) },
+  { id: 'moon',      label: '달',     svg: _filledSvg(_FILLED.moon) },
+  { id: 'star',      label: '별',     svg: _filledSvg(_FILLED.star) },
+  { id: 'bird',      label: '새',     svg: _filledSvg(_FILLED.bird) },
+  { id: 'file-text', label: '메모',   svg: _filledSvg(_FILLED['file-text']) },
+  { id: 'pencil',    label: '연필',   svg: _filledSvg(_FILLED.pencil) },
+  { id: 'bookmark',  label: '북마크', svg: _filledSvg(_FILLED.bookmark) },
+  { id: 'leaf',      label: '잎',     svg: _filledSvg(_FILLED.leaf) },
+  { id: 'flower-2',  label: '꽃',     svg: _filledSvg(_FILLED['flower-2']) },
 ];
 
 function applySymbolIcon(iconId) {
   const iconEl = document.getElementById('symbolBtnIcon');
   if (!iconEl) return;
   const def = SYMBOL_ICONS.find(ic => ic.id === iconId) || SYMBOL_ICONS[0];
-  if (def.svg) {
-    iconEl.innerHTML = def.svg;
-  } else {
-    iconEl.innerHTML = `<i data-lucide="${def.lucide}" width="20" height="20"></i>`;
-    if (window.lucide) lucide.createIcons({ nodes: [iconEl.querySelector('[data-lucide]')] });
-  }
+  iconEl.innerHTML = def.svg;
 }
 
 // ── 상태 ──────────────────────────────────────
@@ -967,14 +978,14 @@ function openImageEditor(imgEl) {
   imgEditorSrc = new Image();
   imgEditorSrc.onload = () => {
     redrawEditorCanvas();
-    // 원형 가이드 크기를 캔버스 실제 표시 크기 기준으로 동적 계산
+    document.getElementById('imgEditorOverlay').classList.add('visible');
+    // 원형 가이드 크기를 캔버스 실제 표시 크기 기준으로 동적 계산 (오버레이 visible 후)
     if (isProfileAvatar && circleOverlay) {
       const canvas = document.getElementById('imgEditorCanvas');
       const size = Math.min(canvas.offsetWidth, canvas.offsetHeight);
       circleOverlay.style.width  = size + 'px';
       circleOverlay.style.height = size + 'px';
     }
-    document.getElementById('imgEditorOverlay').classList.add('visible');
   };
   imgEditorSrc.src = imgEl.src; // 현재 (편집된) 이미지로 시작
 }
