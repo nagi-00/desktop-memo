@@ -13,25 +13,6 @@
 <div class="memo-root" id="memoRoot">
 
   <!-- ══════════════════════════════════
-       BUBBLE VIEW (최소화 상태)
-  ══════════════════════════════════ -->
-  <div class="bubble-view" id="bubbleView">
-    <!-- 포스트잇 스타일 — 전체가 드래그 영역, 버튼들만 no-drag -->
-    <div class="sticky-note" id="bubbleBtn">
-      <span class="bubble-icon" id="bubbleIcon">📝</span>
-      <input type="text" class="bubble-icon-input" id="bubbleIconInput" maxlength="4" placeholder="📝" />
-      <!-- 열기 버튼 (no-drag) -->
-      <button class="bubble-open-btn" id="bubbleOpenBtn" title="열기">
-        <i data-lucide="maximize-2" width="9" height="9"></i>
-      </button>
-      <!-- 아이콘 편집 버튼 (no-drag) -->
-      <button class="bubble-edit-btn" id="bubbleEditBtn" title="아이콘 변경">
-        <i data-lucide="pencil" width="8" height="8"></i>
-      </button>
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════
        CARD VIEW (기본 상태)
   ══════════════════════════════════ -->
   <div class="card-view" id="cardView">
@@ -65,8 +46,8 @@
             </div>
           </div>
 
-          <!-- 최소화 -->
-          <button class="sb-btn" id="btnMinimize" title="말풍선으로 최소화">
+          <!-- 숨기기 -->
+          <button class="sb-btn" id="btnMinimize" title="목록에 숨기기 (창 닫기)">
             <i data-lucide="minimize-2" width="13" height="13"></i>
           </button>
 
@@ -219,6 +200,29 @@
   </div><!-- /.card-view -->
 
 </div><!-- /.memo-root -->
+
+<!-- 링크 삽입 다이얼로그 -->
+<div class="link-dialog-overlay" id="linkDialogOverlay">
+  <div class="link-dialog-box">
+    <div class="link-dialog-label">링크 URL</div>
+    <input type="url" id="linkDialogInput" placeholder="https://" autocomplete="off" spellcheck="false" />
+    <div class="link-dialog-btns">
+      <button id="linkDialogCancel">취소</button>
+      <button id="linkDialogConfirm" class="primary">삽입</button>
+    </div>
+  </div>
+</div>
+
+<!-- 프로필 불러오기 팝업 -->
+<div class="profile-load-overlay" id="profileLoadOverlay">
+  <div class="profile-load-box">
+    <div class="profile-load-header">
+      <span>저장된 프로필</span>
+      <button id="profileLoadClose">×</button>
+    </div>
+    <div class="profile-load-list" id="profileLoadList"></div>
+  </div>
+</div>
 
 <!-- 이미지 편집 모달 -->
 <div class="img-editor-overlay" id="imgEditorOverlay">

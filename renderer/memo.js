@@ -10,7 +10,6 @@ const api = window.memoAPI;
 let memoData      = null;
 let currentMode   = 'dark';
 let isPinned      = false;
-let isMinimized   = false;
 let isLiked       = false;
 let isSimpleMode  = false;
 let saveTimer     = null;
@@ -19,9 +18,6 @@ let mediaFolded   = false;
 // ── DOM 참조 ──────────────────────────────────
 const memoRoot    = document.getElementById('memoRoot');
 const cardView    = document.getElementById('cardView');
-const bubbleView  = document.getElementById('bubbleView');
-const bubbleBtn   = document.getElementById('bubbleBtn');
-const bubbleIcon  = document.getElementById('bubbleIcon');
 
 const memoContent  = document.getElementById('memoContent');
 const createdDate  = document.getElementById('createdDate');
@@ -36,6 +32,11 @@ const opacityPopup   = document.getElementById('opacityPopup');
 const opacitySlider  = document.getElementById('opacitySlider');
 const opacityValue   = document.getElementById('opacityValue');
 const btnMinimize    = document.getElementById('btnMinimize');
+// 링크 다이얼로그
+const linkDialogOverlay  = document.getElementById('linkDialogOverlay');
+const linkDialogInput    = document.getElementById('linkDialogInput');
+const linkDialogConfirm  = document.getElementById('linkDialogConfirm');
+const linkDialogCancel   = document.getElementById('linkDialogCancel');
 const btnThemeToggle = document.getElementById('btnThemeToggle');
 const colorDot       = document.getElementById('colorDot');
 const colorPopup     = document.getElementById('colorPopup');
@@ -51,13 +52,11 @@ const btnImage      = document.getElementById('btnImage');
 const imageFileInput  = document.getElementById('imageFileInput');
 const avatarFileInput = document.getElementById('avatarFileInput');
 const textColorInput  = document.getElementById('textColorInput');
-const bubbleEditBtn   = document.getElementById('bubbleEditBtn');
-const bubbleOpenBtn   = document.getElementById('bubbleOpenBtn');
 const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
-const btnSimpleView   = document.getElementById('btnSimpleView');
+const btnSimpleView       = document.getElementById('btnSimpleView');
 const btnFont         = document.getElementById('btnFont');
 const fontPopup       = document.getElementById('fontPopup');
 const fontFamilies    = document.getElementById('fontFamilies');
@@ -198,9 +197,9 @@ async function init() {
     ctrlsDiv.className = 'reply-ctx-ctrls';
     const rMinBtn = document.createElement('button');
     rMinBtn.className = 'reply-ctx-ctrl';
-    rMinBtn.title = '말풍선으로 최소화';
+    rMinBtn.title = '숨기기';
     rMinBtn.innerHTML = '<i data-lucide="minimize-2" width="11" height="11"></i>';
-    rMinBtn.addEventListener('click', (e) => { e.stopPropagation(); setMinimized(true); });
+    rMinBtn.addEventListener('click', (e) => { e.stopPropagation(); hideWindow(); });
     const rDelBtn = document.createElement('button');
     rDelBtn.className = 'reply-ctx-ctrl danger';
     rDelBtn.title = '메모 삭제';
@@ -272,10 +271,16 @@ async function init() {
   isPinned = memoData.pinned || false;
   updatePinButton();
 
-  // 간단히 보기 복원
+  // 잠금 모드 복원
   if (memoData.simpleMode) {
     isSimpleMode = true;
     document.querySelector('.memo-card').classList.add('simple-mode');
+    memoContent.contentEditable = 'false';
+    const icon = btnSimpleView?.querySelector('[data-lucide]');
+    if (icon) {
+      icon.setAttribute('data-lucide', 'eye');
+      if (window.lucide) lucide.createIcons({ nodes: [icon] });
+    }
   }
 
   // 투명도
@@ -286,9 +291,6 @@ async function init() {
   // 좋아요
   isLiked = memoData.liked || false;
   updateLikeButton();
-
-  // 버블 아이콘
-  bubbleIcon.textContent = profile.bubbleIcon || '📝';
 
   // 스와치 렌더링
   renderColorSwatches();
@@ -415,13 +417,9 @@ function selectAccentColor(hex) {
   renderColorSwatches();
 }
 
-// ── 최소화 ────────────────────────────────────
-function setMinimized(minimized, sendIpc = true) {
-  isMinimized = minimized;
-  memoRoot.classList.toggle('minimized', minimized);
-  if (sendIpc) {
-    api.toggleMinimize(minimized).catch(console.error);
-  }
+// ── 창 숨기기 (목록에는 계속 표시됨) ────────────
+function hideWindow() {
+  api.hideWindow().catch(console.error);
 }
 
 // ── 저장 ──────────────────────────────────────
@@ -719,32 +717,49 @@ function handleAutoConvert(e) {
   }
 }
 
-// ── 링크 삽입 (Ctrl+K) ────────────────────────
+// ── 링크 삽입 (Ctrl+K / 우클릭 메뉴) ─────────
+let _linkSavedRange = null;
+let _linkSelectedText = '';
+
 function insertLink() {
   const sel = window.getSelection();
-  // prompt() 호출 전에 선택 범위 저장 (prompt가 selection을 초기화함)
-  const savedRange = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-  const selectedText = sel?.toString().trim() || '';
+  _linkSavedRange = sel?.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  _linkSelectedText = sel?.toString().trim() || '';
 
-  const url = prompt('URL을 입력하세요:', 'https://');
+  linkDialogInput.value = 'https://';
+  linkDialogOverlay.classList.add('visible');
+  requestAnimationFrame(() => {
+    linkDialogInput.select();
+    linkDialogInput.focus();
+  });
+}
+
+function _applyLink() {
+  const url = linkDialogInput.value.trim();
+  linkDialogOverlay.classList.remove('visible');
   if (!url || url === 'https://') return;
 
-  const text = selectedText || url;
+  const text = _linkSelectedText || url;
   const accent = getCssAccentHex();
-  const linkHtml = `<a href="${url}" target="_blank" rel="noopener" style="color:${accent};font-weight:700;">${text}</a>`;
+  const linkHtml = `<a href="${url}" target="_blank" rel="noopener" style="color:${accent};font-weight:700;">${escHtml(text)}</a>`;
 
   memoContent.focus();
   const s = window.getSelection();
   s.removeAllRanges();
-  if (savedRange) {
-    s.addRange(savedRange);
-    // 선택된 텍스트가 있으면 대체, 없으면 커서 위치에 삽입
-    if (!savedRange.collapsed) {
-      savedRange.deleteContents();
-    }
+  if (_linkSavedRange) {
+    s.addRange(_linkSavedRange);
+    if (!_linkSavedRange.collapsed) _linkSavedRange.deleteContents();
   }
   document.execCommand('insertHTML', false, linkHtml);
   scheduleSave();
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── 폰트 옵션 렌더 (로컬 폰트 열거) ──────────────
@@ -1125,6 +1140,63 @@ function bindEvents() {
           scheduleSave();
         }
       }
+    } else if (e.key === 'Backspace') {
+      // 백스페이스: 체크박스 / 리스트 서식 간편 해제
+      const bSel = window.getSelection();
+      if (bSel?.rangeCount && bSel.isCollapsed) {
+        const bRange = bSel.getRangeAt(0);
+        let bNode = bRange.startContainer;
+        if (bNode.nodeType === Node.TEXT_NODE) bNode = bNode.parentNode;
+
+        // 체크박스 아이템 — 커서가 span 맨 앞에 있을 때 서식 해제
+        const cbItem = bNode.closest?.('.cb-item');
+        if (cbItem && memoContent.contains(cbItem)) {
+          const cbSpan = cbItem.querySelector('span');
+          const atStart = bRange.startOffset === 0 &&
+            (bRange.startContainer === cbSpan || cbSpan?.contains(bRange.startContainer));
+          if (atStart) {
+            e.preventDefault();
+            const text = cbSpan?.textContent.replace(/\u00A0/g, '').trim() || '';
+            let ref = cbItem;
+            while (ref.parentNode && ref.parentNode !== memoContent) ref = ref.parentNode;
+            const newDiv = document.createElement('div');
+            if (text) newDiv.textContent = text; else newDiv.innerHTML = '<br>';
+            memoContent.insertBefore(newDiv, ref.nextSibling);
+            ref.remove();
+            const r = document.createRange();
+            r.setStart(newDiv, 0); r.collapse(true);
+            bSel.removeAllRanges(); bSel.addRange(r);
+            scheduleSave();
+            return;
+          }
+        }
+
+        // 리스트 아이템 — 빈 li에서 백스페이스 → 리스트 탈출
+        const li = bNode.closest?.('li');
+        if (li && memoContent.contains(li) && li.textContent.trim() === '') {
+          e.preventDefault();
+          const list = li.parentElement;
+          const prevEl = list.previousSibling;
+          li.remove();
+          if (list.children.length === 0) {
+            // 빈 리스트 → 일반 div로 교체
+            const newDiv = document.createElement('div');
+            newDiv.innerHTML = '<br>';
+            list.parentNode.insertBefore(newDiv, list);
+            list.remove();
+            const r = document.createRange();
+            r.setStart(newDiv, 0); r.collapse(true);
+            bSel.removeAllRanges(); bSel.addRange(r);
+          } else if (prevEl) {
+            // 이전 요소 끝으로 커서 이동
+            const r = document.createRange();
+            r.selectNodeContents(prevEl); r.collapse(false);
+            bSel.removeAllRanges(); bSel.addRange(r);
+          }
+          scheduleSave();
+          return;
+        }
+      }
     } else if (e.key === '-') {
       // --- 입력 시 수평 구분선으로 자동 변환 (<hr> — 텍스트 흐름 안에서 동작)
       const sel = window.getSelection();
@@ -1200,9 +1272,8 @@ function bindEvents() {
     api.setOpacity(val);
   });
 
-  // 최소화 ↔ 복원
-  btnMinimize.addEventListener('click', () => setMinimized(true));
-  bubbleOpenBtn?.addEventListener('click', () => setMinimized(false));
+  // 숨기기 (목록에는 계속 보임)
+  btnMinimize.addEventListener('click', hideWindow);
 
   // 테마 토글
   btnThemeToggle.addEventListener('click', async () => {
@@ -1292,35 +1363,64 @@ function bindEvents() {
     const img = profileAvatar.querySelector('img');
     if (img) openImageEditor(img);
   });
-  // 아바타 우클릭 → 삭제 옵션
+  // 아바타 우클릭 → 컨텍스트 메뉴 (편집/삭제/프로필 저장·불러오기)
   profileAvatar.addEventListener('contextmenu', (e) => {
-    if (!memoData?.profile?.avatarDataUrl) return;
     e.preventDefault();
     e.stopPropagation();
     document.querySelectorAll('.avatar-menu').forEach(m => m.remove());
     const menu = document.createElement('div');
     menu.className = 'avatar-menu';
     profileAvatar.style.position = 'relative';
-    const editBtn = document.createElement('button');
-    editBtn.textContent = '사진 편집';
-    editBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      menu.remove();
-      const img = profileAvatar.querySelector('img');
-      if (img) openImageEditor(img);
+
+    if (memoData?.profile?.avatarDataUrl) {
+      const editBtn = document.createElement('button');
+      editBtn.textContent = '사진 편집';
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation(); menu.remove();
+        const img = profileAvatar.querySelector('img');
+        if (img) openImageEditor(img);
+      });
+      menu.appendChild(editBtn);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'danger';
+      removeBtn.textContent = '사진 삭제';
+      removeBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation(); menu.remove();
+        memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: null };
+        saveMemoChanges({ profile: memoData.profile });
+        renderAvatar();
+      });
+      menu.appendChild(removeBtn);
+
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:1px;background:var(--color-border);margin:3px 0';
+      menu.appendChild(sep);
+    }
+
+    // 이 프로필 저장
+    const saveProfileBtn = document.createElement('button');
+    saveProfileBtn.textContent = '이 프로필 저장';
+    saveProfileBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation(); menu.remove();
+      const profile = memoData?.profile || {};
+      await api.saveProfile({
+        name: profile.name || '메모',
+        handle: profile.handle || 'note',
+        avatarDataUrl: profile.avatarDataUrl || null,
+      });
     });
-    menu.appendChild(editBtn);
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'danger';
-    removeBtn.textContent = '사진 삭제';
-    removeBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      menu.remove();
-      memoData.profile = { ...(memoData.profile || {}), avatarDataUrl: null };
-      saveMemoChanges({ profile: memoData.profile });
-      renderAvatar();
+    menu.appendChild(saveProfileBtn);
+
+    // 저장된 프로필 불러오기
+    const loadProfileBtn = document.createElement('button');
+    loadProfileBtn.textContent = '저장된 프로필 불러오기';
+    loadProfileBtn.addEventListener('click', async (ev) => {
+      ev.stopPropagation(); menu.remove();
+      showProfileLoadOverlay();
     });
-    menu.appendChild(removeBtn);
+    menu.appendChild(loadProfileBtn);
+
     profileAvatar.appendChild(menu);
     const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
@@ -1337,57 +1437,6 @@ function bindEvents() {
     reader.readAsDataURL(file);
     e.target.value = '';
   });
-
-  // 버블 아이콘 인라인 편집
-  {
-    const iconInput = document.getElementById('bubbleIconInput');
-
-    function applyBubbleIcon(val) {
-      const trimmed = val.trim() || '📝';
-      memoData.profile = { ...(memoData.profile || {}), bubbleIcon: trimmed };
-      bubbleIcon.textContent = trimmed;
-      const len = [...trimmed].length;
-      bubbleIcon.style.fontSize = len <= 1 ? '16px' : len <= 2 ? '12px' : '9px';
-      saveMemoChanges({ profile: memoData.profile });
-    }
-
-    bubbleEditBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (iconInput.classList.contains('active')) {
-        applyBubbleIcon(iconInput.value);
-        iconInput.classList.remove('active');
-        return;
-      }
-      iconInput.value = memoData?.profile?.bubbleIcon || '📝';
-      iconInput.classList.add('active');
-      iconInput.focus();
-      iconInput.select();
-    });
-
-    iconInput?.addEventListener('keydown', (ev) => {
-      ev.stopPropagation();
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        applyBubbleIcon(iconInput.value);
-        iconInput.classList.remove('active');
-      }
-      if (ev.key === 'Escape') {
-        ev.preventDefault();
-        iconInput.classList.remove('active');
-      }
-    });
-    iconInput?.addEventListener('blur', () => {
-      if (iconInput.classList.contains('active')) {
-        applyBubbleIcon(iconInput.value);
-        iconInput.classList.remove('active');
-      }
-    });
-
-    // 초기 아이콘 크기 적용
-    const initIcon = memoData?.profile?.bubbleIcon || '📝';
-    const initLen = [...initIcon].length;
-    bubbleIcon.style.fontSize = initLen <= 1 ? '16px' : initLen <= 2 ? '12px' : '9px';
-  }
 
   // 답글 (스레드)
   btnReply.addEventListener('click', () => {
@@ -1407,7 +1456,6 @@ function bindEvents() {
     memoData.profile = { ...(memoData.profile || {}), name };
     saveMemoChanges({ profile: memoData.profile });
     renderAvatar();
-    bubbleIcon.textContent = memoData.profile.bubbleIcon || '📝';
   });
 
   // 핸들 인라인 편집
@@ -1499,29 +1547,24 @@ function bindEvents() {
 
   // 하이라이트 버튼 (우클릭 메뉴에서만 사용 — action bar 버튼 삭제됨)
 
-  // ── 간단히 보기 토글 ──────────────────────────
-  btnSimpleView?.addEventListener('click', () => {
-    isSimpleMode = !isSimpleMode;
-    document.querySelector('.memo-card').classList.toggle('simple-mode', isSimpleMode);
-    const icon = btnSimpleView.querySelector('[data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', isSimpleMode ? 'eye' : 'eye-off');
-      if (window.lucide) lucide.createIcons({ nodes: [icon] });
-    }
-    saveMemoChanges({ simpleMode: isSimpleMode });
-  });
-
-  // 간단히 보기 복원 버튼
-  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => {
-    isSimpleMode = false;
-    document.querySelector('.memo-card').classList.remove('simple-mode');
+  // ── 잠금 토글 (simple-mode = 콘텐츠 잠금) ────────
+  function applyLockMode(locked) {
+    isSimpleMode = locked;
+    document.querySelector('.memo-card').classList.toggle('simple-mode', locked);
+    // 콘텐츠 편집 가능 여부 제어
+    memoContent.contentEditable = locked ? 'false' : 'true';
     const icon = btnSimpleView?.querySelector('[data-lucide]');
     if (icon) {
-      icon.setAttribute('data-lucide', 'eye-off');
+      icon.setAttribute('data-lucide', locked ? 'eye' : 'eye-off');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
     }
-    saveMemoChanges({ simpleMode: false });
-  });
+    saveMemoChanges({ simpleMode: locked });
+  }
+
+  btnSimpleView?.addEventListener('click', () => applyLockMode(!isSimpleMode));
+
+  // 잠금 복원 버튼
+  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => applyLockMode(false));
 
 
   // ── 우클릭 서식 메뉴 (텍스트 선택 시) ───────────
@@ -1789,6 +1832,25 @@ function bindEvents() {
     if (!fntWrap?.contains(e.target)) fontPopup.classList.remove('visible');
   });
 
+  // 프로필 로드 오버레이 닫기
+  document.getElementById('profileLoadClose')?.addEventListener('click', () => {
+    document.getElementById('profileLoadOverlay')?.classList.remove('visible');
+  });
+  document.getElementById('profileLoadOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('profileLoadOverlay')) {
+      document.getElementById('profileLoadOverlay').classList.remove('visible');
+    }
+  });
+
+  // 링크 다이얼로그 이벤트
+  linkDialogConfirm?.addEventListener('click', _applyLink);
+  linkDialogCancel?.addEventListener('click', () => linkDialogOverlay.classList.remove('visible'));
+  linkDialogInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); _applyLink(); }
+    if (e.key === 'Escape') { e.preventDefault(); linkDialogOverlay.classList.remove('visible'); }
+    e.stopPropagation();
+  });
+
   // 전역 단축키
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -1835,6 +1897,73 @@ function bindEvents() {
       new ResizeObserver(syncActionIcons).observe(actionIcons);
     }
   }
+}
+
+// ── 저장된 프로필 불러오기 오버레이 ──────────────
+async function showProfileLoadOverlay() {
+  const overlay = document.getElementById('profileLoadOverlay');
+  const list    = document.getElementById('profileLoadList');
+  const profiles = await api.getProfiles();
+  list.innerHTML = '';
+
+  if (!profiles || profiles.length === 0) {
+    list.innerHTML = '<div class="profile-load-empty">저장된 프로필이 없습니다</div>';
+  } else {
+    profiles.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'profile-load-item';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'profile-load-avatar';
+      if (p.avatarDataUrl) {
+        const img = document.createElement('img');
+        img.src = p.avatarDataUrl;
+        avatar.appendChild(img);
+      } else {
+        avatar.textContent = (p.name || '메')[0].toUpperCase();
+      }
+
+      const info = document.createElement('div');
+      info.className = 'profile-load-info';
+      info.innerHTML = `<strong>${escHtml(p.name || '메모')}</strong><span>@${escHtml(p.handle || 'note')}</span>`;
+
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'profile-load-apply';
+      applyBtn.textContent = '적용';
+      applyBtn.addEventListener('click', () => {
+        memoData.profile = {
+          ...(memoData.profile || {}),
+          name: p.name,
+          handle: p.handle,
+          avatarDataUrl: p.avatarDataUrl,
+        };
+        saveMemoChanges({ profile: memoData.profile });
+        displayName.textContent = p.name || '메모';
+        handleText.textContent  = p.handle ? `@${p.handle}` : '@note';
+        renderAvatar();
+        overlay.classList.remove('visible');
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'profile-load-del';
+      delBtn.textContent = '삭제';
+      delBtn.addEventListener('click', async () => {
+        await api.deleteProfile(p.name);
+        item.remove();
+        if (list.querySelectorAll('.profile-load-item').length === 0) {
+          list.innerHTML = '<div class="profile-load-empty">저장된 프로필이 없습니다</div>';
+        }
+      });
+
+      item.appendChild(avatar);
+      item.appendChild(info);
+      item.appendChild(applyBtn);
+      item.appendChild(delBtn);
+      list.appendChild(item);
+    });
+  }
+
+  overlay.classList.add('visible');
 }
 
 // ── 실행 ──────────────────────────────────────

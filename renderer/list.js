@@ -12,15 +12,21 @@ let currentFilter  = 'all';
 let searchQuery    = '';
 
 // ── DOM 참조 ──
-const sidebar       = document.getElementById('memoListSidebar');
-const emptyList     = document.getElementById('emptyList');
-const previewPane   = document.getElementById('previewPane');
-const previewEmpty  = document.getElementById('previewEmpty');
-const searchInput   = document.getElementById('searchInput');
-const btnNewMemo    = document.getElementById('btnNewMemo');
-const btnClose      = document.getElementById('btnClose');
-const btnTrayList   = document.getElementById('btnTrayList');
-const resizeHandle  = document.getElementById('listResizeHandle');
+const sidebar         = document.getElementById('memoListSidebar');
+const emptyList       = document.getElementById('emptyList');
+const previewPane     = document.getElementById('previewPane');
+const previewEmpty    = document.getElementById('previewEmpty');
+const searchInput     = document.getElementById('searchInput');
+const btnNewMemo      = document.getElementById('btnNewMemo');
+const btnClose        = document.getElementById('btnClose');
+const btnTrayList     = document.getElementById('btnTrayList');
+const btnExport       = document.getElementById('btnExport');
+const btnShortcutHelp = document.getElementById('btnShortcutHelp');
+const resizeHandle    = document.getElementById('listResizeHandle');
+const tagFilterChips  = document.getElementById('tagFilterChips');
+const tagAddBar       = document.getElementById('tagAddBar');
+const tagAddChips     = document.getElementById('tagAddChips');
+const tagAddInput     = document.getElementById('tagAddInput');
 
 // ── 초기화 ──
 async function init() {
@@ -31,6 +37,12 @@ async function init() {
 
   await loadMemos();
   bindEvents();
+
+  // 최초 실행 시 단축키 도움말 자동 표시
+  if (!localStorage.getItem('shortcutHelpShown')) {
+    showShortcutOverlay();
+    localStorage.setItem('shortcutHelpShown', '1');
+  }
 
   api.onMemoListUpdated(async () => {
     const prevSelected = selectedId;
@@ -65,7 +77,30 @@ async function init() {
 async function loadMemos() {
   allMemos = await api.getAllMemos() || [];
   trashMemos = await api.getTrash() || [];
+  renderTagFilterChips();
   renderList();
+}
+
+// ── 태그 필터 칩 렌더링 ──
+function renderTagFilterChips() {
+  tagFilterChips.innerHTML = '';
+  const allTags = [...new Set(allMemos.flatMap(m => m.tags || []))].sort();
+  allTags.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.className = 'filter-chip tag-chip';
+    chip.dataset.filter = `tag:${tag}`;
+    chip.textContent = `#${tag}`;
+    if (currentFilter === `tag:${tag}`) chip.classList.add('active');
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = `tag:${tag}`;
+      selectedId = null;
+      renderList();
+      renderPreview(null);
+    });
+    tagFilterChips.appendChild(chip);
+  });
 }
 
 // ── 스레드 그룹화 ──
@@ -115,10 +150,14 @@ function getFilteredMemos() {
 
   let list = allMemos;
 
-  if (currentFilter === 'liked') list = list.filter(m => m.liked);
-  else if (currentFilter === 'threads') {
+  if (currentFilter === 'liked') {
+    list = list.filter(m => m.liked);
+  } else if (currentFilter === 'threads') {
     const parentIds = new Set(list.filter(m => m.parentId).map(m => m.parentId));
     list = list.filter(m => parentIds.has(m.id) || m.parentId);
+  } else if (currentFilter.startsWith('tag:')) {
+    const tag = currentFilter.slice(4);
+    list = list.filter(m => (m.tags || []).includes(tag));
   }
 
   if (searchQuery) {
@@ -273,7 +312,57 @@ function selectMemo(id) {
   });
   const isTrash = currentFilter === 'trash';
   const source = isTrash ? trashMemos : allMemos;
-  renderPreview(source.find(m => m.id === id) || null, isTrash);
+  const memo = source.find(m => m.id === id) || null;
+  renderPreview(memo, isTrash);
+  renderTagAddBar(memo, isTrash);
+}
+
+// ── 태그 추가 바 ──
+function renderTagAddBar(memo, isTrash) {
+  if (!memo || isTrash) {
+    tagAddBar.style.display = 'none';
+    return;
+  }
+  tagAddBar.style.display = 'flex';
+  renderTagChips(memo);
+}
+
+function renderTagChips(memo) {
+  tagAddChips.innerHTML = '';
+  (memo.tags || []).forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip-item';
+    chip.innerHTML = `#${escHtml(tag)} <button class="tag-chip-remove" data-tag="${escHtml(tag)}" title="태그 삭제">×</button>`;
+    chip.querySelector('.tag-chip-remove').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const newTags = (memo.tags || []).filter(t => t !== tag);
+      memo.tags = newTags;
+      await api.updateById(memo.id, { tags: newTags });
+      renderTagChips(memo);
+      renderTagFilterChips();
+    });
+    tagAddChips.appendChild(chip);
+  });
+}
+
+// ── 태그 입력 처리 ──
+function bindTagInput() {
+  tagAddInput.addEventListener('keydown', async (e) => {
+    if (e.key !== 'Enter') return;
+    const value = tagAddInput.value.trim().replace(/^#/, '').toLowerCase();
+    if (!value) return;
+    tagAddInput.value = '';
+    if (!selectedId) return;
+    const memo = allMemos.find(m => m.id === selectedId);
+    if (!memo) return;
+    const tags = memo.tags || [];
+    if (tags.includes(value)) return;
+    memo.tags = [...tags, value];
+    await api.updateById(memo.id, { tags: memo.tags });
+    renderTagChips(memo);
+    renderTagFilterChips();
+  });
+  tagAddInput.addEventListener('click', (e) => e.stopPropagation());
 }
 
 // ── 미리보기 ──
@@ -455,6 +544,11 @@ function renderPreview(memo, isTrash = false) {
   previewPane.appendChild(actions);
 }
 
+// ── 단축키 도움말 오버레이 ──
+function showShortcutOverlay() {
+  document.getElementById('shortcutOverlay').classList.add('visible');
+}
+
 // ── 이벤트 바인딩 ──
 function bindEvents() {
   searchInput.addEventListener('input', () => {
@@ -462,7 +556,8 @@ function bindEvents() {
     renderList();
   });
 
-  document.querySelectorAll('.filter-chip').forEach(chip => {
+  // 기본 필터 칩
+  document.querySelectorAll('.filter-chip:not(.tag-chip)').forEach(chip => {
     chip.addEventListener('click', () => {
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
@@ -470,12 +565,40 @@ function bindEvents() {
       selectedId = null;
       renderList();
       renderPreview(null);
+      tagAddBar.style.display = 'none';
     });
   });
 
   btnNewMemo.addEventListener('click', () => api.createMemo());
   btnClose.addEventListener('click', () => window.close());
   btnTrayList?.addEventListener('click', () => api.hideList());
+
+  // 내보내기
+  btnExport?.addEventListener('click', async () => {
+    const result = await api.exportMemos();
+    if (result?.success) {
+      const fname = result.filePath.split(/[\\/]/).pop();
+      showToast(`백업 저장 완료: ${fname}`);
+    }
+  });
+
+  // 단축키 도움말
+  btnShortcutHelp?.addEventListener('click', showShortcutOverlay);
+  document.getElementById('shortcutClose')?.addEventListener('click', () => {
+    document.getElementById('shortcutOverlay').classList.remove('visible');
+  });
+  document.getElementById('shortcutOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('shortcutOverlay')) {
+      document.getElementById('shortcutOverlay').classList.remove('visible');
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('shortcutOverlay')?.classList.remove('visible');
+    }
+  });
+
+  bindTagInput();
 
   // ── 좌우 구분선 드래그 리사이즈 ──
   if (resizeHandle) {
@@ -515,6 +638,20 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('listToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'listToast';
+    toast.className = 'list-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('visible'), 3000);
 }
 
 init().catch(console.error);

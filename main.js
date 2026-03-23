@@ -26,7 +26,8 @@ async function initStore() {
       globalSettings: {
         theme:       'dark',
         accentColor: null,   // null = 뉴트럴 기본
-        font:        { family: 'system-ui', size: 14 }
+        font:        { family: 'system-ui', size: 14 },
+        savedProfiles: []
       }
     }
   });
@@ -539,6 +540,77 @@ function registerIpcHandlers() {
     const ext  = path.extname(filePath).slice(1).toLowerCase();
     const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
     return `data:${mime};base64,${data.toString('base64')}`;
+  });
+
+  // 창 숨기기 (말풍선 대신 단순 hide)
+  ipcMain.handle('memo:hideWindow', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.hide();
+    return true;
+  });
+
+  // 메모 전체 JSON 백업 저장 (바탕화면 기본 경로)
+  ipcMain.handle('memo:exportBackup', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const memos = getMemos();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const defaultName = `desktop-memo-backup-${timestamp}.json`;
+    const desktopPath = app.getPath('desktop');
+
+    const { filePath, canceled } = await dialog.showSaveDialog(win || undefined, {
+      defaultPath: path.join(desktopPath, defaultName),
+      filters: [{ name: 'JSON 파일', extensions: ['json'] }],
+      title: '메모 백업 저장',
+    });
+
+    if (canceled || !filePath) return { success: false };
+
+    const data = JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      memoCount: memos.length,
+      memos,
+    }, null, 2);
+
+    fs.writeFileSync(filePath, data, 'utf8');
+    return { success: true, filePath };
+  });
+
+  // 저장된 프로필 전체 조회
+  ipcMain.handle('profiles:getAll', () => {
+    return store.get('globalSettings.savedProfiles', []);
+  });
+
+  // 프로필 저장 (name 중복 시 덮어쓰기)
+  ipcMain.handle('profiles:save', (_e, profile) => {
+    const profiles = store.get('globalSettings.savedProfiles', []);
+    const idx = profiles.findIndex(p => p.name === profile.name);
+    const entry = { ...profile, savedAt: new Date().toISOString() };
+    if (idx !== -1) profiles[idx] = entry;
+    else profiles.push(entry);
+    store.set('globalSettings.savedProfiles', profiles);
+    return true;
+  });
+
+  // 프로필 삭제
+  ipcMain.handle('profiles:delete', (_e, name) => {
+    let profiles = store.get('globalSettings.savedProfiles', []);
+    profiles = profiles.filter(p => p.name !== name);
+    store.set('globalSettings.savedProfiles', profiles);
+    return true;
+  });
+
+  // 특정 메모 ID로 필드 업데이트 (목록 뷰에서 태그 편집 등)
+  ipcMain.handle('memo:updateById', (_e, { id, changes }) => {
+    const memos = getMemos();
+    const idx = memos.findIndex(m => m.id === id);
+    if (idx === -1) return false;
+    const { createdAt: _ignored, ...safeChanges } = changes;
+    Object.assign(memos[idx], safeChanges);
+    memos[idx].updatedAt = new Date().toISOString();
+    saveMemos(memos);
+    broadcastListUpdate();
+    return true;
   });
 
   // 외부 URL 열기

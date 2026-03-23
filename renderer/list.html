@@ -26,6 +26,14 @@
       <i data-lucide="plus" width="12" height="12"></i>
       새 메모
     </button>
+    <!-- 내보내기 -->
+    <button class="btn-tray-list" id="btnExport" title="메모 백업 저장 (JSON)">
+      <i data-lucide="download" width="14" height="14"></i>
+    </button>
+    <!-- 단축키 도움말 -->
+    <button class="btn-tray-list" id="btnShortcutHelp" title="단축키 도움말">
+      <i data-lucide="keyboard" width="14" height="14"></i>
+    </button>
     <!-- 트레이로 최소화 -->
     <button class="btn-tray-list" id="btnTrayList" title="트레이로 최소화">
       <i data-lucide="minus" width="14" height="14"></i>
@@ -50,6 +58,15 @@
       <i data-lucide="trash-2" width="11" height="11"></i>
       휴지통
     </button>
+    <!-- 태그 필터 칩 (JS로 동적 추가) -->
+    <div class="tag-filter-chips" id="tagFilterChips"></div>
+  </div>
+
+  <!-- 태그 추가 인라인 입력 (선택된 메모에서 표시) -->
+  <div class="tag-add-bar" id="tagAddBar" style="display:none">
+    <span class="tag-add-label">태그:</span>
+    <div class="tag-add-chips" id="tagAddChips"></div>
+    <input type="text" class="tag-add-input" id="tagAddInput" placeholder="태그 추가 후 Enter..." maxlength="20" autocomplete="off" />
   </div>
 
   <!-- 본체 -->
@@ -76,6 +93,43 @@
     </div>
   </div>
 
+</div>
+
+<!-- 단축키 도움말 오버레이 -->
+<div class="shortcut-overlay" id="shortcutOverlay">
+  <div class="shortcut-box">
+    <div class="shortcut-box-header">
+      <span>단축키 & 도움말</span>
+      <button id="shortcutClose">×</button>
+    </div>
+    <div class="shortcut-box-body">
+      <div class="shortcut-section">
+        <div class="shortcut-section-title">메모 창</div>
+        <div class="shortcut-row"><kbd>Ctrl+N</kbd><span>새 메모 만들기</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+B</kbd><span>굵게</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+I</kbd><span>기울임</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+U</kbd><span>밑줄</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+Shift+X</kbd><span>취소선</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+Shift+H</kbd><span>하이라이트</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+K</kbd><span>링크 삽입</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+Z</kbd><span>실행 취소</span></div>
+        <div class="shortcut-row"><kbd>Ctrl+Y</kbd><span>다시 실행</span></div>
+      </div>
+      <div class="shortcut-section">
+        <div class="shortcut-section-title">자동 변환 (스페이스 입력 시)</div>
+        <div class="shortcut-row"><kbd>- 또는 *</kbd><span>글머리 목록</span></div>
+        <div class="shortcut-row"><kbd>1.</kbd><span>번호 목록</span></div>
+        <div class="shortcut-row"><kbd>[]</kbd><span>체크박스</span></div>
+        <div class="shortcut-row"><kbd>---</kbd><span>구분선</span></div>
+      </div>
+      <div class="shortcut-section">
+        <div class="shortcut-section-title">우클릭 메뉴</div>
+        <div class="shortcut-row"><span style="min-width:90px">텍스트 선택 후</span><span>서식 / 글자색 / 링크 / 하이라이트</span></div>
+        <div class="shortcut-row"><span style="min-width:90px">아바타 우클릭</span><span>프로필 저장 / 불러오기</span></div>
+      </div>
+      <div class="shortcut-version">Desktop Memo · 오픈소스 프로젝트</div>
+    </div>
+  </div>
 </div>
 
 <script type="module" src="list.js"></script>

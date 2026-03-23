@@ -52,6 +52,20 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 외부 URL 열기 ──
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
 
+  // ── 창 숨기기 ──
+  hideWindow: () => ipcRenderer.invoke('memo:hideWindow'),
+
+  // ── 백업/내보내기 ──
+  exportMemos: () => ipcRenderer.invoke('memo:exportBackup'),
+
+  // ── 특정 ID 메모 업데이트 (목록 뷰용) ──
+  updateById: (id, changes) => ipcRenderer.invoke('memo:updateById', { id, changes }),
+
+  // ── 저장된 프로필 ──
+  getProfiles:   ()        => ipcRenderer.invoke('profiles:getAll'),
+  saveProfile:   (profile) => ipcRenderer.invoke('profiles:save', profile),
+  deleteProfile: (name)    => ipcRenderer.invoke('profiles:delete', name),
+
   // ── 답글 스레드 접기 ──
   foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 

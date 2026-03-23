@@ -11,134 +11,198 @@
 }
 
 /* ══════════════════════════════════════════════
-   BUBBLE VIEW
+   링크 삽입 다이얼로그
    ══════════════════════════════════════════════ */
-.bubble-view {
+.link-dialog-overlay {
   display: none;
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
   align-items: center;
   justify-content: center;
-  position: relative;
-  /* 드래그는 sticky-note 자체에 설정 — bubble-view는 일반 영역 */
 }
+.link-dialog-overlay.visible { display: flex; }
 
-.memo-root.minimized .bubble-view { display: flex; }
-.memo-root.minimized .card-view   { display: none; }
-
-/* 포스트잇 스타일 버블 — 전체가 드래그 영역 */
-.sticky-note {
-  position: relative;
-  width: 54px;
-  height: 54px;
+.link-dialog-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.link-dialog-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.link-dialog-box input[type="url"] {
+  padding: 7px 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+.link-dialog-box input[type="url"]:focus { border-color: var(--color-accent); }
+.link-dialog-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.link-dialog-btns button {
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.link-dialog-btns button:hover { background: var(--color-surface-hover); }
+.link-dialog-btns button.primary {
   background: var(--color-accent);
-  border-radius: 3px 0 3px 3px; /* 우상단 모서리만 꺾임 (접힌 느낌) */
+  border-color: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.link-dialog-btns button.primary:hover { opacity: 0.85; }
+
+/* ══════════════════════════════════════════════
+   프로필 불러오기 오버레이
+   ══════════════════════════════════════════════ */
+.profile-load-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.profile-load-overlay.visible { display: flex; }
+
+.profile-load-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card);
+  padding: 0;
+  min-width: 260px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.profile-load-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.profile-load-header button {
+  background: transparent;
   border: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+}
+.profile-load-header button:hover { color: var(--color-text); }
+.profile-load-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-load-empty {
+  padding: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.profile-load-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+.profile-load-item:hover { background: var(--color-surface-hover); }
+.profile-load-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 2px 4px 0 rgba(0,0,0,0.18), 0 4px 14px rgba(0,0,0,0.3);
-  -webkit-app-region: drag; /* 전체 드래그 가능 */
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-  overflow: visible;
-  cursor: default;
+  flex-shrink: 0;
+  overflow: hidden;
 }
-/* 접힌 우상단 모서리 */
-.sticky-note::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 11px 11px 0;
-  border-color: transparent color-mix(in srgb, var(--color-bg) 55%, rgba(0,0,0,0.3)) transparent transparent;
-  pointer-events: none;
-  z-index: 2;
+.profile-load-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-load-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-.sticky-note:hover {
-  transform: scale(1.06) rotate(-1deg);
-  box-shadow: 3px 6px 0 rgba(0,0,0,0.22), 0 6px 18px rgba(0,0,0,0.38);
+.profile-load-info strong {
+  font-size: 12px;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.sticky-note:active { transform: scale(0.96) rotate(0deg); }
-
-/* 버블 아이콘 */
-.bubble-icon {
-  font-size: 22px;
-  line-height: 1;
-  position: relative;
-  z-index: 1;
-  max-width: 44px;
-  text-align: center;
-  word-break: break-all;
-  display: block;
-  -webkit-app-region: no-drag;
-  pointer-events: none;
+.profile-load-info span {
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
-
-/* 열기 버튼 (포스트잇 좌상단, no-drag) */
-.bubble-open-btn {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 15px;
-  height: 15px;
-  background: rgba(0,0,0,0.22);
-  border: none;
-  border-radius: 3px;
-  color: rgba(255,255,255,0.85);
+.profile-load-apply {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-accent);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 11px;
   cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  -webkit-app-region: no-drag;
-  z-index: 10;
-  transition: background 0.1s;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
 }
-.sticky-note:hover .bubble-open-btn { display: flex; }
-.bubble-open-btn:hover { background: rgba(0,0,0,0.5); }
-
-/* 아이콘 편집 버튼 (포스트잇 우하단, no-drag) */
-.bubble-edit-btn {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 15px;
-  height: 15px;
-  background: rgba(0,0,0,0.22);
-  border: none;
-  border-radius: 3px;
-  color: rgba(255,255,255,0.85);
+.profile-load-apply:hover {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.profile-load-del {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-placeholder);
+  font-size: 11px;
   cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  -webkit-app-region: no-drag;
-  z-index: 10;
-  transition: background 0.1s;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
 }
-.sticky-note:hover .bubble-edit-btn { display: flex; }
-.bubble-edit-btn:hover { background: rgba(0,0,0,0.5); }
-
-/* 버블 인라인 아이콘 편집 입력 */
-.bubble-icon-input {
-  display: none;
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.72);
-  border: none;
-  border-radius: 3px 0 3px 3px;
-  color: #fff;
-  font-size: 20px;
-  text-align: center;
-  outline: 1.5px solid rgba(255,255,255,0.5);
-  z-index: 20;
-  -webkit-app-region: no-drag;
-  cursor: text;
-  padding: 0;
-}
-.bubble-icon-input.active { display: block; }
+.profile-load-del:hover { color: #ef4444; }
 
 
 /* ══════════════════════════════════════════════
@@ -529,10 +593,22 @@
 .memo-card.simple-mode .memo-content {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6px 14px 12px;
+  pointer-events: none;
+  user-select: none;
 }
 .memo-card.simple-mode .media-header { display: none !important; }
 .memo-card.simple-mode .memo-body {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
+  overflow: hidden; /* 스크롤 차단 */
+  position: relative;
+}
+/* 콘텐츠 위에 투명 오버레이 — 모든 클릭/드래그 차단 */
+.memo-card.simple-mode .memo-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: default;
 }
 
 /* 아바타 컨텍스트 메뉴 */
