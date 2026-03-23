@@ -1291,8 +1291,21 @@ function bindEvents() {
           if (isEmpty || atStart) {
             e.preventDefault();
             const list = li.parentElement;
+            const prevLi = li.previousElementSibling;
             const savedHtml = isEmpty ? '' : li.innerHTML;
             li.remove();
+
+            // 빈 항목이고 앞에 다른 항목이 있으면 → 앞 항목 끝으로 커서 이동
+            if (isEmpty && prevLi) {
+              const r = document.createRange();
+              r.selectNodeContents(prevLi);
+              r.collapse(false);
+              bSel.removeAllRanges(); bSel.addRange(r);
+              scheduleSave();
+              return;
+            }
+
+            // 첫 번째 항목이거나 atStart(비어있지 않은 항목 맨 앞) → 리스트 앞으로 탈출
             const newDiv = document.createElement('div');
             if (savedHtml) newDiv.innerHTML = savedHtml; else newDiv.innerHTML = '<br>';
             if (list.children.length === 0) {
