@@ -82,6 +82,17 @@ contextBridge.exposeInMainWorld('memoAPI', {
     return () => ipcRenderer.removeListener('settings:accentColorChanged', handler);
   },
 
+  // ── 심볼 아이콘 선택 ──
+  setSymbolIcon: (iconId) => ipcRenderer.invoke('settings:setSymbolIcon', iconId),
+  onSymbolIconChanged: (callback) => {
+    const handler = (_e, iconId) => callback(iconId);
+    ipcRenderer.on('settings:symbolIconChanged', handler);
+    return () => ipcRenderer.removeListener('settings:symbolIconChanged', handler);
+  },
+
+  // ── 창 이동 잠금 (SN 위치잠금) ──
+  setWindowMovable: (movable) => ipcRenderer.invoke('window:setMovable', movable),
+
   // ── 답글 스레드 접기 ──
   foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 

@@ -247,7 +247,7 @@ function renderList() {
           const collapsed = toggleBtn.dataset.collapsed === 'true';
           const next = !collapsed;
           toggleBtn.dataset.collapsed = String(next);
-          toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
+          toggleBtn.title = next ? '주석 펼치기' : '주석 접기';
           toggleBtn.classList.toggle('collapsed', next);
           replyEls.forEach(el => {
             if (next) {
@@ -302,7 +302,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     <div class="item-info">
       <div class="item-name">
         ${escHtml(memo.profile?.name || '메모')}
-        ${isReply ? '<span class="reply-label">답글</span>' : ''}
+        ${isReply ? '<span class="reply-label">주석</span>' : ''}
         ${isThreadRoot && replyCount > 0 ? `<span class="thread-count">${replyCount}</span>` : ''}
       </div>
       <div class="item-preview">${escHtml(preview)}</div>
@@ -316,7 +316,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     const toggleBtn = document.createElement('button');
     toggleBtn.className = 'thread-toggle';
     toggleBtn.dataset.collapsed = 'false';
-    toggleBtn.title = '답글 접기';
+    toggleBtn.title = '주석 접기';
     toggleBtn.innerHTML = `<span class="tt-arrow">▾</span>${replyCount}`;
     toggleBtn.addEventListener('click', (e) => e.stopPropagation());
     el.appendChild(toggleBtn);
@@ -345,7 +345,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     } else {
       showListContextMenu([
         { label: '메모 열기',  action: () => api.focusMemo(memo.id) },
-        { label: '답글 작성',  action: () => api.createReply(memo.id) },
+        { label: '주석 추가',  action: () => api.createReply(memo.id) },
         'sep',
         { label: '삭제', danger: true, action: async () => {
           await api.deleteById(memo.id);
@@ -468,7 +468,7 @@ function renderPreview(memo, isTrash = false) {
     ctx.innerHTML = `
       <span class="thread-ctx-icon">↩</span>
       <span class="thread-ctx-text">
-        <strong>${escHtml(parentMemo.profile?.name || '메모')}</strong>의 답글
+        <strong>${escHtml(parentMemo.profile?.name || '메모')}</strong>의 주석
       </span>
     `;
     ctx.style.cursor = 'pointer';
@@ -518,7 +518,7 @@ function renderPreview(memo, isTrash = false) {
     threadSection.className = 'preview-thread';
     const threadHeader = document.createElement('div');
     threadHeader.className = 'preview-thread-header';
-    threadHeader.textContent = `답글 ${replies.length}개`;
+    threadHeader.textContent = `주석 ${replies.length}개`;
     threadSection.appendChild(threadHeader);
 
     replies.forEach(reply => {
@@ -602,6 +602,35 @@ function hideWelcomeOverlay() {
   }
 }
 
+// ── 심볼 아이콘 목록 ──
+const CLOVER_SVG_SMALL = `<svg viewBox="0 0 100 118" fill="none" width="16" height="16">
+  <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
+  <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
+  <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
+  <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
+  <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
+  <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
+  <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
+  <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
+  <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+</svg>`;
+
+const SYMBOL_ICONS = [
+  { id: 'clover',    label: '클로버', svg: CLOVER_SVG_SMALL },
+  { id: 'heart',     label: '하트',   lucide: 'heart' },
+  { id: 'moon',      label: '달',     lucide: 'moon' },
+  { id: 'star',      label: '별',     lucide: 'star' },
+  { id: 'bird',      label: '새',     lucide: 'bird' },
+  { id: 'file-text', label: '메모',   lucide: 'file-text' },
+  { id: 'pencil',    label: '연필',   lucide: 'pencil' },
+  { id: 'bookmark',  label: '북마크', lucide: 'bookmark' },
+  { id: 'leaf',      label: '잎',     lucide: 'leaf' },
+  { id: 'flower-2',  label: '꽃',     lucide: 'flower-2' },
+];
+
 // ── 설정 오버레이 ──
 const PRESET_COLORS = [
   { color: '#8fbc8f', label: '클로버 그린' },
@@ -620,6 +649,7 @@ function showSettingsOverlay() {
   const overlay = document.getElementById('settingsOverlay');
   if (overlay) overlay.classList.add('visible');
   renderSettingsColors();
+  renderSettingsIcons();
 }
 
 function hideSettingsOverlay() {
@@ -650,6 +680,38 @@ function renderSettingsColors() {
       updateSettingsSwatchActive(settings.accentColor);
       document.getElementById('settingsCustomColor').value = settings.accentColor;
     }
+  });
+}
+
+function renderSettingsIcons() {
+  const row = document.getElementById('settingsIconRow');
+  if (!row) return;
+  row.innerHTML = '';
+  api.getSettings().then(settings => {
+    const currentIcon = settings?.symbolIcon || 'clover';
+    SYMBOL_ICONS.forEach(def => {
+      const btn = document.createElement('button');
+      btn.className = 'settings-icon-btn';
+      btn.title = def.label;
+      btn.dataset.iconId = def.id;
+      if (def.id === currentIcon) btn.classList.add('active');
+      if (def.svg) {
+        btn.innerHTML = def.svg;
+      } else {
+        btn.innerHTML = `<i data-lucide="${def.lucide}" width="16" height="16"></i>`;
+      }
+      const label = document.createElement('span');
+      label.className = 'settings-icon-label';
+      label.textContent = def.label;
+      btn.appendChild(label);
+      btn.addEventListener('click', async () => {
+        await api.setSymbolIcon(def.id);
+        row.querySelectorAll('.settings-icon-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+      row.appendChild(btn);
+    });
+    if (window.lucide) lucide.createIcons({ nodes: row.querySelectorAll('[data-lucide]') });
   });
 }
 

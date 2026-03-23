@@ -628,10 +628,25 @@ function registerIpcHandlers() {
   ipcMain.handle('settings:setAccentColor', (_e, color) => {
     store.set('globalSettings.accentColor', color);
     updateTrayIcon();
-    // 모든 창에 브로드캐스트 (새 메모 기본 색상 반영)
     BrowserWindow.getAllWindows().forEach(w => {
       if (!w.isDestroyed()) w.webContents.send('settings:accentColorChanged', color);
     });
+    return true;
+  });
+
+  // 심볼 아이콘 변경
+  ipcMain.handle('settings:setSymbolIcon', (_e, iconId) => {
+    store.set('globalSettings.symbolIcon', iconId);
+    BrowserWindow.getAllWindows().forEach(w => {
+      if (!w.isDestroyed()) w.webContents.send('settings:symbolIconChanged', iconId);
+    });
+    return true;
+  });
+
+  // 창 이동 가능 여부 토글 (SN 모드 위치잠금)
+  ipcMain.handle('window:setMovable', (event, movable) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.setMovable(movable);
     return true;
   });
 

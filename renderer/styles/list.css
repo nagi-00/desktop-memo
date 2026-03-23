@@ -39,6 +39,9 @@ body {
 .list-titlebar > * { -webkit-app-region: no-drag; }
 
 .list-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
@@ -892,13 +895,8 @@ body {
 }
 
 /* ══════════════════════════════════════════════
-   타이틀 클로버 아이콘
+   타이틀 클로버 아이콘 (구버전 호환용 — 새 .list-title-clover 사용)
    ══════════════════════════════════════════════ */
-.list-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .list-title-icon {
   color: var(--color-accent);
   flex-shrink: 0;
@@ -1244,4 +1242,57 @@ body {
   background: var(--color-surface-hover);
   border-color: var(--color-accent, #8fbc8f);
   color: var(--color-text);
+}
+
+/* ── 타이틀 클로버 color 상속 ── */
+.list-title-clover {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+.list-title-clover svg { display: block; }
+
+/* ══ 웰컴 클로버 color ══ */
+.welcome-clover svg,
+.welcome-credit-badge svg {
+  color: var(--color-accent, #8fbc8f);
+}
+
+/* ══ 설정: 심볼 아이콘 피커 ══ */
+.settings-icon-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.settings-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px 5px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  min-width: 44px;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.settings-icon-btn:hover {
+  border-color: var(--color-accent, #8fbc8f);
+  color: var(--color-accent, #8fbc8f);
+  background: color-mix(in srgb, var(--color-accent, #8fbc8f) 8%, transparent);
+}
+.settings-icon-btn.active {
+  border-color: var(--color-accent, #8fbc8f);
+  background: color-mix(in srgb, var(--color-accent, #8fbc8f) 14%, transparent);
+  color: var(--color-accent, #8fbc8f);
+}
+.settings-icon-btn svg { display: block; }
+.settings-icon-label {
+  font-size: 9px;
+  color: inherit;
+  white-space: nowrap;
 }

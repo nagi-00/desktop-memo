@@ -15,46 +15,41 @@
   <!-- 타이틀바 -->
   <div class="list-titlebar">
     <h1 class="list-title">
-      <svg class="list-title-icon" viewBox="0 0 32 38" fill="currentColor" width="16" height="16" aria-hidden="true">
-        <circle cx="10.5" cy="12" r="7.5" stroke="white" stroke-width="1.2" paint-order="stroke fill"/>
-        <circle cx="21.5" cy="12" r="7.5" stroke="white" stroke-width="1.2" paint-order="stroke fill"/>
-        <circle cx="10.5" cy="22" r="7.5" stroke="white" stroke-width="1.2" paint-order="stroke fill"/>
-        <circle cx="21.5" cy="22" r="7.5" stroke="white" stroke-width="1.2" paint-order="stroke fill"/>
-        <rect x="10.5" y="12" width="11" height="10"/>
-        <line x1="16" y1="4.5" x2="16" y2="29.5" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
-        <line x1="3" y1="17" x2="29" y2="17" stroke="white" stroke-width="1.2" stroke-linecap="round"/>
-        <line x1="15.5" y1="27" x2="9" y2="36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-      </svg>
+      <span class="list-title-clover" aria-hidden="true">
+        <svg viewBox="0 0 100 118" fill="none" width="15" height="15">
+          <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
+          <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
+          <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
+          <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
+          <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
+          <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
+          <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
+          <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
+          <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </span>
       nagi memo
     </h1>
-    <input
-      type="search"
-      class="search-input"
-      id="searchInput"
-      placeholder="검색..."
-      autocomplete="off"
-    />
+    <input type="search" class="search-input" id="searchInput" placeholder="검색..." autocomplete="off"/>
     <button class="btn-new-memo" id="btnNewMemo">
       <i data-lucide="plus" width="12" height="12"></i>
       새 메모
     </button>
-    <!-- Sticky Notes 모드 -->
     <button class="btn-tray-list" id="btnStickyNotes" title="Sticky Notes처럼 사용하기">
       <i data-lucide="sticky-note" width="14" height="14"></i>
     </button>
-    <!-- 내보내기 -->
     <button class="btn-tray-list" id="btnExport" title="메모 백업 저장 (JSON)">
       <i data-lucide="download" width="14" height="14"></i>
     </button>
-    <!-- 단축키 도움말 -->
     <button class="btn-tray-list" id="btnShortcutHelp" title="단축키 도움말">
       <i data-lucide="keyboard" width="14" height="14"></i>
     </button>
-    <!-- 설정 -->
     <button class="btn-tray-list" id="btnSettings" title="설정">
       <i data-lucide="settings" width="14" height="14"></i>
     </button>
-    <!-- 트레이로 최소화 -->
     <button class="btn-tray-list" id="btnTrayList" title="트레이로 최소화">
       <i data-lucide="minus" width="14" height="14"></i>
     </button>
@@ -72,67 +67,60 @@
     </button>
     <button class="filter-chip" data-filter="threads">
       <i data-lucide="messages-square" width="11" height="11"></i>
-      스레드
+      주석
     </button>
     <button class="filter-chip" data-filter="trash">
       <i data-lucide="trash-2" width="11" height="11"></i>
       휴지통
     </button>
-    <!-- 태그 필터 칩 (JS로 동적 추가) -->
     <div class="tag-filter-chips" id="tagFilterChips"></div>
   </div>
 
-  <!-- 태그 추가 인라인 입력 (선택된 메모에서 표시) -->
+  <!-- 태그 추가 바 -->
   <div class="tag-add-bar" id="tagAddBar" style="display:none">
     <span class="tag-add-label">태그:</span>
     <div class="tag-add-chips" id="tagAddChips"></div>
-    <input type="text" class="tag-add-input" id="tagAddInput" placeholder="태그 추가 후 Enter..." maxlength="20" autocomplete="off" />
+    <input type="text" class="tag-add-input" id="tagAddInput" placeholder="태그 추가 후 Enter..." maxlength="20" autocomplete="off"/>
   </div>
 
   <!-- 본체 -->
   <div class="list-body">
-    <!-- 좌측: 메모 목록 -->
     <div class="list-sidebar" id="memoListSidebar">
       <div class="empty-list" id="emptyList" style="display:none">
         <i data-lucide="file-text" width="32" height="32"></i>
         <span>메모가 없습니다</span>
       </div>
-      <!-- 항목은 JS로 렌더링 -->
     </div>
-
-    <!-- 드래그 리사이즈 핸들 -->
     <div class="list-resize-handle" id="listResizeHandle"></div>
-
-    <!-- 우측: 미리보기 -->
     <div class="list-preview" id="previewPane">
       <div class="preview-empty" id="previewEmpty">
         <i data-lucide="mouse-pointer-click" width="32" height="32"></i>
         <span>메모를 선택하세요</span>
       </div>
-      <!-- 미리보기 내용은 JS로 렌더링 -->
     </div>
   </div>
 
 </div>
 
-<!-- ══════════════════════════════════════
-     웰컴 오버레이 (최초 실행 시)
-══════════════════════════════════════ -->
+<!-- ══ 웰컴 오버레이 ══ -->
 <div class="welcome-overlay" id="welcomeOverlay">
   <div class="welcome-card">
 
-    <!-- 로고 + 헤더 -->
     <div class="welcome-hero">
       <div class="welcome-clover">
-        <svg viewBox="0 0 32 38" width="52" height="52" fill="var(--welcome-clover-color,#8fbc8f)" stroke="white" stroke-width="1.5" paint-order="stroke fill">
-          <circle cx="10.5" cy="12" r="7.5"/>
-          <circle cx="21.5" cy="12" r="7.5"/>
-          <circle cx="10.5" cy="22" r="7.5"/>
-          <circle cx="21.5" cy="22" r="7.5"/>
-          <rect x="10.5" y="12" width="11" height="10" stroke="none"/>
-          <line x1="16" y1="4.5" x2="16" y2="29.5" stroke="white" stroke-width="1.5" stroke-linecap="round" paint-order="fill stroke"/>
-          <line x1="3" y1="17" x2="29" y2="17" stroke="white" stroke-width="1.5" stroke-linecap="round" paint-order="fill stroke"/>
-          <line x1="15.5" y1="27" x2="9" y2="36" stroke="var(--welcome-clover-color,#8fbc8f)" stroke-width="3.5" stroke-linecap="round" paint-order="fill stroke"/>
+        <svg viewBox="0 0 100 118" fill="none" width="52" height="52" aria-hidden="true">
+          <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
+          <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
+          <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
+          <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
+          <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
+          <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
+          <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
+          <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
+          <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
         </svg>
       </div>
       <div class="welcome-title-block">
@@ -141,16 +129,16 @@
       </div>
     </div>
 
-    <!-- 환영 메시지 -->
     <div class="welcome-greeting">
-      <p>안녕하세요! <strong>nagi memo</strong>에 오신 것을 환영합니다 🍀</p>
+      <p>안녕하세요! <strong>nagi memo</strong>에 오신 것을 환영합니다.</p>
       <p class="welcome-desc">
-        Windows 기본 메모 앱에서 영감을 받아, 더 자유롭고 풍부한 메모 경험을 담았습니다.<br/>
-        포스트잇처럼 바탕화면에 메모를 붙여두고, 언제든 꺼내 아이디어를 기록하세요.
+        Windows 기본 메모 앱에서 영감을 받아,<br/>
+        더 자유롭고 풍부한 메모 경험을 담았습니다.<br/>
+        포스트잇처럼 바탕화면에 메모를 붙여두고,<br/>
+        언제든 꺼내 아이디어를 기록하세요.
       </p>
     </div>
 
-    <!-- 사용법 & 단축키 -->
     <div class="welcome-sections">
       <div class="welcome-section">
         <div class="welcome-section-title">
@@ -158,24 +146,24 @@
           빠른 시작
         </div>
         <div class="welcome-tip-row">
-          <span class="welcome-tip-icon">📝</span>
-          <span>우측 상단 <strong>+ 새 메모</strong> 버튼으로 메모를 만드세요</span>
+          <span class="welcome-tip-icon"><i data-lucide="plus-circle" width="13" height="13"></i></span>
+          <span>우측 상단 <strong>+ 새 메모</strong> 버튼으로 메모를 만드세요.</span>
         </div>
         <div class="welcome-tip-row">
-          <span class="welcome-tip-icon">🖱️</span>
-          <span>메모 창의 <strong>클로버 버튼</strong>을 클릭하면 이 목록이 열립니다</span>
+          <span class="welcome-tip-icon"><i data-lucide="mouse-pointer" width="13" height="13"></i></span>
+          <span>메모 창의 <strong>심볼 버튼</strong>을 클릭하면 이 목록이 열립니다.</span>
         </div>
         <div class="welcome-tip-row">
-          <span class="welcome-tip-icon">📌</span>
-          <span>핀 아이콘으로 <strong>항상 위 고정</strong>, 눈 아이콘으로 <strong>간단히 보기</strong></span>
+          <span class="welcome-tip-icon"><i data-lucide="pin" width="13" height="13"></i></span>
+          <span>핀 아이콘으로 <strong>항상 위 고정,</strong><br/>눈 아이콘으로 <strong>간단히 보기</strong>가 가능합니다.</span>
         </div>
         <div class="welcome-tip-row">
-          <span class="welcome-tip-icon">🎨</span>
-          <span>색상 버튼으로 메모마다 <strong>개성 있는 테마</strong>를 설정할 수 있어요</span>
+          <span class="welcome-tip-icon"><i data-lucide="palette" width="13" height="13"></i></span>
+          <span>색상 버튼으로 메모마다 <strong>개성 있는 테마</strong>를 설정할 수 있어요.</span>
         </div>
         <div class="welcome-tip-row">
-          <span class="welcome-tip-icon">🍀</span>
-          <span>트레이 아이콘 클릭으로 <strong>창 모두 복원</strong>, 우클릭 메뉴에서 <strong>트레이 최소화</strong></span>
+          <span class="welcome-tip-icon"><i data-lucide="tray" width="13" height="13"></i></span>
+          <span>트레이 아이콘 클릭으로 <strong>창 모두 복원,</strong><br/>우클릭 메뉴에서 <strong>트레이 최소화</strong>가 됩니다.</span>
         </div>
       </div>
 
@@ -197,39 +185,39 @@
       </div>
     </div>
 
-    <!-- 구분선 -->
     <div class="welcome-divider"></div>
 
-    <!-- 크레딧 -->
     <div class="welcome-credit">
       <div class="welcome-credit-badge">
-        <svg viewBox="0 0 32 38" width="14" height="14" fill="currentColor" stroke="white" stroke-width="1.5" paint-order="stroke fill">
-          <circle cx="10.5" cy="12" r="7.5"/><circle cx="21.5" cy="12" r="7.5"/>
-          <circle cx="10.5" cy="22" r="7.5"/><circle cx="21.5" cy="22" r="7.5"/>
-          <rect x="10.5" y="12" width="11" height="10" stroke="none"/>
-          <line x1="16" y1="4.5" x2="16" y2="29.5" stroke="white" stroke-width="1.5" stroke-linecap="round" paint-order="fill stroke"/>
-          <line x1="3" y1="17" x2="29" y2="17" stroke="white" stroke-width="1.5" stroke-linecap="round" paint-order="fill stroke"/>
-          <line x1="15.5" y1="27" x2="9" y2="36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" paint-order="fill stroke"/>
+        <svg viewBox="0 0 100 118" fill="none" width="14" height="14" style="flex-shrink:0">
+          <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
+          <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
+          <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
+          <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
+          <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
+          <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
+          <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
+          <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
+          <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
+          <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
         </svg>
         <span>Made by <strong>nagi</strong> &amp; <strong>Claude Code</strong> · 2025</span>
       </div>
     </div>
 
-    <!-- 닫기 버튼 -->
     <button class="welcome-close-btn" id="welcomeClose">시작하기</button>
 
-    <!-- 다시 보지 않기 -->
     <label class="welcome-no-show">
-      <input type="checkbox" id="welcomeNoShow" />
+      <input type="checkbox" id="welcomeNoShow"/>
       다음부터 보지 않기
     </label>
 
   </div>
 </div>
 
-<!-- ══════════════════════════════════════
-     설정 오버레이
-══════════════════════════════════════ -->
+<!-- ══ 설정 오버레이 ══ -->
 <div class="settings-overlay" id="settingsOverlay">
   <div class="settings-box">
     <div class="settings-box-header">
@@ -237,30 +225,38 @@
       <button id="settingsClose">×</button>
     </div>
     <div class="settings-box-body">
+
       <div class="settings-section-title">앱 아이콘 색상</div>
       <p class="settings-desc">트레이 아이콘과 클로버 버튼의 색상을 변경합니다.</p>
-      <div class="settings-color-row" id="settingsColorRow">
-        <!-- JS로 색상 스와치 렌더링 -->
-      </div>
+      <div class="settings-color-row" id="settingsColorRow"></div>
       <div class="settings-custom-color-row">
         <label class="settings-custom-label">커스텀 색상</label>
-        <input type="color" id="settingsCustomColor" value="#8fbc8f" />
+        <input type="color" id="settingsCustomColor" value="#8fbc8f"/>
       </div>
+
+      <div class="settings-section-title" style="margin-top:16px">심볼 버튼 아이콘</div>
+      <p class="settings-desc">메모 창 우측 상단의 목록 열기 버튼 모양을 선택합니다.</p>
+      <div class="settings-icon-row" id="settingsIconRow"></div>
 
       <div class="settings-section-title" style="margin-top:16px">테마 모드</div>
       <div class="settings-theme-row">
-        <button class="settings-theme-btn" data-mode="dark" id="btnDarkMode">🌙 다크</button>
-        <button class="settings-theme-btn" data-mode="light" id="btnLightMode">☀️ 라이트</button>
+        <button class="settings-theme-btn" data-mode="dark" id="btnDarkMode">
+          <i data-lucide="moon" width="13" height="13"></i> 다크
+        </button>
+        <button class="settings-theme-btn" data-mode="light" id="btnLightMode">
+          <i data-lucide="sun" width="13" height="13"></i> 라이트
+        </button>
       </div>
+
     </div>
   </div>
 </div>
 
-<!-- 단축키 도움말 오버레이 -->
+<!-- ══ 단축키 도움말 오버레이 ══ -->
 <div class="shortcut-overlay" id="shortcutOverlay">
   <div class="shortcut-box">
     <div class="shortcut-box-header">
-      <span>단축키 & 도움말</span>
+      <span>단축키 &amp; 도움말</span>
       <button id="shortcutClose">×</button>
     </div>
     <div class="shortcut-box-body">

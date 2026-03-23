@@ -6,6 +6,47 @@ import { generatePalette, applyPalette, resetPalette, setThemeMode, PRESETS } fr
 
 const api = window.memoAPI;
 
+// ── 클로버/심볼 SVG 정의 ──────────────────────────────
+const CLOVER_SVG = `<svg viewBox="0 0 100 118" fill="none" width="20" height="20" aria-hidden="true">
+  <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
+  <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
+  <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
+  <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
+  <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
+  <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
+  <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
+  <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
+  <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+</svg>`;
+
+const SYMBOL_ICONS = [
+  { id: 'clover',    label: '클로버', svg: CLOVER_SVG },
+  { id: 'heart',     label: '하트',   lucide: 'heart' },
+  { id: 'moon',      label: '달',     lucide: 'moon' },
+  { id: 'star',      label: '별',     lucide: 'star' },
+  { id: 'bird',      label: '새',     lucide: 'bird' },
+  { id: 'file-text', label: '메모',   lucide: 'file-text' },
+  { id: 'pencil',    label: '연필',   lucide: 'pencil' },
+  { id: 'bookmark',  label: '북마크', lucide: 'bookmark' },
+  { id: 'leaf',      label: '잎',     lucide: 'leaf' },
+  { id: 'flower-2',  label: '꽃',     lucide: 'flower-2' },
+];
+
+function applySymbolIcon(iconId) {
+  const iconEl = document.getElementById('symbolBtnIcon');
+  if (!iconEl) return;
+  const def = SYMBOL_ICONS.find(ic => ic.id === iconId) || SYMBOL_ICONS[0];
+  if (def.svg) {
+    iconEl.innerHTML = def.svg;
+  } else {
+    iconEl.innerHTML = `<i data-lucide="${def.lucide}" width="20" height="20"></i>`;
+    if (window.lucide) lucide.createIcons({ nodes: [iconEl.querySelector('[data-lucide]')] });
+  }
+}
+
 // ── 상태 ──────────────────────────────────────
 let memoData      = null;
 let currentMode   = 'dark';
@@ -13,6 +54,7 @@ let isPinned      = false;
 let isLiked       = false;
 let isSimpleMode  = false;
 let isLocked      = false;
+let isSNMoveLocked = false;
 let saveTimer     = null;
 let mediaFolded   = false;
 
@@ -171,8 +213,28 @@ async function init() {
     document.querySelector('.memo-card')?.classList.toggle('sticky-notes-mode', enabled);
   });
 
-  // Sticky Notes 모드: 목록 열기 버튼
+  // Sticky Notes 모드: 목록 열기 버튼 (클로버 SVG는 HTML에 이미 있음)
   document.getElementById('btnOpenListSN')?.addEventListener('click', () => api.openList());
+
+  // Sticky Notes 모드: 위치잠금 버튼
+  const btnSNMoveLock = document.getElementById('btnSNMoveLock');
+  if (btnSNMoveLock) {
+    btnSNMoveLock.addEventListener('click', async () => {
+      isSNMoveLocked = !isSNMoveLocked;
+      await api.setWindowMovable(!isSNMoveLocked);
+      const icon = btnSNMoveLock.querySelector('[data-lucide]');
+      if (icon) {
+        icon.setAttribute('data-lucide', isSNMoveLocked ? 'lock' : 'lock-open');
+        if (window.lucide) lucide.createIcons({ nodes: [icon] });
+      }
+      btnSNMoveLock.classList.toggle('active', isSNMoveLocked);
+      btnSNMoveLock.title = isSNMoveLocked ? '위치 잠금 해제' : '위치 잠금';
+    });
+  }
+
+  // 심볼 아이콘 적용
+  applySymbolIcon(settings?.symbolIcon || 'clover');
+  api.onSymbolIconChanged?.((iconId) => applySymbolIcon(iconId));
 
   // 테마
   applyTheme(memoData.theme?.accent ?? null, currentMode);
@@ -230,7 +292,7 @@ async function init() {
     const parent = allMemos?.find(m => m.id === memoData.parentId);
     if (parent) {
       const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = `${parent.profile?.name || '메모'}에 대한 답글`;
+      ctxText.textContent = `${parent.profile?.name || '메모'}의 주석`;
       replyCtx.style.display = 'flex';
       ctxText.style.cursor = 'pointer';
       ctxText.addEventListener('click', () => api.focusMemo(parent.id));
@@ -262,7 +324,7 @@ async function init() {
     } else {
       // 부모 메모를 못 찾아도 context bar 표시
       const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = '답글 메모';
+      ctxText.textContent = '주석 메모';
       replyCtx.style.display = 'flex';
     }
 
