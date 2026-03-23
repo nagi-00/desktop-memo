@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage, shell } = require('electron');
+app.setName('nagi memo');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -623,6 +624,17 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // 앱 강조색 변경 (트레이 아이콘 색상 포함)
+  ipcMain.handle('settings:setAccentColor', (_e, color) => {
+    store.set('globalSettings.accentColor', color);
+    updateTrayIcon();
+    // 모든 창에 브로드캐스트 (새 메모 기본 색상 반영)
+    BrowserWindow.getAllWindows().forEach(w => {
+      if (!w.isDestroyed()) w.webContents.send('settings:accentColorChanged', color);
+    });
+    return true;
+  });
+
   // 외부 URL 열기
   ipcMain.handle('shell:openExternal', (_e, url) => {
     if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -661,12 +673,86 @@ function broadcastListUpdate() {
 }
 
 // ──────────────────────────────────────────
+// 클로버 트레이 아이콘 동적 생성
+// ──────────────────────────────────────────
+function buildCloverIcon(color = '#8fbc8f') {
+  // color hex → rgb
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+    <!-- 클로버 4잎 (흰색 아웃라인 먼저) -->
+    <circle cx="11" cy="12" r="8.5" fill="white"/>
+    <circle cx="21" cy="12" r="8.5" fill="white"/>
+    <circle cx="11" cy="21" r="8.5" fill="white"/>
+    <circle cx="21" cy="21" r="8.5" fill="white"/>
+    <!-- 줄기 흰색 아웃라인 -->
+    <line x1="16" y1="24" x2="10" y2="31" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <!-- 클로버 4잎 채우기 -->
+    <circle cx="11" cy="12" r="7.5" fill="rgb(${r},${g},${b})"/>
+    <circle cx="21" cy="12" r="7.5" fill="rgb(${r},${g},${b})"/>
+    <circle cx="11" cy="21" r="7.5" fill="rgb(${r},${g},${b})"/>
+    <circle cx="21" cy="21" r="7.5" fill="rgb(${r},${g},${b})"/>
+    <!-- 중앙 채우기 (잎 사이 빈공간) -->
+    <rect x="11" y="12" width="10" height="9" fill="rgb(${r},${g},${b})"/>
+    <!-- 잎 사이 흰색 분리선 -->
+    <line x1="16" y1="4" x2="16" y2="29" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+    <line x1="3" y1="16.5" x2="29" y2="16.5" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+    <!-- 줄기 -->
+    <line x1="16" y1="24" x2="10" y2="31" stroke="rgb(${r},${g},${b})" stroke-width="2.8" stroke-linecap="round"/>
+  </svg>`;
+  const dataUrl = 'data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64');
+  return nativeImage.createFromDataURL(dataUrl);
+}
+
+function updateTrayIcon() {
+  if (!tray) return;
+  const accentColor = store.get('globalSettings.accentColor') || '#8fbc8f';
+  try {
+    const icon = buildCloverIcon(accentColor);
+    tray.setImage(icon);
+  } catch {
+    // fallback: PNG 파일 사용
+    const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
+    try { tray.setImage(nativeImage.createFromPath(iconPath)); } catch { /* ignore */ }
+  }
+}
+
+// ──────────────────────────────────────────
 // 시스템 트레이
 // ──────────────────────────────────────────
 function setupTray() {
+  // 초기 아이콘: PNG 파일 (SVG 실패 시 fallback)
   const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
   try { tray = new Tray(iconPath); } catch { return; }
-  tray.setToolTip('Desktop Memo');
+  tray.setToolTip('nagi memo');
+
+  // 트레이 아이콘 클릭 → 숨겨진 창 모두 복원
+  tray.on('click', () => {
+    let anyShown = false;
+    for (const [, win] of memoWindows) {
+      if (win && !win.isDestroyed() && !win.isVisible()) {
+        win.show();
+        win.focus();
+        anyShown = true;
+      }
+    }
+    if (listWindow && !listWindow.isDestroyed() && !listWindow.isVisible()) {
+      listWindow.show();
+      listWindow.focus();
+      anyShown = true;
+    }
+    // 모두 보이는 상태라면 클릭 시 목록 창 열기/포커스
+    if (!anyShown) {
+      if (listWindow && !listWindow.isDestroyed()) {
+        listWindow.focus();
+      }
+    }
+  });
+
+  updateTrayIcon();
   updateTrayMenu();
 }
 
@@ -705,6 +791,15 @@ function updateTrayMenu() {
       ? [{ label: '숨겨진 메모', enabled: false }, ...hiddenItems, { type: 'separator' }]
       : []),
     { label: '메모 목록 열기', click: () => ipcMain.emit('open-list') },
+    {
+      label: '모든 창 숨기기 (트레이 최소화)',
+      click: () => {
+        for (const [, win] of memoWindows) {
+          if (win && !win.isDestroyed() && win.isVisible()) win.hide();
+        }
+        if (listWindow && !listWindow.isDestroyed()) listWindow.hide();
+      }
+    },
     { type: 'separator' },
     { label: '종료', click: () => app.quit() }
   ]);

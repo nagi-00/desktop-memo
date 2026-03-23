@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Memo</title>
+  <title>nagi memo</title>
   <link rel="stylesheet" href="styles/base.css" />
   <link rel="stylesheet" href="styles/memo.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
@@ -122,10 +122,21 @@
             </span>
           </div>
         </div>
-        <!-- 우측: 심볼 아이콘 (메모 목록 열기) — Phase 3에서 선택 가능 -->
+        <!-- 우측: 클로버 심볼 아이콘 (메모 목록 열기) -->
         <button class="symbol-btn" id="symbolBtn" title="메모 목록 열기">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
-            <path d="M12 21.638h-.014C9.403 21.59 1.95 14.856 1.95 8.478c0-3.064 2.525-5.754 5.403-5.754 2.29 0 3.83 1.58 4.646 2.73.814-1.148 2.354-2.73 4.645-2.73 2.88 0 5.404 2.69 5.404 5.755 0 6.376-7.454 13.11-10.037 13.157H12z"/>
+          <svg viewBox="0 0 32 38" fill="currentColor" width="20" height="20" aria-hidden="true" stroke="white" stroke-width="1.2" paint-order="stroke fill">
+            <!-- 클로버 4잎 -->
+            <circle cx="10.5" cy="12" r="7.5"/>
+            <circle cx="21.5" cy="12" r="7.5"/>
+            <circle cx="10.5" cy="22" r="7.5"/>
+            <circle cx="21.5" cy="22" r="7.5"/>
+            <!-- 중앙 채우기 -->
+            <rect x="10.5" y="12" width="11" height="10" stroke="none"/>
+            <!-- 잎 사이 흰 구분선 -->
+            <line x1="16" y1="4.5" x2="16" y2="29.5" stroke="white" stroke-width="1.2" stroke-linecap="round" paint-order="fill stroke"/>
+            <line x1="3" y1="17" x2="29" y2="17" stroke="white" stroke-width="1.2" stroke-linecap="round" paint-order="fill stroke"/>
+            <!-- 줄기 -->
+            <line x1="15.5" y1="27" x2="9" y2="36" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" paint-order="fill stroke"/>
           </svg>
         </button>
       </div>

@@ -74,6 +74,14 @@ contextBridge.exposeInMainWorld('memoAPI', {
     return () => ipcRenderer.removeListener('stickyNotes:modeChanged', handler);
   },
 
+  // ── 앱 강조색 (트레이 아이콘 색상) ──
+  setAccentColor: (color) => ipcRenderer.invoke('settings:setAccentColor', color),
+  onAccentColorChanged: (callback) => {
+    const handler = (_e, color) => callback(color);
+    ipcRenderer.on('settings:accentColorChanged', handler);
+    return () => ipcRenderer.removeListener('settings:accentColorChanged', handler);
+  },
+
   // ── 답글 스레드 접기 ──
   foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 

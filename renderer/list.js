@@ -22,6 +22,7 @@ const btnClose        = document.getElementById('btnClose');
 const btnTrayList     = document.getElementById('btnTrayList');
 const btnExport       = document.getElementById('btnExport');
 const btnShortcutHelp = document.getElementById('btnShortcutHelp');
+const btnSettings     = document.getElementById('btnSettings');
 const resizeHandle    = document.getElementById('listResizeHandle');
 const tagFilterChips  = document.getElementById('tagFilterChips');
 const btnStickyNotes  = document.getElementById('btnStickyNotes');
@@ -31,6 +32,18 @@ const tagAddBar       = document.getElementById('tagAddBar');
 const tagAddChips     = document.getElementById('tagAddChips');
 const tagAddInput     = document.getElementById('tagAddInput');
 
+// ── accent color 적용 함수 ──
+function applyAccentColor(color) {
+  if (!color) return;
+  // 타이틀바 클로버 아이콘, 웰컴 오버레이 클로버
+  document.documentElement.style.setProperty('--color-accent', color);
+  document.documentElement.style.setProperty('--welcome-clover-color', color);
+  // SVG fill 직접 업데이트 (CSS 변수가 SVG attr에 적용 안 될 때 대비)
+  document.querySelectorAll('[data-accent-fill]').forEach(el => {
+    el.style.color = color;
+  });
+}
+
 // ── 초기화 ──
 async function init() {
   if (window.lucide) lucide.createIcons();
@@ -38,15 +51,14 @@ async function init() {
   const settings = await api.getSettings();
   if (settings?.theme) setThemeMode(settings.theme);
   isStickyNotesMode = settings?.stickyNotesMode || false;
-  // 버튼 상태는 bindEvents() 안의 updateStickyNotesBtn()에서 최종 반영됨
+  if (settings?.accentColor) applyAccentColor(settings.accentColor);
 
   await loadMemos();
   bindEvents();
 
-  // 최초 실행 시 단축키 도움말 자동 표시
-  if (!localStorage.getItem('shortcutHelpShown')) {
-    showShortcutOverlay();
-    localStorage.setItem('shortcutHelpShown', '1');
+  // 최초 실행 시 웰컴 화면 표시
+  if (!localStorage.getItem('welcomeShown')) {
+    showWelcomeOverlay();
   }
 
   api.onMemoListUpdated(async () => {
@@ -56,6 +68,11 @@ async function init() {
   });
 
   api.onThemeModeChanged((mode) => setThemeMode(mode));
+
+  // accent color 변경 수신
+  if (api.onAccentColorChanged) {
+    api.onAccentColorChanged((color) => applyAccentColor(color));
+  }
 
   // 메모 창에서 보낸 스레드 접기/펼치기 요청 처리
   if (api.onThreadFold) {
@@ -570,6 +587,86 @@ function renderPreview(memo, isTrash = false) {
   previewPane.appendChild(actions);
 }
 
+// ── 웰컴 오버레이 ──
+function showWelcomeOverlay() {
+  const overlay = document.getElementById('welcomeOverlay');
+  if (overlay) overlay.classList.add('visible');
+}
+
+function hideWelcomeOverlay() {
+  const overlay = document.getElementById('welcomeOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('visible');
+  if (document.getElementById('welcomeNoShow')?.checked) {
+    localStorage.setItem('welcomeShown', '1');
+  }
+}
+
+// ── 설정 오버레이 ──
+const PRESET_COLORS = [
+  { color: '#8fbc8f', label: '클로버 그린' },
+  { color: '#7ec8e3', label: '스카이 블루' },
+  { color: '#f4a261', label: '선셋 오렌지' },
+  { color: '#e76f51', label: '코랄 레드' },
+  { color: '#a8d8a8', label: '민트 그린' },
+  { color: '#c3aed6', label: '라벤더' },
+  { color: '#ffd166', label: '버터 옐로우' },
+  { color: '#b5838d', label: '로즈' },
+  { color: '#6d8ea0', label: '슬레이트 블루' },
+  { color: '#adb5bd', label: '실버' },
+];
+
+function showSettingsOverlay() {
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.classList.add('visible');
+  renderSettingsColors();
+}
+
+function hideSettingsOverlay() {
+  const overlay = document.getElementById('settingsOverlay');
+  if (overlay) overlay.classList.remove('visible');
+}
+
+function renderSettingsColors() {
+  const row = document.getElementById('settingsColorRow');
+  if (!row) return;
+  row.innerHTML = '';
+  PRESET_COLORS.forEach(({ color, label }) => {
+    const btn = document.createElement('button');
+    btn.className = 'settings-color-swatch';
+    btn.style.background = color;
+    btn.title = label;
+    btn.addEventListener('click', async () => {
+      await api.setAccentColor(color);
+      applyAccentColor(color);
+      document.getElementById('settingsCustomColor').value = color;
+      updateSettingsSwatchActive(color);
+    });
+    row.appendChild(btn);
+  });
+  // 현재 선택 색상 표시
+  api.getSettings().then(settings => {
+    if (settings?.accentColor) {
+      updateSettingsSwatchActive(settings.accentColor);
+      document.getElementById('settingsCustomColor').value = settings.accentColor;
+    }
+  });
+}
+
+function updateSettingsSwatchActive(color) {
+  document.querySelectorAll('.settings-color-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.style.background === color ||
+      btn.style.backgroundColor === color ||
+      toHex(btn.style.backgroundColor) === color.toLowerCase());
+  });
+}
+
+function toHex(rgb) {
+  const m = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (!m) return rgb;
+  return '#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('');
+}
+
 // ── 단축키 도움말 오버레이 ──
 function showShortcutOverlay() {
   document.getElementById('shortcutOverlay').classList.add('visible');
@@ -650,9 +747,39 @@ function bindEvents() {
       document.getElementById('shortcutOverlay').classList.remove('visible');
     }
   });
+
+  // 웰컴 오버레이
+  document.getElementById('welcomeClose')?.addEventListener('click', hideWelcomeOverlay);
+  document.getElementById('welcomeOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('welcomeOverlay')) hideWelcomeOverlay();
+  });
+
+  // 설정 오버레이
+  btnSettings?.addEventListener('click', showSettingsOverlay);
+  document.getElementById('settingsClose')?.addEventListener('click', hideSettingsOverlay);
+  document.getElementById('settingsOverlay')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('settingsOverlay')) hideSettingsOverlay();
+  });
+  document.getElementById('settingsCustomColor')?.addEventListener('input', async (e) => {
+    const color = e.target.value;
+    await api.setAccentColor(color);
+    applyAccentColor(color);
+    updateSettingsSwatchActive(color);
+  });
+  document.getElementById('btnDarkMode')?.addEventListener('click', async () => {
+    await api.setThemeMode('dark');
+    setThemeMode('dark');
+  });
+  document.getElementById('btnLightMode')?.addEventListener('click', async () => {
+    await api.setThemeMode('light');
+    setThemeMode('light');
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       document.getElementById('shortcutOverlay')?.classList.remove('visible');
+      document.getElementById('settingsOverlay')?.classList.remove('visible');
+      hideWelcomeOverlay();
     }
   });
 
