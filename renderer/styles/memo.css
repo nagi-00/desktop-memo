@@ -602,6 +602,152 @@
 }
 
 /* ══════════════════════════════════════════════
+   ANNOTATION SYSTEM (주석)
+   ══════════════════════════════════════════════ */
+
+/* 본문 내 주석 참조 텍스트 */
+.annotation-ref {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  border-bottom: 1.5px solid var(--color-accent);
+  border-radius: 2px;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.annotation-ref:hover {
+  background: color-mix(in srgb, var(--color-accent) 38%, transparent);
+}
+
+/* 주석 패널 */
+.annotation-panel {
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface));
+  max-height: 220px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.annotation-panel-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+  border-bottom: 1px solid var(--color-border);
+  text-transform: uppercase;
+  z-index: 1;
+}
+.annotation-panel-title { display: flex; align-items: center; }
+.annotation-count { opacity: 0.6; }
+
+.annotation-entry {
+  padding: 7px 12px 8px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.2s;
+}
+.annotation-entry:last-child { border-bottom: none; }
+.annotation-entry.annotation-highlight {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.annotation-quote {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.annotation-index {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-accent);
+  min-width: 14px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.annotation-quote-text {
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.annotation-delete-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.annotation-entry:hover .annotation-delete-btn { opacity: 0.6; }
+.annotation-delete-btn:hover { opacity: 1 !important; color: #ef4444; }
+
+.annotation-note {
+  font-size: 12px;
+  color: var(--color-text);
+  min-height: 24px;
+  outline: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: text;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.annotation-note:hover { border-color: var(--color-border); }
+.annotation-note:focus {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+}
+.annotation-note:empty::before {
+  content: attr(placeholder);
+  color: var(--color-text-dim);
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* 주석 호버 미리보기 툴팁 */
+.annotation-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 6px 6px 0;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--color-text);
+  max-width: 240px;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity 0.15s, transform 0.15s;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.annotation-tooltip.visible { opacity: 1; transform: translateY(0); }
+
+/* 잠금 모드: 주석 패널 숨김 */
+.memo-card.locked .annotation-panel { display: none !important; }
+/* 간단히 보기: 주석 패널 숨김 */
+.memo-card.simple-mode .annotation-panel { display: none !important; }
+
+/* ══════════════════════════════════════════════
    LOCKED MODE (잠금 — 클릭/드래그 차단, 스크롤은 허용)
    ══════════════════════════════════════════════ */
 .lock-overlay {

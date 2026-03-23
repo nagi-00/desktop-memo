@@ -69,6 +69,112 @@ let isSNMoveLocked = false;
 let saveTimer     = null;
 let mediaFolded   = false;
 
+// ── 주석 시스템 ──────────────────────────────────
+let annotations = []; // { id, quote, note, createdAt }
+
+function _escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _annId() {
+  return typeof crypto?.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'ann-' + Date.now() + '-' + Math.random().toString(36).slice(2,9);
+}
+
+function renderAnnotationPanel() {
+  const panel = document.getElementById('annotationPanel');
+  const list  = document.getElementById('annotationList');
+  if (!panel || !list) return;
+  if (annotations.length === 0) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  document.getElementById('annotationCount').textContent = `${annotations.length}개`;
+  list.innerHTML = '';
+  annotations.forEach((ann, idx) => {
+    const entry = document.createElement('div');
+    entry.className = 'annotation-entry';
+    entry.dataset.annotationId = ann.id;
+    entry.innerHTML = `
+      <div class="annotation-quote">
+        <span class="annotation-index">${idx + 1}</span>
+        <span class="annotation-quote-text">"${_escHtml(ann.quote)}"</span>
+        <button class="annotation-delete-btn" data-id="${_escHtml(ann.id)}" title="주석 삭제">×</button>
+      </div>
+      <div class="annotation-note" contenteditable="true" data-id="${_escHtml(ann.id)}"
+           placeholder="주석을 입력하세요..." spellcheck="false">${_escHtml(ann.note || '')}</div>
+    `;
+    list.appendChild(entry);
+  });
+  // 삭제
+  list.querySelectorAll('.annotation-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteAnnotation(btn.dataset.id));
+  });
+  // 편집 자동저장
+  list.querySelectorAll('.annotation-note').forEach(el => {
+    el.addEventListener('input', () => {
+      const id = el.dataset.id;
+      const ann = annotations.find(a => a.id === id);
+      if (ann) { ann.note = el.textContent; saveMemoChanges({ annotations }); }
+    });
+    // Enter → 새 줄 (기본 contenteditable 동작)
+    el.addEventListener('keydown', (e) => { if (e.key === 'Escape') el.blur(); });
+  });
+}
+
+function createAnnotation(selectedText, range) {
+  if (!selectedText.trim()) return;
+  const id = _annId();
+  const span = document.createElement('span');
+  span.className = 'annotation-ref';
+  span.dataset.annotationId = id;
+  try {
+    range.surroundContents(span);
+  } catch {
+    try {
+      const frag = range.extractContents();
+      span.appendChild(frag);
+      range.insertNode(span);
+    } catch { return; }
+  }
+  const ann = { id, quote: selectedText.trim().slice(0, 120), note: '', createdAt: new Date().toISOString() };
+  annotations.push(ann);
+  saveMemoChanges({ annotations });
+  scheduleSave(); // contentHtml도 업데이트 (span이 추가됐으므로)
+  renderAnnotationPanel();
+  // 새 주석으로 스크롤 + 포커스
+  setTimeout(() => {
+    const entry = document.querySelector(`.annotation-entry[data-annotation-id="${id}"]`);
+    if (entry) {
+      entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      entry.querySelector('.annotation-note')?.focus();
+    }
+  }, 100);
+}
+
+function deleteAnnotation(id) {
+  // 본문의 span 제거 (텍스트는 유지)
+  const span = memoContent.querySelector(`.annotation-ref[data-annotation-id="${id}"]`);
+  if (span) {
+    const parent = span.parentNode;
+    while (span.firstChild) parent.insertBefore(span.firstChild, span);
+    parent.removeChild(span);
+    parent.normalize();
+  }
+  annotations = annotations.filter(a => a.id !== id);
+  saveMemoChanges({ annotations });
+  scheduleSave();
+  renderAnnotationPanel();
+}
+
+function scrollToAnnotation(id) {
+  const panel = document.getElementById('annotationPanel');
+  const entry = document.querySelector(`.annotation-entry[data-annotation-id="${id}"]`);
+  if (!entry || !panel || panel.style.display === 'none') return;
+  entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  entry.classList.add('annotation-highlight');
+  setTimeout(() => entry.classList.remove('annotation-highlight'), 1600);
+}
+
 // ── DOM 참조 ──────────────────────────────────
 const memoRoot    = document.getElementById('memoRoot');
 const cardView    = document.getElementById('cardView');
@@ -276,6 +382,10 @@ async function init() {
     const hr = document.createElement('hr');
     block.parentNode.replaceChild(hr, block);
   });
+
+  // 주석 초기화
+  annotations = memoData.annotations || [];
+  renderAnnotationPanel();
 
   // 저장된 미디어 그리드에 래퍼/이벤트 재적용
   initMediaGrids();
@@ -1168,6 +1278,34 @@ function bindEvents() {
   });
   memoContent.addEventListener('mouseleave', () => linkTooltip.classList.remove('visible'));
 
+  // ── 주석 참조: 클릭 → 패널 스크롤, 호버 → 미리보기 ──
+  const annTooltip = document.createElement('div');
+  annTooltip.className = 'annotation-tooltip';
+  document.body.appendChild(annTooltip);
+
+  memoContent.addEventListener('mouseover', (e) => {
+    const ref = e.target.closest('.annotation-ref[data-annotation-id]');
+    if (!ref) return;
+    const ann = annotations.find(a => a.id === ref.dataset.annotationId);
+    if (!ann) return;
+    const note = ann.note?.trim();
+    annTooltip.textContent = note ? note.slice(0, 120) + (note.length > 120 ? '…' : '') : '(주석 없음)';
+    const rect = ref.getBoundingClientRect();
+    annTooltip.style.left = `${Math.min(rect.left, window.innerWidth - 260)}px`;
+    annTooltip.style.top  = `${rect.bottom + 4}px`;
+    annTooltip.classList.add('visible');
+  });
+  memoContent.addEventListener('mouseout', (e) => {
+    const ref = e.target.closest('.annotation-ref[data-annotation-id]');
+    if (ref && !ref.contains(e.relatedTarget)) annTooltip.classList.remove('visible');
+  });
+  memoContent.addEventListener('mouseleave', () => annTooltip.classList.remove('visible'));
+
+  memoContent.addEventListener('click', (e) => {
+    const ref = e.target.closest('.annotation-ref[data-annotation-id]');
+    if (ref) { scrollToAnnotation(ref.dataset.annotationId); return; }
+  });
+
   // HR 블록(contenteditable=false) 클릭 시 커서 탈출
   memoContent.addEventListener('click', (e) => {
     // 패딩 영역(memoContent 자체) 클릭 → 마지막 편집 가능 요소로 커서 이동
@@ -1950,6 +2088,22 @@ function bindEvents() {
         hlBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>';
         hlBtn.addEventListener('mousedown', (ev) => { ev.preventDefault(); hideFmtMenu(); toggleHighlight(); });
         fmtMenu.appendChild(hlBtn);
+
+        // 주석 달기 버튼
+        const annBtn = document.createElement('button');
+        annBtn.className = 'fmt-btn';
+        annBtn.title = '주석 달기';
+        annBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+        annBtn.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          const sel2 = window.getSelection();
+          if (!sel2?.rangeCount || sel2.isCollapsed) return;
+          const text  = sel2.toString();
+          const range = sel2.getRangeAt(0).cloneRange();
+          hideFmtMenu();
+          createAnnotation(text, range);
+        });
+        fmtMenu.appendChild(annBtn);
 
         if (insertHrFn) {
           const sep3 = document.createElement('span');
