@@ -1217,6 +1217,31 @@ function bindEvents() {
           scheduleSave();
         }
       }
+    } else if (e.key === 'Tab') {
+      // Tab: cb-item span 또는 li 안에서 공백 삽입 (들여쓰기/포커스 이동 방지)
+      const tSel = window.getSelection();
+      if (tSel?.rangeCount) {
+        let tNode = tSel.getRangeAt(0).startContainer;
+        if (tNode.nodeType === Node.TEXT_NODE) tNode = tNode.parentNode;
+        if (tNode.closest?.('.cb-item') || tNode.closest?.('li')) {
+          e.preventDefault();
+          document.execCommand('insertText', false, '    ');
+          scheduleSave();
+        }
+      }
+    } else if (e.key === ' ') {
+      // Space: cb-item span 또는 li 안에서는 handleAutoConvert 전에 기본 동작 허용
+      // (autoConvert가 내부 패턴을 오감지할 경우에만 방어)
+      const sSel = window.getSelection();
+      if (sSel?.rangeCount) {
+        let sNode = sSel.getRangeAt(0).startContainer;
+        if (sNode.nodeType === Node.TEXT_NODE) sNode = sNode.parentNode;
+        if (sNode.closest?.('.cb-item') || sNode.closest?.('li')) {
+          // autoConvert 건너뜀 — return으로 handleAutoConvert 호출 전에 빠져나감
+          // 브라우저 기본 space 삽입에 맡김
+          return;
+        }
+      }
     } else if (e.key === 'Backspace') {
       // 백스페이스: 체크박스 / 리스트 서식 간편 해제
       const bSel = window.getSelection();
@@ -1248,30 +1273,35 @@ function bindEvents() {
           }
         }
 
-        // 리스트 아이템 — 빈 li에서 백스페이스 → 리스트 탈출
+        // 리스트 아이템 — 빈 li 또는 커서가 맨 앞인 li에서 백스페이스 → 리스트 탈출
         const li = bNode.closest?.('li');
-        if (li && memoContent.contains(li) && li.textContent.trim() === '') {
-          e.preventDefault();
-          const list = li.parentElement;
-          const prevEl = list.previousSibling;
-          li.remove();
-          if (list.children.length === 0) {
-            // 빈 리스트 → 일반 div로 교체
+        if (li && memoContent.contains(li)) {
+          const isEmpty = li.textContent.trim() === '';
+          const atStart = !isEmpty && (() => {
+            try {
+              const t = document.createRange(); t.setStart(li, 0);
+              return bRange.compareBoundaryPoints(Range.START_TO_START, t) === 0;
+            } catch { return false; }
+          })();
+          if (isEmpty || atStart) {
+            e.preventDefault();
+            const list = li.parentElement;
+            const savedHtml = isEmpty ? '' : li.innerHTML;
+            li.remove();
             const newDiv = document.createElement('div');
-            newDiv.innerHTML = '<br>';
-            list.parentNode.insertBefore(newDiv, list);
-            list.remove();
+            if (savedHtml) newDiv.innerHTML = savedHtml; else newDiv.innerHTML = '<br>';
+            if (list.children.length === 0) {
+              list.parentNode.insertBefore(newDiv, list);
+              list.remove();
+            } else {
+              list.parentNode.insertBefore(newDiv, list);
+            }
             const r = document.createRange();
             r.setStart(newDiv, 0); r.collapse(true);
             bSel.removeAllRanges(); bSel.addRange(r);
-          } else if (prevEl) {
-            // 이전 요소 끝으로 커서 이동
-            const r = document.createRange();
-            r.selectNodeContents(prevEl); r.collapse(false);
-            bSel.removeAllRanges(); bSel.addRange(r);
+            scheduleSave();
+            return;
           }
-          scheduleSave();
-          return;
         }
       }
     } else if (e.key === '-') {

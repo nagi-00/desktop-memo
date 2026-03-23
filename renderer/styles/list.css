@@ -882,4 +882,11 @@ body {
 }
 
 /* ── Sticky Notes 버튼 활성 상태 ── */
-.btn-tray-list.sn-active { color: var(--color-accent); }
+.btn-tray-list.sn-active {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+  border-radius: 6px;
+}
+.btn-tray-list.sn-active:hover {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}

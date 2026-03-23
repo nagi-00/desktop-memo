@@ -38,7 +38,7 @@ async function init() {
   const settings = await api.getSettings();
   if (settings?.theme) setThemeMode(settings.theme);
   isStickyNotesMode = settings?.stickyNotesMode || false;
-  btnStickyNotes?.classList.toggle('sn-active', isStickyNotesMode);
+  // 버튼 상태는 bindEvents() 안의 updateStickyNotesBtn()에서 최종 반영됨
 
   await loadMemos();
   bindEvents();
@@ -598,10 +598,20 @@ function bindEvents() {
   btnNewMemo.addEventListener('click', () => api.createMemo());
 
   // Sticky Notes 모드 토글
+  function updateStickyNotesBtn() {
+    btnStickyNotes?.classList.toggle('sn-active', isStickyNotesMode);
+    if (btnStickyNotes) {
+      btnStickyNotes.title = isStickyNotesMode
+        ? 'Sticky Notes 모드 해제 (클릭)'
+        : 'Sticky Notes처럼 사용하기';
+    }
+  }
+  updateStickyNotesBtn(); // 초기 상태 반영
+
   btnStickyNotes?.addEventListener('click', async () => {
     isStickyNotesMode = !isStickyNotesMode;
     await api.setStickyNotesMode(isStickyNotesMode);
-    btnStickyNotes.classList.toggle('sn-active', isStickyNotesMode);
+    updateStickyNotesBtn();
   });
 
   // 사이드바 빈 공간 우클릭 → 새 메모 / 선택 삭제
