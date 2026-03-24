@@ -625,7 +625,9 @@
   background: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface));
   max-height: 220px;
   overflow-y: auto;
+  overflow-x: hidden;
   flex-shrink: 0;
+  border-radius: 0 0 var(--radius-card) var(--radius-card); /* 카드 아래 모서리와 일치 */
 }
 .annotation-panel-header {
   position: sticky;
@@ -1070,6 +1072,7 @@
   flex-shrink: 0;
   padding: 0 14px 8px;
   max-height: 260px;
+  overflow-x: hidden; /* overflow-y: auto가 overflow-x를 auto로 만들어 가장자리 잘림 유발 → 명시 차단 */
   overflow-y: auto;
   transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.2s ease;
 }
