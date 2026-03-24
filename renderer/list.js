@@ -951,6 +951,10 @@ function bindEvents() {
     await api.setCustomIcon(null);
     renderSettingsCustomIcon();
   });
+  document.getElementById('btnIconStack')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    api.openExternal('https://iconstack.lovable.app/');
+  });
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {

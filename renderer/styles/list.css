@@ -1385,3 +1385,16 @@ body {
   color: #ef4444;
   background: rgba(239,68,68,0.06);
 }
+.settings-iconstack-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--color-accent, #8fbc8f);
+  opacity: 0.75;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.settings-iconstack-link:hover { opacity: 1; }
