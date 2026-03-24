@@ -149,21 +149,44 @@ function createMemoWindow(memoData, options = {}) {
   if (memoData.parentId) {
     let attached = false;
     let _syncing = false;
-    let _parentMoveHandler = null;
+    let _parentMoveHandler   = null;
+    let _parentResizeHandler = null;
+    let _selfHandler         = null;
 
     const attach = (parentWin) => {
       if (attached) return;
       attached = true;
-      _parentMoveHandler = () => {
+
+      // 부모가 이동하거나 리사이즈되면 답글을 부모 바로 아래로 재배치
+      const snapToParent = () => {
         if (win.isDestroyed() || _syncing) return;
-        const pw = memoWindows.get(memoData.parentId);
-        if (!pw || pw.isDestroyed()) return;
-        const pb = pw.getBounds();
+        if (!parentWin || parentWin.isDestroyed()) return;
+        const pb = parentWin.getBounds();
         _syncing = true;
-        win.setPosition(pb.x, pb.y + pb.height + 2);
+        win.setPosition(Math.round(pb.x), Math.round(pb.y + pb.height + 2));
         _syncing = false;
       };
-      parentWin.on('move', _parentMoveHandler);
+
+      _parentMoveHandler   = snapToParent;
+      _parentResizeHandler = snapToParent;
+      parentWin.on('move',   _parentMoveHandler);
+      parentWin.on('resize', _parentResizeHandler);
+
+      // 답글 자체가 이동/리사이즈되면 부모 아래 위치에서 벗어났을 때 재부착
+      _selfHandler = () => {
+        if (win.isDestroyed() || _syncing) return;
+        if (!parentWin || parentWin.isDestroyed()) return;
+        const pb = parentWin.getBounds();
+        const wb = win.getBounds();
+        const expectedY = pb.y + pb.height + 2;
+        if (Math.abs(wb.y - expectedY) > 4 || Math.abs(wb.x - pb.x) > 4) {
+          _syncing = true;
+          win.setPosition(Math.round(pb.x), Math.round(expectedY));
+          _syncing = false;
+        }
+      };
+      win.on('resize', _selfHandler);
+      win.on('move',   _selfHandler);
     };
 
     // 표시 시 즉시 부모 아래에 붙음 (신규 생성 또는 앱 재시작)
@@ -181,9 +204,12 @@ function createMemoWindow(memoData, options = {}) {
     });
 
     win.on('closed', () => {
-      if (attached && _parentMoveHandler) {
+      if (attached) {
         const pw = memoWindows.get(memoData.parentId);
-        if (pw && !pw.isDestroyed()) pw.removeListener('move', _parentMoveHandler);
+        if (pw && !pw.isDestroyed()) {
+          if (_parentMoveHandler)   pw.removeListener('move',   _parentMoveHandler);
+          if (_parentResizeHandler) pw.removeListener('resize', _parentResizeHandler);
+        }
       }
     });
   }
