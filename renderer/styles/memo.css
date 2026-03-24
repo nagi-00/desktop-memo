@@ -1312,6 +1312,17 @@
   object-fit: cover;
   display: block;
 }
+
+/* SVG 아이콘은 잘리지 않도록 contain으로 표시 */
+.media-grid .img-wrap img[src^="data:image/svg"],
+.media-grid .img-wrap img[src$=".svg"] {
+  object-fit: contain;
+}
+/* SVG의 고유 크기가 작은 경우(예: 24×24) 그리드 셀이 너무 작아지는 문제 방지 */
+.media-grid .img-wrap:has(img[src^="data:image/svg"]),
+.media-grid .img-wrap:has(img[src$=".svg"]) {
+  min-height: 120px;
+}
 /* 삭제 버튼 (X) */
 .media-grid .img-remove {
   position: absolute;
