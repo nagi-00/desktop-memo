@@ -173,6 +173,28 @@ function deleteAnnotation(id) {
   renderAnnotationPanel();
 }
 
+// 본문의 annotation-ref 스팬 텍스트가 수정되면 ann.quote를 동기화
+function syncAnnotationQuotes() {
+  if (!annotations.length) return;
+  let anyChanged = false;
+  memoContent.querySelectorAll('.annotation-ref[data-annotation-id]').forEach(span => {
+    const id = span.dataset.annotationId;
+    const ann = annotations.find(a => a.id === id);
+    if (!ann) return;
+    const newQuote = span.textContent.trim().slice(0, 120);
+    if (ann.quote !== newQuote) {
+      ann.quote = newQuote;
+      anyChanged = true;
+      // 패널 전체 재렌더 없이 해당 항목만 업데이트
+      const quoteEl = document.querySelector(
+        `.annotation-entry[data-annotation-id="${id}"] .annotation-quote-text`
+      );
+      if (quoteEl) quoteEl.textContent = `"${newQuote}"`;
+    }
+  });
+  if (anyChanged) saveMemoChanges({ annotations });
+}
+
 function scrollToAnnotation(id) {
   const panel = document.getElementById('annotationPanel');
   const entry = document.querySelector(`.annotation-entry[data-annotation-id="${id}"]`);
@@ -1272,6 +1294,7 @@ function bindEvents() {
   memoContent.addEventListener('input', () => {
     scheduleSave();
     requestAnimationFrame(scrollToCursor);
+    syncAnnotationQuotes();
   });
 
   // 본문 내 링크 클릭 → 외부 브라우저 열기
