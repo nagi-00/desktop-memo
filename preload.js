@@ -85,7 +85,7 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 커스텀 앱 아이콘 ──
   setCustomIcon: (opts) => ipcRenderer.invoke('settings:setCustomIcon', opts),
   onCustomIconChanged: (callback) => {
-    const handler = (_e, dataUrl) => callback(dataUrl);
+    const handler = (_e, opts) => callback(opts);
     ipcRenderer.on('settings:customIconChanged', handler);
     return () => ipcRenderer.removeListener('settings:customIconChanged', handler);
   },

@@ -624,9 +624,22 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win && !win.isDestroyed()) {
       const bounds = win.getBounds();
+      // 답글 창이면 부모의 현재 x를 기준으로 정렬 (사용자가 왼쪽 드래그로 늘렸어도 올바른 위치)
+      let targetX = bounds.x;
+      for (const [id, w] of memoWindows) {
+        if (w === win) {
+          const memo = getMemoById(id);
+          if (memo?.parentId) {
+            const parentWin = memoWindows.get(memo.parentId);
+            if (parentWin && !parentWin.isDestroyed()) {
+              targetX = parentWin.getBounds().x;
+            }
+          }
+          break;
+        }
+      }
       win.setSize(Math.max(200, Math.round(width)), bounds.height);
-      // 좌측 엣지 유지 (Linux는 center 기준으로 리사이즈될 수 있음)
-      win.setPosition(bounds.x, bounds.y);
+      win.setPosition(Math.round(targetX), bounds.y);
     }
     return true;
   });
@@ -646,7 +659,7 @@ function registerIpcHandlers() {
       updateTrayIcon();
     }
     BrowserWindow.getAllWindows().forEach(w => {
-      if (!w.isDestroyed()) w.webContents.send('settings:customIconChanged', dataUrl);
+      if (!w.isDestroyed()) w.webContents.send('settings:customIconChanged', { dataUrl, svgText });
     });
     return true;
   });

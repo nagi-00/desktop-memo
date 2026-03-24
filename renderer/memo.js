@@ -53,11 +53,22 @@ const SYMBOL_ICONS = [
 
 let _currentSymbolIconId = 'clover';
 let _customAppIconUrl = null;
+let _customAppIconSvgText = null;
 
 function applySymbolIcon(iconId) {
   _currentSymbolIconId = iconId;
   const iconEl = document.getElementById('symbolBtnIcon');
   if (!iconEl) return;
+  if (_customAppIconSvgText) {
+    const colored = _customAppIconSvgText
+      .replace(/fill="(?!none\b)[^"]*"/gi,   'fill="currentColor"')
+      .replace(/stroke="(?!none\b)[^"]*"/gi, 'stroke="currentColor"')
+      .replace(/<svg\b/, '<svg style="color:var(--color-accent)"')
+      .replace(/width="[^"]*"/, 'width="20"')
+      .replace(/height="[^"]*"/, 'height="20"');
+    iconEl.innerHTML = colored;
+    return;
+  }
   if (_customAppIconUrl) {
     iconEl.innerHTML = `<img src="${_customAppIconUrl}" width="20" height="20" style="object-fit:contain;display:block;border-radius:3px" alt="" draggable="false"/>`;
     return;
@@ -383,10 +394,12 @@ async function init() {
 
   // 심볼 아이콘 적용 (커스텀 아이콘 우선)
   _customAppIconUrl = settings?.customAppIcon || null;
+  _customAppIconSvgText = settings?.customAppIconSvg || null;
   applySymbolIcon(settings?.symbolIcon || 'clover');
   api.onSymbolIconChanged?.((iconId) => applySymbolIcon(iconId));
-  api.onCustomIconChanged?.((dataUrl) => {
+  api.onCustomIconChanged?.(({ dataUrl, svgText } = {}) => {
     _customAppIconUrl = dataUrl || null;
+    _customAppIconSvgText = svgText || null;
     applySymbolIcon(_currentSymbolIconId);
   });
 
