@@ -1032,7 +1032,6 @@ function _applyLink() {
   s.removeAllRanges();
   if (_linkSavedRange) {
     s.addRange(_linkSavedRange);
-    if (!_linkSavedRange.collapsed) _linkSavedRange.deleteContents();
   }
   document.execCommand('insertHTML', false, linkHtml);
   scheduleSave();
