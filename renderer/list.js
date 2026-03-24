@@ -643,37 +643,25 @@ function hideWelcomeOverlay() {
 }
 
 // ── 심볼 아이콘 목록 ──
-const CLOVER_SVG_SMALL = `<svg viewBox="0 0 100 118" fill="none" width="16" height="16">
-  <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
-  <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
-  <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
-  <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
-  <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
-  <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
-  <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
-  <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
-  <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
-  <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
-  <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
-  <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-</svg>`;
+// 새 클로버: 3잎 샴록 (흰 대각선 + 줄기)
+const CLOVER_SVG_SMALL = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="6" r="5.5"/><circle cx="6.5" cy="15" r="5.5"/><circle cx="17.5" cy="15" r="5.5"/><ellipse cx="12" cy="12" rx="4" ry="5"/><line x1="15.5" y1="8" x2="8.5" y2="18" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 20Q15 22 18 23" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`;
 
 function _filledSvg(path, w = 16) {
   return `<svg viewBox="0 0 24 24" fill="currentColor" width="${w}" height="${w}" aria-hidden="true">${path}</svg>`;
 }
 const _FILLED = {
-  'flower-2': `<circle cx="12" cy="6" r="3.5"/><circle cx="18" cy="10" r="3.5"/><circle cx="18" cy="17" r="3.5"/><circle cx="12" cy="21" r="3.5"/><circle cx="6" cy="17" r="3.5"/><circle cx="6" cy="10" r="3.5"/><circle cx="12" cy="13.5" r="4"/>`,
-  leaf:     `<path d="M17 8C8 10 5.9 16.17 3.82 21.34a.3.3 0 0 0 .32.41C9.17 21.22 16 18.47 17.5 11.82L21 8h-4zM5 21l7-7"/>`,
-  moon:     `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`,
-  note:     `<path fill-rule="evenodd" d="M4 2C2.9 2 2 2.9 2 4v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zM14 22v-6h6z"/>`,
+  heart:        `<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+  moon:         `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/><line x1="17" y1="3" x2="17" y2="7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="15" y1="5" x2="19" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="21" y1="9" x2="21" y2="13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><line x1="19" y1="11" x2="23" y2="11" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>`,
+  'pen-sparkle':`<path d="M5 1.5C5.5 3.5 8.5 4.5 9.5 5.5C8.5 6.5 5.5 7.5 5 9.5C4.5 7.5 1.5 6.5 0.5 5.5C1.5 4.5 4.5 3.5 5 1.5Z"/><rect x="7" y="9" width="14" height="6" rx="3" transform="rotate(-47 14 12)"/><rect x="13" y="20.5" width="9" height="2.5" rx="1.25"/>`,
+  note:         `<path fill-rule="evenodd" d="M4 2C2.9 2 2 2.9 2 4v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zM14 22v-6h6z"/>`,
 };
 
 const SYMBOL_ICONS = [
-  { id: 'clover',    label: '클로버', svg: CLOVER_SVG_SMALL },
-  { id: 'flower-2',  label: '꽃',     svg: _filledSvg(_FILLED['flower-2']) },
-  { id: 'leaf',      label: '잎',     svg: _filledSvg(_FILLED.leaf) },
-  { id: 'moon',      label: '달',     svg: _filledSvg(_FILLED.moon) },
-  { id: 'note',      label: '메모',   svg: _filledSvg(_FILLED.note) },
+  { id: 'clover',       label: '클로버', svg: CLOVER_SVG_SMALL },
+  { id: 'heart',        label: '하트',   svg: _filledSvg(_FILLED.heart) },
+  { id: 'moon',         label: '달',     svg: _filledSvg(_FILLED.moon) },
+  { id: 'pen-sparkle',  label: '펜',     svg: _filledSvg(_FILLED['pen-sparkle']) },
+  { id: 'note',         label: '메모',   svg: _filledSvg(_FILLED.note) },
 ];
 
 // ── 설정 오버레이 ──
