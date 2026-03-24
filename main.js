@@ -547,6 +547,30 @@ function registerIpcHandlers() {
     return { success: true, filePath };
   });
 
+  ipcMain.handle('memo:importBackup', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const { filePaths, canceled } = await dialog.showOpenDialog(win || undefined, {
+      filters: [{ name: 'JSON 파일', extensions: ['json'] }],
+      title: '메모 백업 불러오기',
+      properties: ['openFile'],
+    });
+    if (canceled || !filePaths?.length) return { success: false };
+    try {
+      const raw = fs.readFileSync(filePaths[0], 'utf8');
+      const data = JSON.parse(raw);
+      const imported = Array.isArray(data.memos) ? data.memos : (Array.isArray(data) ? data : null);
+      if (!imported) return { success: false, error: '유효하지 않은 백업 파일입니다.' };
+      const existing = getMemos();
+      const existingIds = new Set(existing.map(m => m.id));
+      const newMemos = imported.filter(m => m?.id && !existingIds.has(m.id));
+      saveMemos([...existing, ...newMemos]);
+      broadcastListUpdate();
+      return { success: true, count: newMemos.length };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  });
+
   // 저장된 프로필 전체 조회
   ipcMain.handle('profiles:getAll', () => {
     return store.get('globalSettings.savedProfiles', []);

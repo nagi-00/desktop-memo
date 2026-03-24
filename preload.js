@@ -55,8 +55,9 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 창 숨기기 ──
   hideWindow: () => ipcRenderer.invoke('memo:hideWindow'),
 
-  // ── 백업/내보내기 ──
+  // ── 백업/내보내기/불러오기 ──
   exportMemos: () => ipcRenderer.invoke('memo:exportBackup'),
+  importMemos: () => ipcRenderer.invoke('memo:importBackup'),
 
   // ── 특정 ID 메모 업데이트 (목록 뷰용) ──
   updateById: (id, changes) => ipcRenderer.invoke('memo:updateById', { id, changes }),

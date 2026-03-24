@@ -7,8 +7,8 @@ import { generatePalette, applyPalette, resetPalette, setThemeMode, PRESETS } fr
 const api = window.memoAPI;
 
 // ── 클로버/심볼 SVG 정의 ──────────────────────────────
-// 새 클로버: 3잎 샴록 디자인 (흰 대각선 + 줄기)
-const CLOVER_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><circle cx="12" cy="6" r="5.5"/><circle cx="6.5" cy="15" r="5.5"/><circle cx="17.5" cy="15" r="5.5"/><ellipse cx="12" cy="12" rx="4" ry="5"/><line x1="15.5" y1="8" x2="8.5" y2="18" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 20Q15 22 18 23" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+// 4잎 클로버: 상하좌우 십자 배열 + 흰 대각선 + 줄기
+const CLOVER_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 // 채워진 아이콘 SVG 빌더 (viewBox 24×24, fill="currentColor")
 function _filledSvg(path, w = 20) {

@@ -1,7 +1,7 @@
 /**
  * list.js — 메모 목록 뷰 로직 (스레드/답글 + 휴지통)
  */
-import { setThemeMode } from './theme.js';
+import { setThemeMode, PRESETS } from './theme.js';
 
 const api = window.memoAPI;
 
@@ -25,6 +25,7 @@ const btnNewMemo      = document.getElementById('btnNewMemo');
 const btnClose        = document.getElementById('btnClose');
 const btnTrayList     = document.getElementById('btnTrayList');
 const btnExport       = document.getElementById('btnExport');
+const btnImport       = document.getElementById('btnImport');
 const btnShortcutHelp = document.getElementById('btnShortcutHelp');
 const btnSettings     = document.getElementById('btnSettings');
 const resizeHandle    = document.getElementById('listResizeHandle');
@@ -643,8 +644,8 @@ function hideWelcomeOverlay() {
 }
 
 // ── 심볼 아이콘 목록 ──
-// 새 클로버: 3잎 샴록 (흰 대각선 + 줄기)
-const CLOVER_SVG_SMALL = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="6" r="5.5"/><circle cx="6.5" cy="15" r="5.5"/><circle cx="17.5" cy="15" r="5.5"/><ellipse cx="12" cy="12" rx="4" ry="5"/><line x1="15.5" y1="8" x2="8.5" y2="18" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 20Q15 22 18 23" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+// 4잎 클로버: 상하좌우 십자 배열 + 흰 대각선 + 줄기
+const CLOVER_SVG_SMALL = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 function _filledSvg(path, w = 16) {
   return `<svg viewBox="0 0 24 24" fill="currentColor" width="${w}" height="${w}" aria-hidden="true">${path}</svg>`;
@@ -665,18 +666,10 @@ const SYMBOL_ICONS = [
 ];
 
 // ── 설정 오버레이 ──
-const PRESET_COLORS = [
-  { color: '#8fbc8f', label: '클로버 그린' },
-  { color: '#7ec8e3', label: '스카이 블루' },
-  { color: '#f4a261', label: '선셋 오렌지' },
-  { color: '#e76f51', label: '코랄 레드' },
-  { color: '#a8d8a8', label: '민트 그린' },
-  { color: '#c3aed6', label: '라벤더' },
-  { color: '#ffd166', label: '버터 옐로우' },
-  { color: '#b5838d', label: '로즈' },
-  { color: '#6d8ea0', label: '슬레이트 블루' },
-  { color: '#adb5bd', label: '실버' },
-];
+// 메모 테마 색상과 동일한 프리셋 사용 (theme.js PRESETS)
+const PRESET_COLORS = PRESETS
+  .filter(p => p.accent !== null)
+  .map(p => ({ color: p.accent, label: p.name }));
 
 // PNG 파일 → 64×64 PNG data URL
 async function fileToIconPng(file) {
@@ -911,6 +904,17 @@ function bindEvents() {
     if (result?.success) {
       const fname = result.filePath.split(/[\\/]/).pop();
       showToast(`백업 저장 완료: ${fname}`);
+    }
+  });
+
+  // 불러오기
+  btnImport?.addEventListener('click', async () => {
+    const result = await api.importMemos();
+    if (result?.success) {
+      showToast(`${result.count}개 메모 불러오기 완료`);
+      await loadMemos();
+    } else if (result?.error) {
+      showToast(result.error);
     }
   });
 
