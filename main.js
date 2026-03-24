@@ -145,22 +145,11 @@ function createMemoWindow(memoData, options = {}) {
     updateTrayMenu();
   });
 
-  // 자식 메모: 부모 아래로 이동 시 스냅 + 그룹 이동
+  // 답글 메모: 항상 부모 아래에 고정 (독립 이동 불가)
   if (memoData.parentId) {
-    const SNAP_DIST  = 50;
-    let attached     = false;
-    let _syncing     = false;
+    let attached = false;
+    let _syncing = false;
     let _parentMoveHandler = null;
-
-    const detach = () => {
-      if (!attached) return;
-      attached = false;
-      const pw = memoWindows.get(memoData.parentId);
-      if (pw && !pw.isDestroyed() && _parentMoveHandler) {
-        pw.removeListener('move', _parentMoveHandler);
-      }
-      _parentMoveHandler = null;
-    };
 
     const attach = (parentWin) => {
       if (attached) return;
@@ -177,46 +166,26 @@ function createMemoWindow(memoData, options = {}) {
       parentWin.on('move', _parentMoveHandler);
     };
 
-    win.on('moved', () => {
-      if (win.isDestroyed() || _syncing) return;
-      const parentWin = memoWindows.get(memoData.parentId);
-      if (!parentWin || parentWin.isDestroyed()) return;
-      const pb  = parentWin.getBounds();
-      const cb  = win.getBounds();
-      const snapX = pb.x;
-      const snapY = pb.y + pb.height + 2;
-      const dist  = Math.hypot(cb.x - snapX, cb.y - snapY);
-
-      if (attached) {
-        // 멀리 드래그하면 분리
-        if (dist > SNAP_DIST * 3) detach();
-      } else {
-        // 가까우면 스냅 + 그룹화
-        if (dist < SNAP_DIST) {
-          _syncing = true;
-          win.setPosition(Math.round(snapX), Math.round(snapY));
-          _syncing = false;
-          attach(parentWin);
-        }
+    // 표시 시 즉시 부모 아래에 붙음 (신규 생성 또는 앱 재시작)
+    win.once('show', () => {
+      const parentWin = (options.immediateAttach && !options.immediateAttach.isDestroyed())
+        ? options.immediateAttach
+        : memoWindows.get(memoData.parentId);
+      if (parentWin && !parentWin.isDestroyed()) {
+        const pb = parentWin.getBounds();
+        _syncing = true;
+        win.setPosition(Math.round(pb.x), Math.round(pb.y + pb.height + 2));
+        _syncing = false;
+        attach(parentWin);
       }
     });
 
-    // 창 닫힐 때 핸들러 정리
-    win.on('closed', () => detach());
-
-    // 즉시 부착 옵션: 생성 시 바로 부모 아래에 붙음
-    if (options.immediateAttach && !options.immediateAttach.isDestroyed()) {
-      win.once('show', () => {
-        const parentWin = options.immediateAttach;
-        if (parentWin && !parentWin.isDestroyed()) {
-          const pb = parentWin.getBounds();
-          _syncing = true;
-          win.setPosition(Math.round(pb.x), Math.round(pb.y + pb.height + 2));
-          _syncing = false;
-          attach(parentWin);
-        }
-      });
-    }
+    win.on('closed', () => {
+      if (attached && _parentMoveHandler) {
+        const pw = memoWindows.get(memoData.parentId);
+        if (pw && !pw.isDestroyed()) pw.removeListener('move', _parentMoveHandler);
+      }
+    });
   }
 
   memoWindows.set(id, win);
@@ -647,6 +616,16 @@ function registerIpcHandlers() {
   ipcMain.handle('window:setMovable', (event, movable) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win && !win.isDestroyed()) win.setMovable(movable);
+    return true;
+  });
+
+  // 창 폭 변경 (원본 테마 적용 시 폭 동기화)
+  ipcMain.handle('window:setWidth', (event, width) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) {
+      const [, h] = win.getSize();
+      win.setSize(Math.max(200, Math.round(width)), h);
+    }
     return true;
   });
 

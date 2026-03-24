@@ -176,7 +176,12 @@
           <span class="annotation-panel-title">
             <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true" style="margin-right:4px;vertical-align:-1px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>주석
           </span>
-          <span class="annotation-count" id="annotationCount"></span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <span class="annotation-count" id="annotationCount"></span>
+            <button class="annotation-fold-btn" id="btnAnnotationFold" title="주석 패널 접기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+          </div>
         </div>
         <div class="annotation-list" id="annotationList"></div>
       </div>
@@ -186,7 +191,7 @@
         <span class="created-date" id="createdDate"></span>
         <!-- 버튼 영역 (overflow:hidden — 팝업 없는 버튼만) -->
         <div class="action-icons">
-          <button class="action-icon-btn reply"      id="btnReply"      title="주석 추가">
+          <button class="action-icon-btn reply"      id="btnReply"      title="답글 추가">
             <i data-lucide="message-circle" width="15" height="15"></i>
           </button>
           <button class="action-icon-btn thread-fold" id="btnThreadFold" title="주석 접기/펼치기">

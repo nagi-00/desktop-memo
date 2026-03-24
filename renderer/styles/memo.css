@@ -539,7 +539,8 @@
 .memo-card.is-reply .action-bar { display: none; }
 .memo-card.is-reply .reply-context {
   border-radius: var(--radius-card) var(--radius-card) 0 0;
-  -webkit-app-region: drag;
+  /* 독립 이동 불가: 부모 메모와 항상 붙어있음 */
+  -webkit-app-region: no-drag;
   cursor: default;
 }
 .memo-card.is-reply .reply-context > * { -webkit-app-region: no-drag; }
@@ -644,6 +645,21 @@
 }
 .annotation-panel-title { display: flex; align-items: center; }
 .annotation-count { opacity: 0.6; }
+.annotation-fold-btn {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s, transform 0.2s;
+  -webkit-app-region: no-drag;
+}
+.annotation-fold-btn:hover { opacity: 1; }
+.annotation-panel.folded .annotation-fold-btn { transform: rotate(180deg); }
+.annotation-panel.folded .annotation-list { display: none; }
 
 .annotation-entry {
   padding: 7px 12px 8px;
@@ -1713,8 +1729,8 @@
 .memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
 .memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
 
-/* 상태바: SN 전용 버튼 / 핀 / 투명도 / 색상 / 숨기기만 표시 */
-.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only) { display: none; }
+/* 상태바: SN 전용 버튼 / 핀 / 투명도 / 색상 / 숨기기 / 삭제만 표시 */
+.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only):not(#btnDelete) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-spacer { display: none; }
 
@@ -1728,3 +1744,7 @@
 .memo-card.sticky-notes-mode .memo-content {
   padding-top: 8px;
 }
+
+/* SN 위치잠금: 모든 드래그 영역 비활성화 (Linux setMovable 미지원 대응) */
+.memo-card.sn-move-locked .status-bar-inner { -webkit-app-region: no-drag !important; }
+.memo-card.sn-move-locked .status-bar-inner .sb-spacer { -webkit-app-region: no-drag !important; }

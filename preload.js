@@ -93,6 +93,9 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 창 이동 잠금 (SN 위치잠금) ──
   setWindowMovable: (movable) => ipcRenderer.invoke('window:setMovable', movable),
 
+  // ── 창 폭 변경 (원본 테마 적용 시 동기화) ──
+  setWindowWidth: (w) => ipcRenderer.invoke('window:setWidth', w),
+
   // ── 답글 스레드 접기 ──
   foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 

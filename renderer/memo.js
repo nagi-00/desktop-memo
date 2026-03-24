@@ -346,6 +346,8 @@ async function init() {
     btnSNMoveLock.addEventListener('click', async () => {
       isSNMoveLocked = !isSNMoveLocked;
       await api.setWindowMovable(!isSNMoveLocked);
+      // Linux: setMovable 미지원 → CSS로 drag region 비활성화
+      document.querySelector('.memo-card')?.classList.toggle('sn-move-locked', isSNMoveLocked);
       const icon = btnSNMoveLock.querySelector('[data-lucide]');
       if (icon) {
         icon.setAttribute('data-lucide', isSNMoveLocked ? 'lock' : 'lock-open');
@@ -355,6 +357,14 @@ async function init() {
       btnSNMoveLock.title = isSNMoveLocked ? '위치 잠금 해제' : '위치 잠금';
     });
   }
+
+  // 주석 패널 접기 버튼
+  document.getElementById('btnAnnotationFold')?.addEventListener('click', () => {
+    const panel = document.getElementById('annotationPanel');
+    if (!panel) return;
+    const folded = panel.classList.toggle('folded');
+    document.getElementById('btnAnnotationFold').title = folded ? '주석 패널 펼치기' : '주석 패널 접기';
+  });
 
   // 심볼 아이콘 적용
   applySymbolIcon(settings?.symbolIcon || 'clover');
@@ -420,7 +430,7 @@ async function init() {
     const parent = allMemos?.find(m => m.id === memoData.parentId);
     if (parent) {
       const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = `${parent.profile?.name || '메모'}의 주석`;
+      ctxText.textContent = `${parent.profile?.name || '메모'}의 답글`;
       replyCtx.style.display = 'flex';
       ctxText.style.cursor = 'pointer';
       ctxText.addEventListener('click', () => api.focusMemo(parent.id));
@@ -446,13 +456,17 @@ async function init() {
             document.documentElement.style.setProperty('--memo-font-family', memoData.font.family || 'system-ui');
             document.documentElement.style.setProperty('--memo-font-size', `${memoData.font.size || 14}px`);
           }
+          // 부모 폭도 동기화
+          if (freshParent.window?.width) {
+            api.setWindowWidth(freshParent.window.width);
+          }
           saveMemoChanges({ theme: memoData.theme, font: memoData.font });
         });
       }
     } else {
       // 부모 메모를 못 찾아도 context bar 표시
       const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = '주석 메모';
+      ctxText.textContent = '답글 메모';
       replyCtx.style.display = 'flex';
     }
 
@@ -1180,7 +1194,7 @@ function applyImageEdit() {
   imgEditorTarget = null;
 }
 
-// ── 텍스트 하이라이트 토글 ────────────────────
+// ── 텍스트 하이라이트 토글 (execCommand로 undo 지원) ─────
 function toggleHighlight() {
   const sel = window.getSelection();
   if (!sel?.rangeCount || sel.isCollapsed) return;
@@ -1192,23 +1206,17 @@ function toggleHighlight() {
   const existingMark = node.closest?.('mark');
 
   if (existingMark && memoContent.contains(existingMark)) {
-    // 하이라이트 제거
-    const parent = existingMark.parentNode;
-    const frag = document.createDocumentFragment();
-    while (existingMark.firstChild) frag.appendChild(existingMark.firstChild);
-    parent.replaceChild(frag, existingMark);
-    parent.normalize();
+    // 하이라이트 제거 — mark 전체 선택 후 내용으로 교체 (undo 스택 유지)
+    const markRange = document.createRange();
+    markRange.selectNode(existingMark);
+    sel.removeAllRanges();
+    sel.addRange(markRange);
+    document.execCommand('insertHTML', false, existingMark.innerHTML);
   } else {
-    // 하이라이트 적용
-    try {
-      const mark = document.createElement('mark');
-      range.surroundContents(mark);
-    } catch {
-      const mark = document.createElement('mark');
-      const frag = range.extractContents();
-      mark.appendChild(frag);
-      range.insertNode(mark);
-    }
+    // 하이라이트 적용 — insertHTML로 undo 스택 유지
+    const tmpDiv = document.createElement('div');
+    tmpDiv.appendChild(range.cloneContents());
+    document.execCommand('insertHTML', false, `<mark>${tmpDiv.innerHTML}</mark>`);
   }
   scheduleSave();
 }
@@ -1804,6 +1812,23 @@ function bindEvents() {
 
   // 심볼 버튼 → 메모 목록 열기
   symbolBtn.addEventListener('click', () => api.openList());
+
+  // 클로버(심볼) 버튼 커스텀 툴팁 (drag region 내 title 미표시 대응)
+  {
+    let _snTt = null;
+    symbolBtn.addEventListener('mouseenter', () => {
+      _snTt = document.createElement('div');
+      _snTt.className = 'link-tooltip';
+      _snTt.textContent = symbolBtn.title || '메모 목록 열기';
+      document.body.appendChild(_snTt);
+      const r = symbolBtn.getBoundingClientRect();
+      _snTt.style.right = `${window.innerWidth - r.right}px`;
+      _snTt.style.top   = `${r.top - 24}px`;
+      requestAnimationFrame(() => _snTt?.classList.add('visible'));
+    });
+    symbolBtn.addEventListener('mouseleave', () => { _snTt?.remove(); _snTt = null; });
+    symbolBtn.addEventListener('click', () => { _snTt?.remove(); _snTt = null; });
+  }
 
   // 프로필 이름 인라인 편집
   displayName.addEventListener('keydown', (e) => {

@@ -251,7 +251,7 @@ function renderList() {
           const collapsed = toggleBtn.dataset.collapsed === 'true';
           const next = !collapsed;
           toggleBtn.dataset.collapsed = String(next);
-          toggleBtn.title = next ? '주석 펼치기' : '주석 접기';
+          toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
           toggleBtn.classList.toggle('collapsed', next);
           replyEls.forEach(el => {
             if (next) {
@@ -306,7 +306,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     <div class="item-info">
       <div class="item-name">
         ${escHtml(memo.profile?.name || '메모')}
-        ${isReply ? '<span class="reply-label">주석</span>' : ''}
+        ${isReply ? '<span class="reply-label">답글</span>' : ''}
         ${isThreadRoot && replyCount > 0 ? `<span class="thread-count">${replyCount}</span>` : ''}
       </div>
       <div class="item-preview">${escHtml(preview)}</div>
@@ -320,7 +320,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     const toggleBtn = document.createElement('button');
     toggleBtn.className = 'thread-toggle';
     toggleBtn.dataset.collapsed = 'false';
-    toggleBtn.title = '주석 접기';
+    toggleBtn.title = '답글 접기';
     toggleBtn.innerHTML = `<span class="tt-arrow">▾</span>${replyCount}`;
     toggleBtn.addEventListener('click', (e) => e.stopPropagation());
     el.appendChild(toggleBtn);
@@ -368,7 +368,7 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     } else {
       showListContextMenu([
         { label: '메모 열기',  action: () => api.focusMemo(memo.id) },
-        { label: '주석 추가',  action: () => api.createReply(memo.id) },
+        { label: '답글 추가',  action: () => api.createReply(memo.id) },
         'sep',
         { label: '삭제', danger: true, action: async () => {
           await api.deleteById(memo.id);
@@ -491,7 +491,7 @@ function renderPreview(memo, isTrash = false) {
     ctx.innerHTML = `
       <span class="thread-ctx-icon">↩</span>
       <span class="thread-ctx-text">
-        <strong>${escHtml(parentMemo.profile?.name || '메모')}</strong>의 주석
+        <strong>${escHtml(parentMemo.profile?.name || '메모')}</strong>의 답글
       </span>
     `;
     ctx.style.cursor = 'pointer';
@@ -541,7 +541,7 @@ function renderPreview(memo, isTrash = false) {
     threadSection.className = 'preview-thread';
     const threadHeader = document.createElement('div');
     threadHeader.className = 'preview-thread-header';
-    threadHeader.textContent = `주석 ${replies.length}개`;
+    threadHeader.textContent = `답글 ${replies.length}개`;
     threadSection.appendChild(threadHeader);
 
     replies.forEach(reply => {
