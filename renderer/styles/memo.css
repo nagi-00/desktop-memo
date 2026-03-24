@@ -1325,6 +1325,12 @@
 .media-grid .img-wrap:has(img[src$=".svg"]) {
   min-height: 120px;
 }
+/* Sticky Notes 모드: SVG 셀 높이를 제한해 잘림 방지 */
+.memo-card.sticky-notes-mode .media-grid .img-wrap:has(img[src^="data:image/svg"]),
+.memo-card.sticky-notes-mode .media-grid .img-wrap:has(img[src$=".svg"]) {
+  min-height: 60px;
+  max-height: 120px;
+}
 /* 삭제 버튼 (X) */
 .media-grid .img-remove {
   position: absolute;

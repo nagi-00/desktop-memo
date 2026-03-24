@@ -695,6 +695,13 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // 마우스 이벤트 무시 토글 (잠금 클릭스루)
+  ipcMain.handle('window:setIgnoreMouseEvents', (event, ignore, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(ignore, options || {});
+    return true;
+  });
+
   // 창 폭 변경 (원본 테마 적용 시 폭 동기화)
   ipcMain.handle('window:setWidth', (event, width) => {
     const win = BrowserWindow.fromWebContents(event.sender);

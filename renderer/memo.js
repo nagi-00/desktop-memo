@@ -567,6 +567,7 @@ async function init() {
       icon.setAttribute('data-lucide', 'lock');
       if (window.lucide) lucide.createIcons({ nodes: [icon] });
     }
+    _startClickThrough();
   }
 
   // 투명도
@@ -2037,8 +2038,6 @@ function bindEvents() {
   }
 
   // ── 잠금 토글 (클릭/편집 차단) ──────────────────
-  let _relockCleanup = null; // 임시 잠금 해제 리스너 정리 함수
-
   function _setLockIcon(locked) {
     const icon = btnLock?.querySelector('[data-lucide]');
     if (icon) {
@@ -2047,9 +2046,37 @@ function bindEvents() {
     }
   }
 
+  // ── 잠금 클릭스루: 상태바 호버 시 마우스 이벤트 활성화 ──
+  let _lockMouseMoveHandler = null;
+  let _lastIgnoreState = null;
+
+  function _startClickThrough() {
+    api.setIgnoreMouseEvents?.(true, { forward: true });
+    _lastIgnoreState = true;
+    _lockMouseMoveHandler = (e) => {
+      const statusBar = document.querySelector('.status-bar-inner');
+      if (!statusBar) return;
+      const rect = statusBar.getBoundingClientRect();
+      const overBar = e.clientX >= rect.left && e.clientX <= rect.right &&
+                      e.clientY >= rect.top  && e.clientY <= rect.bottom;
+      const shouldIgnore = !overBar;
+      if (_lastIgnoreState === shouldIgnore) return;
+      _lastIgnoreState = shouldIgnore;
+      api.setIgnoreMouseEvents?.(shouldIgnore, shouldIgnore ? { forward: true } : {});
+    };
+    document.addEventListener('mousemove', _lockMouseMoveHandler);
+  }
+
+  function _stopClickThrough() {
+    if (_lockMouseMoveHandler) {
+      document.removeEventListener('mousemove', _lockMouseMoveHandler);
+      _lockMouseMoveHandler = null;
+    }
+    _lastIgnoreState = null;
+    api.setIgnoreMouseEvents?.(false);
+  }
+
   function applyLock(locked) {
-    // 임시 잠금 해제 상태이면 리스너 정리
-    if (_relockCleanup) { _relockCleanup(); _relockCleanup = null; }
     isLocked = locked;
     document.querySelector('.memo-card').classList.toggle('locked', locked);
     memoContent.contentEditable = locked ? 'false' : 'true';
@@ -2057,56 +2084,9 @@ function bindEvents() {
     saveMemoChanges({ isLocked: locked });
     // 서브 메모(답글)도 일괄 잠금/해제
     api.broadcastLockToChildren?.(locked);
+    // 클릭스루 적용
+    if (locked) _startClickThrough(); else _stopClickThrough();
   }
-
-  // ── 더블클릭으로 임시 잠금 해제, 외부 클릭/포커스 아웃 시 재잠금 ──
-  function tempUnlock() {
-    if (!isLocked || _relockCleanup) return;
-    const card = document.querySelector('.memo-card');
-    card.classList.remove('locked');
-    memoContent.contentEditable = 'true';
-    _setLockIcon(false);
-    memoContent.focus();
-
-    function relock() {
-      if (!_relockCleanup) return;
-      _relockCleanup = null;
-      card.classList.add('locked');
-      memoContent.contentEditable = 'false';
-      _setLockIcon(true);
-      document.removeEventListener('mousedown', onOutside, true);
-      window.removeEventListener('blur', relock);
-    }
-    function onOutside(e) {
-      if (!card.contains(e.target)) relock();
-    }
-
-    _relockCleanup = () => {
-      document.removeEventListener('mousedown', onOutside, true);
-      window.removeEventListener('blur', relock);
-    };
-    // dblclick의 mousedown이 즉시 relock을 트리거하지 않도록 딜레이
-    setTimeout(() => {
-      document.addEventListener('mousedown', onOutside, true);
-      window.addEventListener('blur', relock);
-    }, 200);
-  }
-
-  // 잠금 오버레이: 더블클릭 → 임시 해제, 휠 → 스크롤 포워딩, 체크박스 클릭 통과
-  lockOverlay?.addEventListener('dblclick', tempUnlock);
-  lockOverlay?.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    memoContent.scrollTop += e.deltaY;
-  }, { passive: false });
-  lockOverlay?.addEventListener('mousedown', (e) => {
-    // 오버레이 아래 체크박스를 클릭한 경우 클릭 이벤트 포워딩
-    lockOverlay.style.pointerEvents = 'none';
-    const below = document.elementFromPoint(e.clientX, e.clientY);
-    lockOverlay.style.pointerEvents = '';
-    if (below?.matches('.cb-item input[type="checkbox"]')) {
-      below.click();
-    }
-  });
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));

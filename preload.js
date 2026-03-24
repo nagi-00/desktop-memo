@@ -102,6 +102,9 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 창 이동 잠금 (SN 위치잠금) ──
   setWindowMovable: (movable) => ipcRenderer.invoke('window:setMovable', movable),
 
+  // ── 마우스 이벤트 무시 (잠금 클릭스루) ──
+  setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore, options),
+
   // ── 서브 메모 일괄 잠금 (부모→자식 전파) ──
   broadcastLockToChildren: (locked) => ipcRenderer.invoke('memo:lockChildren', { parentId: memoId, locked }),
   onParentLocked: (callback) => {
