@@ -51,9 +51,17 @@ const SYMBOL_ICONS = [
   { id: 'flower-2',  label: '꽃',     svg: _filledSvg(_FILLED['flower-2']) },
 ];
 
+let _currentSymbolIconId = 'clover';
+let _customAppIconUrl = null;
+
 function applySymbolIcon(iconId) {
+  _currentSymbolIconId = iconId;
   const iconEl = document.getElementById('symbolBtnIcon');
   if (!iconEl) return;
+  if (_customAppIconUrl) {
+    iconEl.innerHTML = `<img src="${_customAppIconUrl}" width="20" height="20" style="object-fit:contain;display:block;border-radius:3px" alt="" draggable="false"/>`;
+    return;
+  }
   const def = SYMBOL_ICONS.find(ic => ic.id === iconId) || SYMBOL_ICONS[0];
   iconEl.innerHTML = def.svg;
 }
@@ -373,9 +381,14 @@ async function init() {
     document.getElementById('btnAnnotationFold').title = folded ? '주석 패널 펼치기' : '주석 패널 접기';
   });
 
-  // 심볼 아이콘 적용
+  // 심볼 아이콘 적용 (커스텀 아이콘 우선)
+  _customAppIconUrl = settings?.customAppIcon || null;
   applySymbolIcon(settings?.symbolIcon || 'clover');
   api.onSymbolIconChanged?.((iconId) => applySymbolIcon(iconId));
+  api.onCustomIconChanged?.((dataUrl) => {
+    _customAppIconUrl = dataUrl || null;
+    applySymbolIcon(_currentSymbolIconId);
+  });
 
   // 테마
   applyTheme(memoData.theme?.accent ?? null, currentMode);

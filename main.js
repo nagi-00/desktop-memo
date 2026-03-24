@@ -623,9 +623,27 @@ function registerIpcHandlers() {
   ipcMain.handle('window:setWidth', (event, width) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win && !win.isDestroyed()) {
-      const [, h] = win.getSize();
-      win.setSize(Math.max(200, Math.round(width)), h);
+      const bounds = win.getBounds();
+      win.setSize(Math.max(200, Math.round(width)), bounds.height);
+      // 좌측 엣지 유지 (Linux는 center 기준으로 리사이즈될 수 있음)
+      win.setPosition(bounds.x, bounds.y);
     }
+    return true;
+  });
+
+  // 커스텀 앱 아이콘 설정 (트레이 + 심볼 버튼)
+  ipcMain.handle('settings:setCustomIcon', (_e, dataUrl) => {
+    store.set('globalSettings.customAppIcon', dataUrl || null);
+    if (dataUrl && tray && !tray.isDestroyed()) {
+      try {
+        tray.setImage(nativeImage.createFromDataURL(dataUrl));
+      } catch { updateTrayIcon(); }
+    } else if (!dataUrl) {
+      updateTrayIcon();
+    }
+    BrowserWindow.getAllWindows().forEach(w => {
+      if (!w.isDestroyed()) w.webContents.send('settings:customIconChanged', dataUrl || null);
+    });
     return true;
   });
 

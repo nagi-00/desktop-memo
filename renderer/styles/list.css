@@ -1343,3 +1343,45 @@ body {
   color: inherit;
   white-space: nowrap;
 }
+
+/* ══ 설정: 커스텀 앱 아이콘 업로드 ══ */
+.settings-icon-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.settings-icon-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.settings-upload-btn,
+.settings-reset-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.settings-upload-btn:hover {
+  border-color: var(--color-accent, #8fbc8f);
+  background: color-mix(in srgb, var(--color-accent, #8fbc8f) 8%, transparent);
+}
+.settings-reset-icon-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239,68,68,0.06);
+}

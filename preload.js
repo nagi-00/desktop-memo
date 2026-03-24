@@ -82,6 +82,14 @@ contextBridge.exposeInMainWorld('memoAPI', {
     return () => ipcRenderer.removeListener('settings:accentColorChanged', handler);
   },
 
+  // ── 커스텀 앱 아이콘 ──
+  setCustomIcon: (dataUrl) => ipcRenderer.invoke('settings:setCustomIcon', dataUrl),
+  onCustomIconChanged: (callback) => {
+    const handler = (_e, dataUrl) => callback(dataUrl);
+    ipcRenderer.on('settings:customIconChanged', handler);
+    return () => ipcRenderer.removeListener('settings:customIconChanged', handler);
+  },
+
   // ── 심볼 아이콘 선택 ──
   setSymbolIcon: (iconId) => ipcRenderer.invoke('settings:setSymbolIcon', iconId),
   onSymbolIconChanged: (callback) => {

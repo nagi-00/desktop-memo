@@ -56,6 +56,7 @@ async function init() {
   if (settings?.theme) setThemeMode(settings.theme);
   isStickyNotesMode = settings?.stickyNotesMode || false;
   if (settings?.accentColor) applyAccentColor(settings.accentColor);
+  if (settings?.customAppIcon) applyListCloverCustomIcon(settings.customAppIcon);
 
   await loadMemos();
   bindEvents();
@@ -76,6 +77,14 @@ async function init() {
   // accent color 변경 수신
   if (api.onAccentColorChanged) {
     api.onAccentColorChanged((color) => applyAccentColor(color));
+  }
+
+  // 커스텀 아이콘 변경 수신
+  if (api.onCustomIconChanged) {
+    api.onCustomIconChanged((dataUrl) => {
+      applyListCloverCustomIcon(dataUrl);
+      renderSettingsCustomIcon();
+    });
   }
 
   // 메모 창에서 보낸 스레드 접기/펼치기 요청 처리
@@ -683,11 +692,61 @@ const PRESET_COLORS = [
   { color: '#adb5bd', label: '실버' },
 ];
 
+// 이미지 파일 → 64×64 PNG data URL 변환 (SVG·PNG 모두 지원)
+async function fileToIconPng(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 64;
+        canvas.getContext('2d').drawImage(img, 0, 0, 64, 64);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(null);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyListCloverCustomIcon(dataUrl) {
+  const svg = document.getElementById('listCloverSvg');
+  const img = document.getElementById('listCustomIconImg');
+  if (!svg || !img) return;
+  if (dataUrl) {
+    svg.style.display = 'none';
+    img.src = dataUrl;
+    img.style.display = '';
+  } else {
+    svg.style.display = '';
+    img.style.display = 'none';
+  }
+}
+
+function renderSettingsCustomIcon() {
+  const preview = document.getElementById('settingsIconPreview');
+  const resetBtn = document.getElementById('btnResetIcon');
+  if (!preview) return;
+  api.getSettings().then(settings => {
+    const url = settings?.customAppIcon;
+    if (url) {
+      preview.innerHTML = `<img src="${url}" width="32" height="32" style="object-fit:contain;border-radius:4px;display:block" alt=""/>`;
+      if (resetBtn) resetBtn.style.display = '';
+    } else {
+      preview.innerHTML = `<span style="width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;opacity:0.25;font-size:22px">◻</span>`;
+      if (resetBtn) resetBtn.style.display = 'none';
+    }
+  });
+}
+
 function showSettingsOverlay() {
   const overlay = document.getElementById('settingsOverlay');
   if (overlay) overlay.classList.add('visible');
   renderSettingsColors();
   renderSettingsIcons();
+  renderSettingsCustomIcon();
 }
 
 function hideSettingsOverlay() {
@@ -872,6 +931,25 @@ function bindEvents() {
   document.getElementById('btnLightMode')?.addEventListener('click', async () => {
     await api.setThemeMode('light');
     setThemeMode('light');
+  });
+
+  // 커스텀 앱 아이콘 업로드
+  document.getElementById('btnUploadIcon')?.addEventListener('click', () => {
+    document.getElementById('iconFileInput')?.click();
+  });
+  document.getElementById('iconFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const pngDataUrl = await fileToIconPng(file);
+    if (pngDataUrl) {
+      await api.setCustomIcon(pngDataUrl);
+      renderSettingsCustomIcon();
+    }
+    e.target.value = '';
+  });
+  document.getElementById('btnResetIcon')?.addEventListener('click', async () => {
+    await api.setCustomIcon(null);
+    renderSettingsCustomIcon();
   });
 
   document.addEventListener('keydown', (e) => {
