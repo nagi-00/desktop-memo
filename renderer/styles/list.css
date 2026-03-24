@@ -1294,6 +1294,7 @@ body {
   color: var(--color-accent);
   flex-shrink: 0;
   cursor: pointer;
+  -webkit-app-region: no-drag;
   transition: opacity 0.15s;
 }
 .list-title-clover:hover { opacity: 0.75; }

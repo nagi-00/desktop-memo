@@ -346,7 +346,14 @@ async function init() {
     btnSNMoveLock.addEventListener('click', async () => {
       isSNMoveLocked = !isSNMoveLocked;
       await api.setWindowMovable(!isSNMoveLocked);
-      // Linux: setMovable 미지원 → CSS로 drag region 비활성화
+      // Linux에서 setMovable 미지원 → drag region 직접 조작 (CSS class보다 신뢰도 높음)
+      const statusInner = document.querySelector('.status-bar-inner');
+      if (statusInner) {
+        statusInner.style.webkitAppRegion = isSNMoveLocked ? 'no-drag' : '';
+      }
+      document.querySelectorAll('.sb-spacer').forEach(el => {
+        el.style.webkitAppRegion = isSNMoveLocked ? 'no-drag' : '';
+      });
       document.querySelector('.memo-card')?.classList.toggle('sn-move-locked', isSNMoveLocked);
       const icon = btnSNMoveLock.querySelector('[data-lucide]');
       if (icon) {
