@@ -93,7 +93,7 @@ function createMemoWindow(memoData, options = {}) {
     width:     winWidth,
     height:    winHeight,
     minWidth:  minimized ? BUBBLE_SIZE : 260,
-    minHeight: minimized ? BUBBLE_SIZE : 200,
+    minHeight: minimized ? BUBBLE_SIZE : 80,
     frame:      false,
     transparent:true,
     resizable:  !minimized,
@@ -171,22 +171,6 @@ function createMemoWindow(memoData, options = {}) {
       _parentResizeHandler = snapToParent;
       parentWin.on('move',   _parentMoveHandler);
       parentWin.on('resize', _parentResizeHandler);
-
-      // 답글 자체가 이동/리사이즈되면 부모 아래 위치에서 벗어났을 때 재부착
-      _selfHandler = () => {
-        if (win.isDestroyed() || _syncing) return;
-        if (!parentWin || parentWin.isDestroyed()) return;
-        const pb = parentWin.getBounds();
-        const wb = win.getBounds();
-        const expectedY = pb.y + pb.height + 2;
-        if (Math.abs(wb.y - expectedY) > 4 || Math.abs(wb.x - pb.x) > 4) {
-          _syncing = true;
-          win.setPosition(Math.round(pb.x), Math.round(expectedY));
-          _syncing = false;
-        }
-      };
-      win.on('resize', _selfHandler);
-      win.on('move',   _selfHandler);
     };
 
     // 표시 시 즉시 부모 아래에 붙음 (신규 생성 또는 앱 재시작)
