@@ -213,7 +213,9 @@ function updateMemoField(id, field, value) {
 // ──────────────────────────────────────────
 function attachChildWindow(aboveWin, belowWin) {
   let syncing = false;
-  const sync = () => {
+
+  // aboveWin 기준으로 belowWin 위치 재계산
+  const snapBelow = () => {
     if (aboveWin.isDestroyed() || belowWin.isDestroyed() || syncing) return;
     syncing = true;
     try {
@@ -222,13 +224,31 @@ function attachChildWindow(aboveWin, belowWin) {
       belowWin.setBounds({ x: ab.x, y: ab.y + ab.height + 2, width: ab.width, height: bel.height });
     } finally { syncing = false; }
   };
-  sync();
-  aboveWin.on('resize', sync);
-  aboveWin.on('move',   sync);
+
+  // 답글이 이동/리사이즈되면 원본 아래로 재부착
+  const snapBelowIfDetached = () => {
+    if (aboveWin.isDestroyed() || belowWin.isDestroyed() || syncing) return;
+    const ab  = aboveWin.getBounds();
+    const bel = belowWin.getBounds();
+    const expectedY = ab.y + ab.height + 2;
+    if (Math.abs(bel.y - expectedY) > 4 || Math.abs(bel.x - ab.x) > 4) {
+      syncing = true;
+      try {
+        belowWin.setBounds({ x: ab.x, y: expectedY, width: ab.width, height: bel.height });
+      } finally { syncing = false; }
+    }
+  };
+
+  snapBelow();
+  aboveWin.on('resize', snapBelow);
+  aboveWin.on('move',   snapBelow);
+  belowWin.on('resize', snapBelowIfDetached);
+  belowWin.on('move',   snapBelowIfDetached);
+
   belowWin.on('closed', () => {
     if (!aboveWin.isDestroyed()) {
-      aboveWin.off('resize', sync);
-      aboveWin.off('move',   sync);
+      aboveWin.off('resize', snapBelow);
+      aboveWin.off('move',   snapBelow);
     }
   });
 }
