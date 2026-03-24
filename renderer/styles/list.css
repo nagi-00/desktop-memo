@@ -1398,3 +1398,9 @@ body {
   transition: opacity 0.12s;
 }
 .settings-iconstack-link:hover { opacity: 1; }
+.settings-svg-hint {
+  margin: 5px 0 0;
+  font-size: 10px;
+  color: var(--color-text-dim);
+  opacity: 0.6;
+}
