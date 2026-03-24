@@ -89,8 +89,9 @@ async function init() {
   }
 
   // 커스텀 아이콘 변경 수신
+  // preload가 opts({ dataUrl, svgText }) 객체째로 전달하므로 구조분해 필수
   if (api.onCustomIconChanged) {
-    api.onCustomIconChanged((dataUrl) => {
+    api.onCustomIconChanged(({ dataUrl } = {}) => {
       applyListCloverCustomIcon(dataUrl);
       renderSettingsCustomIcon();
     });

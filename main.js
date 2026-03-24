@@ -87,6 +87,9 @@ function createMemoWindow(memoData, options = {}) {
   const winWidth  = minimized ? BUBBLE_SIZE : (bounds.width  || 320);
   const winHeight = minimized ? BUBBLE_SIZE : (bounds.height || 420);
 
+  // Linux에서는 type:'desktop'으로 생성 → 데스크탑 레이어에 위치,
+  // OS 드래그 선택 박스(rubber band)가 메모 위에 표시됨.
+  // 핀 시 setAlwaysOnTop(true)로 정상 앱 레이어로 올라옴.
   const win = new BrowserWindow({
     x: bounds.x,
     y: bounds.y,
@@ -100,6 +103,7 @@ function createMemoWindow(memoData, options = {}) {
     alwaysOnTop:pinned,
     opacity,
     show: false,
+    ...(process.platform === 'linux' ? { type: 'desktop' } : {}),
     webPreferences: {
       preload:         path.join(__dirname, 'preload.js'),
       contextIsolation:true,

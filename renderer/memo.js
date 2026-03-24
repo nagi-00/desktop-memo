@@ -38,12 +38,19 @@ let _customAppIconSvgText = null;
 function _applyIconEl(el, size, defaultHtmlFn) {
   if (!el) return;
   if (_customAppIconSvgText) {
+    // 루트 <svg> 태그의 width/height/style을 정확히 교체.
+    // 단순 정규식은 자식 요소의 속성을 잘못 교체할 수 있으므로
+    // 캡처 그룹으로 <svg ...> 전체를 처리한다.
     const s = _customAppIconSvgText
       .replace(/fill="(?!none\b)[^"]*"/gi,   'fill="currentColor"')
       .replace(/stroke="(?!none\b)[^"]*"/gi, 'stroke="currentColor"')
-      .replace(/<svg\b/, '<svg style="color:var(--color-accent)"')
-      .replace(/width="[^"]*"/, `width="${size}"`)
-      .replace(/height="[^"]*"/, `height="${size}"`);
+      .replace(/<svg\b([^>]*)>/, (_, attrs) => {
+        const cleaned = attrs
+          .replace(/\s*width="[^"]*"/i,  '')
+          .replace(/\s*height="[^"]*"/i, '')
+          .replace(/\s*style="[^"]*"/i,  '');
+        return `<svg${cleaned} width="${size}" height="${size}" style="color:var(--color-accent);display:block;flex-shrink:0;overflow:visible">`;
+      });
     el.innerHTML = s;
     return;
   }
