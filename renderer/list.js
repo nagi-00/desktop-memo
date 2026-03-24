@@ -628,10 +628,29 @@ function renderPreview(memo, isTrash = false) {
   previewPane.appendChild(actions);
 }
 
-// ── 웰컴 오버레이 ──
+// ── 웰컴 오버레이 (캐러셀) ──
+let _wcPage = 0;
+const WC_TOTAL = 5;
+
+function _wcGoTo(n) {
+  _wcPage = Math.max(0, Math.min(WC_TOTAL - 1, n));
+  const track = document.getElementById('wcTrack');
+  if (track) track.style.transform = `translateX(-${_wcPage * 100}%)`;
+  document.querySelectorAll('.wc-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === _wcPage);
+  });
+  const prev = document.getElementById('wcPrev');
+  const next = document.getElementById('wcNext');
+  if (prev) prev.disabled = _wcPage === 0;
+  if (next) next.disabled = _wcPage === WC_TOTAL - 1;
+}
+
 function showWelcomeOverlay() {
   const overlay = document.getElementById('welcomeOverlay');
-  if (overlay) overlay.classList.add('visible');
+  if (overlay) {
+    overlay.classList.add('visible');
+    _wcGoTo(0);
+  }
 }
 
 function hideWelcomeOverlay() {
@@ -933,6 +952,11 @@ function bindEvents() {
   document.getElementById('welcomeClose')?.addEventListener('click', hideWelcomeOverlay);
   document.getElementById('welcomeOverlay')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('welcomeOverlay')) hideWelcomeOverlay();
+  });
+  document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
+  document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
+  document.querySelectorAll('.wc-dot').forEach((d, i) => {
+    d.addEventListener('click', () => _wcGoTo(i));
   });
 
   // 설정 오버레이

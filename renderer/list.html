@@ -97,102 +97,285 @@
 <div class="welcome-overlay" id="welcomeOverlay">
   <div class="welcome-card">
 
-    <div class="welcome-hero">
-      <div class="welcome-clover">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="52" height="52" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <!-- ── 페이지 슬라이더 ── -->
+    <div class="wc-track-outer">
+      <div class="wc-track" id="wcTrack">
+
+        <!-- ─── PAGE 0: 환영 ─── -->
+        <div class="wc-page">
+          <div class="welcome-hero">
+            <div class="welcome-clover">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="52" height="52" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div class="welcome-title-block">
+              <h1 class="welcome-title">nagi memo</h1>
+              <p class="welcome-subtitle">언제든 꺼내 쓰는 나만의 메모장</p>
+            </div>
+          </div>
+          <div class="welcome-greeting">
+            <p>안녕하세요! <strong>nagi memo</strong>에 오신 것을 환영합니다.</p>
+            <p class="welcome-desc">
+              Windows 기본 메모 앱에서 영감을 받아,<br/>
+              더 자유롭고 풍부한 메모 경험을 담았습니다.<br/>
+              포스트잇처럼 바탕화면에 메모를 붙여두고,<br/>
+              언제든 꺼내 아이디어를 기록하세요.
+            </p>
+          </div>
+          <p class="wc-hint">아래 &rsaquo; 버튼으로 주요 기능을 살펴보세요</p>
+        </div>
+
+        <!-- ─── PAGE 1: 메모 창 ─── -->
+        <div class="wc-page">
+          <div class="wc-page-title">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="9" x2="16" y2="9" stroke="white" stroke-width="1.8"/><line x1="8" y1="13" x2="14" y2="13" stroke="white" stroke-width="1.8"/></svg>
+            메모 창
+          </div>
+          <svg class="wc-mockup" viewBox="0 0 400 242" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-m" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0.5 L6,3.5 L0,6.5 Z" style="fill:var(--color-accent)"/>
+              </marker>
+            </defs>
+            <!-- Shadow -->
+            <rect x="13" y="13" rx="10" width="177" height="226" style="fill:rgba(0,0,0,0.12)"/>
+            <!-- Window -->
+            <rect x="10" y="10" rx="10" width="177" height="226" style="fill:var(--color-surface);stroke:var(--color-border);stroke-width:1"/>
+            <!-- Status bar bg -->
+            <rect x="10" y="10" rx="10" width="177" height="34" style="fill:color-mix(in srgb,var(--color-accent) 20%,var(--color-surface))"/>
+            <rect x="10" y="32" width="177" height="12" style="fill:color-mix(in srgb,var(--color-accent) 20%,var(--color-surface))"/>
+            <!-- Status bar: left buttons (pin, droplets, minimize, sun) -->
+            <circle cx="25" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <circle cx="38" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <circle cx="51" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <circle cx="64" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <!-- Color dot (accent) -->
+            <circle cx="79" cy="27" r="6" style="fill:var(--color-accent)"/>
+            <!-- Status bar: right buttons (eye-off, lock, trash) -->
+            <circle cx="150" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <circle cx="163" cy="27" r="4.5" style="fill:var(--color-text-placeholder);opacity:0.5"/>
+            <circle cx="176" cy="27" r="4.5" style="fill:#ef4444;opacity:0.65"/>
+            <!-- Profile row -->
+            <rect x="10" y="44" width="177" height="38" style="fill:var(--color-surface)"/>
+            <circle cx="28" cy="63" r="11" style="fill:color-mix(in srgb,var(--color-accent) 22%,var(--color-bg))"/>
+            <rect x="44" y="57" rx="3.5" width="50" height="7" style="fill:var(--color-text);opacity:0.6"/>
+            <rect x="44" y="68" rx="2.5" width="32" height="5" style="fill:var(--color-text-muted);opacity:0.42"/>
+            <!-- Symbol btn (clover) -->
+            <circle cx="177" cy="63" r="11" style="fill:color-mix(in srgb,var(--color-accent) 12%,var(--color-bg));stroke:color-mix(in srgb,var(--color-accent) 28%,transparent);stroke-width:1.2"/>
+            <circle cx="177" cy="58" r="3" style="fill:var(--color-accent)"/>
+            <circle cx="182" cy="63" r="3" style="fill:var(--color-accent)"/>
+            <circle cx="177" cy="68" r="3" style="fill:var(--color-accent)"/>
+            <circle cx="172" cy="63" r="3" style="fill:var(--color-accent)"/>
+            <line x1="173.5" y1="59.5" x2="180.5" y2="66.5" style="stroke:white;stroke-width:1.5;stroke-linecap:round;opacity:0.85"/>
+            <!-- Content area -->
+            <rect x="10" y="82" width="177" height="116" style="fill:var(--color-bg)"/>
+            <rect x="20" y="93" rx="3" width="132" height="6" style="fill:var(--color-text);opacity:0.5"/>
+            <rect x="20" y="106" rx="3" width="105" height="6" style="fill:var(--color-text);opacity:0.33"/>
+            <rect x="20" y="119" rx="3" width="120" height="6" style="fill:var(--color-text);opacity:0.33"/>
+            <rect x="20" y="134" rx="1.5" width="7" height="7" style="fill:none;stroke:var(--color-text-placeholder);stroke-width:1.2"/>
+            <rect x="31" y="136" rx="2.5" width="58" height="5" style="fill:var(--color-text);opacity:0.28"/>
+            <circle cx="22.5" cy="155" r="2.2" style="fill:var(--color-accent);opacity:0.7"/>
+            <rect x="29" y="152" rx="2.5" width="76" height="5" style="fill:var(--color-text);opacity:0.28"/>
+            <rect x="20" y="167" rx="5" width="85" height="25" style="fill:var(--color-text);opacity:0.07;stroke:var(--color-border);stroke-width:1"/>
+            <circle cx="31" cy="179" r="4" style="fill:var(--color-text);opacity:0.12"/>
+            <!-- Divider -->
+            <line x1="10" y1="198" x2="187" y2="198" style="stroke:var(--color-border);stroke-width:1"/>
+            <!-- Action bar -->
+            <rect x="10" y="198" width="177" height="38" style="fill:var(--color-surface)"/>
+            <rect x="10" y="226" width="177" height="10" rx="8" style="fill:var(--color-surface)"/>
+            <rect x="16" y="208" rx="2" width="34" height="4" style="fill:var(--color-text-muted);opacity:0.28"/>
+            <circle cx="110" cy="211" r="7" style="fill:var(--color-text-muted);opacity:0.1"/>
+            <circle cx="125" cy="211" r="7" style="fill:var(--color-text-muted);opacity:0.1"/>
+            <circle cx="140" cy="211" r="7" style="fill:var(--color-text-muted);opacity:0.1"/>
+            <circle cx="155" cy="211" r="7" style="fill:var(--color-text-muted);opacity:0.1"/>
+            <circle cx="170" cy="211" r="7" style="fill:var(--color-accent);opacity:0.25"/>
+            <!-- ═══ ANNOTATIONS ═══ -->
+            <!-- [1] 상태바 도구 -->
+            <rect x="203" y="9" rx="5" width="192" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="210" y="21" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">상태바 도구</text>
+            <text x="210" y="31" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">핀·투명도·테마·간단히보기·잠금</text>
+            <line x1="203" y1="22" x2="189" y2="27" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-m)"/>
+            <!-- [2] 심볼 버튼 -->
+            <rect x="203" y="55" rx="5" width="192" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="210" y="67" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">심볼 버튼</text>
+            <text x="210" y="77" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">클릭 → 메모 목록 열기</text>
+            <line x1="203" y1="68" x2="189" y2="63" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-m)"/>
+            <!-- [3] 메모 영역 -->
+            <rect x="203" y="128" rx="5" width="192" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="210" y="140" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">메모 영역</text>
+            <text x="210" y="150" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">텍스트·체크박스·이미지 지원</text>
+            <line x1="203" y1="141" x2="189" y2="135" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-m)"/>
+            <!-- [4] 액션바 -->
+            <rect x="203" y="203" rx="5" width="192" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="210" y="215" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">액션바</text>
+            <text x="210" y="225" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">답글·이미지·좋아요·새 메모</text>
+            <line x1="203" y1="216" x2="189" y2="211" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-m)"/>
+          </svg>
+        </div>
+
+        <!-- ─── PAGE 2: 목록 창 ─── -->
+        <div class="wc-page">
+          <div class="wc-page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="13" height="13" aria-hidden="true" style="flex-shrink:0"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+            메모 목록 창
+          </div>
+          <svg class="wc-mockup" viewBox="0 0 400 236" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-l" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0.5 L6,3.5 L0,6.5 Z" style="fill:var(--color-accent)"/>
+              </marker>
+            </defs>
+            <!-- Shadow -->
+            <rect x="8" y="13" rx="10" width="237" height="218" style="fill:rgba(0,0,0,0.12)"/>
+            <!-- Window -->
+            <rect x="5" y="10" rx="10" width="237" height="218" style="fill:var(--color-surface);stroke:var(--color-border);stroke-width:1"/>
+            <!-- Title bar bg -->
+            <rect x="5" y="10" rx="10" width="237" height="30" style="fill:color-mix(in srgb,var(--color-accent) 12%,var(--color-surface))"/>
+            <rect x="5" y="28" width="237" height="12" style="fill:color-mix(in srgb,var(--color-accent) 12%,var(--color-surface))"/>
+            <!-- Clover icon -->
+            <circle cx="19" cy="25" r="5" style="fill:var(--color-accent)"/>
+            <!-- "nagi memo" text bar -->
+            <rect x="28" y="21" rx="2" width="40" height="7" style="fill:var(--color-text);opacity:0.65"/>
+            <!-- Search input -->
+            <rect x="74" y="18" rx="5" width="88" height="14" style="fill:var(--color-bg);stroke:var(--color-border);stroke-width:1"/>
+            <rect x="80" y="23" rx="2" width="28" height="4" style="fill:var(--color-text-muted);opacity:0.28"/>
+            <!-- New memo button -->
+            <rect x="167" y="18" rx="5" width="32" height="14" style="fill:var(--color-accent);opacity:0.85"/>
+            <!-- Icon buttons -->
+            <circle cx="205" cy="25" r="5.5" style="fill:var(--color-text-muted);opacity:0.12"/>
+            <circle cx="218" cy="25" r="5.5" style="fill:var(--color-text-muted);opacity:0.12"/>
+            <circle cx="231" cy="25" r="5.5" style="fill:var(--color-text-muted);opacity:0.12"/>
+            <!-- Filter bar -->
+            <rect x="5" y="40" width="237" height="22" style="fill:var(--color-bg)"/>
+            <rect x="10" y="44" rx="8" width="26" height="14" style="fill:var(--color-accent);opacity:0.85"/>
+            <rect x="40" y="44" rx="8" width="28" height="14" style="fill:var(--color-text-muted);opacity:0.1;stroke:var(--color-border);stroke-width:1"/>
+            <rect x="72" y="44" rx="8" width="28" height="14" style="fill:var(--color-text-muted);opacity:0.1;stroke:var(--color-border);stroke-width:1"/>
+            <rect x="104" y="44" rx="8" width="30" height="14" style="fill:var(--color-text-muted);opacity:0.1;stroke:var(--color-border);stroke-width:1"/>
+            <!-- Body line -->
+            <line x1="5" y1="62" x2="242" y2="62" style="stroke:var(--color-border);stroke-width:1"/>
+            <!-- Sidebar -->
+            <rect x="5" y="62" width="95" height="166" style="fill:var(--color-bg)"/>
+            <!-- Memo item 1 (selected) -->
+            <rect x="9" y="66" rx="6" width="87" height="44" style="fill:color-mix(in srgb,var(--color-accent) 13%,var(--color-bg));stroke:color-mix(in srgb,var(--color-accent) 30%,transparent);stroke-width:1"/>
+            <rect x="15" y="72" rx="2" width="52" height="5" style="fill:var(--color-text);opacity:0.65"/>
+            <rect x="15" y="80" rx="2" width="66" height="4" style="fill:var(--color-text-muted);opacity:0.4"/>
+            <rect x="15" y="87" rx="2" width="42" height="4" style="fill:var(--color-text-muted);opacity:0.28"/>
+            <!-- Memo item 2 -->
+            <rect x="9" y="115" rx="6" width="87" height="40" style="fill:var(--color-surface)"/>
+            <rect x="15" y="121" rx="2" width="45" height="5" style="fill:var(--color-text);opacity:0.55"/>
+            <rect x="15" y="129" rx="2" width="60" height="4" style="fill:var(--color-text-muted);opacity:0.32"/>
+            <!-- Memo item 3 -->
+            <rect x="9" y="160" rx="6" width="87" height="40" style="fill:var(--color-surface)"/>
+            <rect x="15" y="166" rx="2" width="50" height="5" style="fill:var(--color-text);opacity:0.55"/>
+            <rect x="15" y="174" rx="2" width="38" height="4" style="fill:var(--color-text-muted);opacity:0.28"/>
+            <!-- Resize handle -->
+            <rect x="100" y="62" width="4" height="166" style="fill:var(--color-border);opacity:0.5"/>
+            <!-- Preview pane -->
+            <rect x="104" y="62" width="138" height="166" style="fill:var(--color-surface)"/>
+            <rect x="112" y="70" rx="3" width="75" height="7" style="fill:var(--color-text);opacity:0.7"/>
+            <rect x="112" y="81" rx="2.5" width="50" height="5" style="fill:var(--color-text-muted);opacity:0.4"/>
+            <rect x="112" y="96" rx="2.5" width="118" height="5" style="fill:var(--color-text);opacity:0.45"/>
+            <rect x="112" y="106" rx="2.5" width="95" height="5" style="fill:var(--color-text);opacity:0.32"/>
+            <rect x="112" y="116" rx="2.5" width="110" height="5" style="fill:var(--color-text);opacity:0.32"/>
+            <rect x="112" y="126" rx="2.5" width="78" height="5" style="fill:var(--color-text);opacity:0.22"/>
+            <rect x="112" y="140" rx="6" width="122" height="45" style="fill:var(--color-bg);stroke:var(--color-border);stroke-width:1"/>
+            <rect x="112" y="197" rx="5" width="52" height="18" style="fill:var(--color-accent);opacity:0.7"/>
+            <rect x="170" y="197" rx="5" width="36" height="18" style="fill:var(--color-text-muted);opacity:0.1;stroke:var(--color-border);stroke-width:1"/>
+            <!-- ═══ ANNOTATIONS ═══ -->
+            <!-- [1] 타이틀바 -->
+            <rect x="253" y="9" rx="5" width="143" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="260" y="21" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">타이틀바</text>
+            <text x="260" y="31" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">검색·새메모·설정·최소화</text>
+            <line x1="253" y1="23" x2="243" y2="24" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-l)"/>
+            <!-- [2] 필터바 -->
+            <rect x="253" y="43" rx="5" width="143" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="260" y="55" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">필터바</text>
+            <text x="260" y="65" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">전체·좋아요·답글·태그</text>
+            <line x1="253" y1="56" x2="243" y2="51" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-l)"/>
+            <!-- [3] 메모 목록 (dashed line across preview) -->
+            <rect x="253" y="107" rx="5" width="143" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="260" y="119" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">메모 목록</text>
+            <text x="260" y="129" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">클릭으로 선택·미리보기</text>
+            <line x1="253" y1="120" x2="97" y2="120" style="stroke:var(--color-accent);stroke-width:1.4;stroke-dasharray:4,2" marker-end="url(#arr-l)"/>
+            <!-- [4] 미리보기 -->
+            <rect x="253" y="170" rx="5" width="143" height="27" style="fill:color-mix(in srgb,var(--color-accent) 9%,var(--color-surface));stroke:color-mix(in srgb,var(--color-accent) 22%,transparent);stroke-width:1"/>
+            <text x="260" y="182" style="fill:var(--color-text);font-size:10px;font-weight:700;font-family:system-ui,sans-serif">미리보기</text>
+            <text x="260" y="192" style="fill:var(--color-text-muted);font-size:8.5px;font-family:system-ui,sans-serif">메모 내용·열기 버튼</text>
+            <line x1="253" y1="183" x2="243" y2="175" style="stroke:var(--color-accent);stroke-width:1.4" marker-end="url(#arr-l)"/>
+          </svg>
+        </div>
+
+        <!-- ─── PAGE 3: 단축키 ─── -->
+        <div class="wc-page">
+          <div class="wc-page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true" style="flex-shrink:0"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+            단축키
+          </div>
+          <div class="welcome-shortcut-grid">
+            <kbd>Ctrl+N</kbd><span>새 메모 만들기</span>
+            <kbd>Ctrl+B</kbd><span>굵게</span>
+            <kbd>Ctrl+I</kbd><span>기울임</span>
+            <kbd>Ctrl+U</kbd><span>밑줄</span>
+            <kbd>Ctrl+K</kbd><span>링크 삽입</span>
+            <kbd>Ctrl+Z</kbd><span>실행 취소</span>
+            <kbd>- 또는 *</kbd><span>글머리 목록 (스페이스 후)</span>
+            <kbd>[ ]</kbd><span>체크박스 (스페이스 후)</span>
+          </div>
+          <div class="wc-tips">
+            <div class="wc-tip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+              이미지 붙여넣기(Ctrl+V) 또는 드래그앤드롭 지원
+            </div>
+            <div class="wc-tip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="flex-shrink:0"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+              태그로 메모를 분류하고 필터링할 수 있어요
+            </div>
+            <div class="wc-tip">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              텍스트 선택 후 주석 달기로 메모에 설명을 붙일 수 있어요
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── PAGE 4: 시작하기 ─── -->
+        <div class="wc-page wc-page-final">
+          <div class="wc-final-hero">
+            <div class="welcome-clover wc-clover-lg">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <p class="wc-ready-title">준비 완료!</p>
+            <p class="wc-ready-desc">이제 나만의 메모를 시작해보세요.<br/>트레이 아이콘으로 언제든 접근할 수 있어요.</p>
+          </div>
+          <div class="welcome-divider"></div>
+          <div class="welcome-credit">
+            <div class="welcome-credit-badge">
+              <svg viewBox="0 0 100 118" fill="none" width="14" height="14" style="flex-shrink:0"><circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/><circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/><circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/><circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/><circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/><circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/><circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/><circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/><line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/><line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/><line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/><line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+              <span>Made by <strong>nagi</strong> &amp; <strong>Claude Code</strong> · 2025</span>
+            </div>
+          </div>
+          <button class="welcome-close-btn" id="welcomeClose">시작하기</button>
+          <label class="welcome-no-show">
+            <input type="checkbox" id="welcomeNoShow"/>
+            다음부터 보지 않기
+          </label>
+        </div>
+
+      </div><!-- /.wc-track -->
+    </div><!-- /.wc-track-outer -->
+
+    <!-- ── 네비게이션 ── -->
+    <div class="wc-nav">
+      <button class="wc-nav-btn" id="wcPrev" aria-label="이전">&#8249;</button>
+      <div class="wc-dots" id="wcDots">
+        <span class="wc-dot active"></span>
+        <span class="wc-dot"></span>
+        <span class="wc-dot"></span>
+        <span class="wc-dot"></span>
+        <span class="wc-dot"></span>
       </div>
-      <div class="welcome-title-block">
-        <h1 class="welcome-title">nagi memo</h1>
-        <p class="welcome-subtitle">언제든 꺼내 쓰는 나만의 메모장</p>
-      </div>
+      <button class="wc-nav-btn" id="wcNext" aria-label="다음">&#8250;</button>
     </div>
 
-    <div class="welcome-greeting">
-      <p>안녕하세요! <strong>nagi memo</strong>에 오신 것을 환영합니다.</p>
-      <p class="welcome-desc">
-        Windows 기본 메모 앱에서 영감을 받아,<br/>
-        더 자유롭고 풍부한 메모 경험을 담았습니다.<br/>
-        포스트잇처럼 바탕화면에 메모를 붙여두고,<br/>
-        언제든 꺼내 아이디어를 기록하세요.
-      </p>
-    </div>
-
-    <div class="welcome-sections">
-      <div class="welcome-section">
-        <div class="welcome-section-title">
-          <i data-lucide="zap" width="13" height="13"></i>
-          빠른 시작
-        </div>
-        <div class="welcome-tip-row">
-          <span class="welcome-tip-icon"><i data-lucide="plus-circle" width="13" height="13"></i></span>
-          <span>우측 상단 <strong>+ 새 메모</strong> 버튼으로 메모를 만드세요.</span>
-        </div>
-        <div class="welcome-tip-row">
-          <span class="welcome-tip-icon"><i data-lucide="mouse-pointer" width="13" height="13"></i></span>
-          <span>메모 창의 <strong>심볼 버튼</strong>을 클릭하면 이 목록이 열립니다.</span>
-        </div>
-        <div class="welcome-tip-row">
-          <span class="welcome-tip-icon"><i data-lucide="pin" width="13" height="13"></i></span>
-          <span>핀 아이콘으로 <strong>항상 위 고정,</strong><br/>눈 아이콘으로 <strong>간단히 보기</strong>가 가능합니다.</span>
-        </div>
-        <div class="welcome-tip-row">
-          <span class="welcome-tip-icon"><i data-lucide="palette" width="13" height="13"></i></span>
-          <span>색상 버튼으로 메모마다 <strong>개성 있는 테마</strong>를 설정할 수 있어요.</span>
-        </div>
-        <div class="welcome-tip-row">
-          <span class="welcome-tip-icon"><i data-lucide="tray" width="13" height="13"></i></span>
-          <span>트레이 아이콘 클릭으로 <strong>창 모두 복원,</strong><br/>우클릭 메뉴에서 <strong>트레이 최소화</strong>가 됩니다.</span>
-        </div>
-      </div>
-
-      <div class="welcome-section">
-        <div class="welcome-section-title">
-          <i data-lucide="keyboard" width="13" height="13"></i>
-          단축키
-        </div>
-        <div class="welcome-shortcut-grid">
-          <kbd>Ctrl+N</kbd><span>새 메모 만들기</span>
-          <kbd>Ctrl+B</kbd><span>굵게</span>
-          <kbd>Ctrl+I</kbd><span>기울임</span>
-          <kbd>Ctrl+U</kbd><span>밑줄</span>
-          <kbd>Ctrl+K</kbd><span>링크 삽입</span>
-          <kbd>Ctrl+Z</kbd><span>실행 취소</span>
-          <kbd>- 또는 *</kbd><span>글머리 목록 (스페이스 후)</span>
-          <kbd>[ ]</kbd><span>체크박스 (스페이스 후)</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="welcome-divider"></div>
-
-    <div class="welcome-credit">
-      <div class="welcome-credit-badge">
-        <svg viewBox="0 0 100 118" fill="none" width="14" height="14" style="flex-shrink:0">
-          <circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/>
-          <circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/>
-          <circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/>
-          <circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/>
-          <circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/>
-          <circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/>
-          <circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/>
-          <circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/>
-          <line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/>
-          <line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/>
-          <line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/>
-          <line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-        </svg>
-        <span>Made by <strong>nagi</strong> &amp; <strong>Claude Code</strong> · 2025</span>
-      </div>
-    </div>
-
-    <button class="welcome-close-btn" id="welcomeClose">시작하기</button>
-
-    <label class="welcome-no-show">
-      <input type="checkbox" id="welcomeNoShow"/>
-      다음부터 보지 않기
-    </label>
-
-  </div>
+  </div><!-- /.welcome-card -->
 </div>
 
 <!-- ══ 설정 오버레이 ══ -->
