@@ -74,9 +74,17 @@ async function init() {
 
   api.onThemeModeChanged((mode) => setThemeMode(mode));
 
-  // accent color 변경 수신
+  // accent color 변경 수신 — SVG 커스텀 아이콘이 있으면 새 컬러로 재렌더링
   if (api.onAccentColorChanged) {
-    api.onAccentColorChanged((color) => applyAccentColor(color));
+    api.onAccentColorChanged(async (color) => {
+      applyAccentColor(color);
+      const settings = await api.getSettings();
+      const svgSrc = settings?.customAppIconSvg;
+      if (svgSrc) {
+        const newPng = await svgToColoredPng(svgSrc, color);
+        if (newPng) await api.setCustomIcon({ dataUrl: newPng, svgText: svgSrc });
+      }
+    });
   }
 
   // 커스텀 아이콘 변경 수신
@@ -692,7 +700,7 @@ const PRESET_COLORS = [
   { color: '#adb5bd', label: '실버' },
 ];
 
-// 이미지 파일 → 64×64 PNG data URL 변환 (SVG·PNG 모두 지원)
+// PNG 파일 → 64×64 PNG data URL
 async function fileToIconPng(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -708,6 +716,39 @@ async function fileToIconPng(file) {
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  });
+}
+
+// SVG 텍스트에 액센트 컬러 주입 후 64×64 PNG로 변환
+async function svgToColoredPng(svgText, color, size = 64) {
+  return new Promise((resolve) => {
+    // fill/stroke 속성을 currentColor로 교체 (none 제외), SVG에 color 스타일 주입
+    const colored = svgText
+      .replace(/fill="(?!none\b)[^"]*"/gi,   'fill="currentColor"')
+      .replace(/stroke="(?!none\b)[^"]*"/gi, 'stroke="currentColor"')
+      .replace(/<svg\b/, `<svg style="color:${color}"`);
+    const blob = new Blob([colored], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+// SVG 파일 텍스트로 읽기
+function readFileAsText(file) {
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload  = (e) => resolve(e.target.result);
+    fr.onerror = ()  => resolve(null);
+    fr.readAsText(file);
   });
 }
 
@@ -940,15 +981,25 @@ function bindEvents() {
   document.getElementById('iconFileInput')?.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const pngDataUrl = await fileToIconPng(file);
+    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+    let pngDataUrl, svgText = null;
+    if (isSvg) {
+      svgText = await readFileAsText(file);
+      if (!svgText) { e.target.value = ''; return; }
+      const settings = await api.getSettings();
+      const color = settings?.accentColor || '#8fbc8f';
+      pngDataUrl = await svgToColoredPng(svgText, color);
+    } else {
+      pngDataUrl = await fileToIconPng(file);
+    }
     if (pngDataUrl) {
-      await api.setCustomIcon(pngDataUrl);
+      await api.setCustomIcon({ dataUrl: pngDataUrl, svgText });
       renderSettingsCustomIcon();
     }
     e.target.value = '';
   });
   document.getElementById('btnResetIcon')?.addEventListener('click', async () => {
-    await api.setCustomIcon(null);
+    await api.setCustomIcon({ dataUrl: null, svgText: null });
     renderSettingsCustomIcon();
   });
   document.getElementById('btnIconStack')?.addEventListener('click', (e) => {

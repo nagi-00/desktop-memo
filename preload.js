@@ -83,7 +83,7 @@ contextBridge.exposeInMainWorld('memoAPI', {
   },
 
   // ── 커스텀 앱 아이콘 ──
-  setCustomIcon: (dataUrl) => ipcRenderer.invoke('settings:setCustomIcon', dataUrl),
+  setCustomIcon: (opts) => ipcRenderer.invoke('settings:setCustomIcon', opts),
   onCustomIconChanged: (callback) => {
     const handler = (_e, dataUrl) => callback(dataUrl);
     ipcRenderer.on('settings:customIconChanged', handler);

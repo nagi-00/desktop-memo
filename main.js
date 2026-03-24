@@ -632,8 +632,12 @@ function registerIpcHandlers() {
   });
 
   // 커스텀 앱 아이콘 설정 (트레이 + 심볼 버튼)
-  ipcMain.handle('settings:setCustomIcon', (_e, dataUrl) => {
-    store.set('globalSettings.customAppIcon', dataUrl || null);
+  // opts: { dataUrl, svgText } 또는 null (초기화)
+  ipcMain.handle('settings:setCustomIcon', (_e, opts) => {
+    const dataUrl = opts?.dataUrl ?? null;
+    const svgText = opts?.svgText ?? null;
+    store.set('globalSettings.customAppIcon',    dataUrl);
+    store.set('globalSettings.customAppIconSvg', svgText);
     if (dataUrl && tray && !tray.isDestroyed()) {
       try {
         tray.setImage(nativeImage.createFromDataURL(dataUrl));
@@ -642,7 +646,7 @@ function registerIpcHandlers() {
       updateTrayIcon();
     }
     BrowserWindow.getAllWindows().forEach(w => {
-      if (!w.isDestroyed()) w.webContents.send('settings:customIconChanged', dataUrl || null);
+      if (!w.isDestroyed()) w.webContents.send('settings:customIconChanged', dataUrl);
     });
     return true;
   });
