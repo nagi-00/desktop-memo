@@ -1999,6 +1999,8 @@ function bindEvents() {
     memoContent.contentEditable = locked ? 'false' : 'true';
     _setLockIcon(locked);
     saveMemoChanges({ isLocked: locked });
+    // 서브 메모(답글)도 일괄 잠금/해제
+    api.broadcastLockToChildren?.(locked);
   }
 
   // ── 더블클릭으로 임시 잠금 해제, 외부 클릭/포커스 아웃 시 재잠금 ──
@@ -2052,6 +2054,9 @@ function bindEvents() {
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));
+
+  // 부모 메모가 잠글/해제될 때 함께 잠금
+  api.onParentLocked?.((locked) => applyLock(locked));
 
   // 잠금 복원 버튼 — 간단히 보기만 해제 (잠금은 독립적)
   document.getElementById('btnRestoreDetail')?.addEventListener('click', () => applySimpleMode(false));

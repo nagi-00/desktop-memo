@@ -547,6 +547,24 @@ function registerIpcHandlers() {
     return { success: true, filePath };
   });
 
+  // 서브 메모(답글) 일괄 잠금 — 부모 잠금 시 자식 창에 전파
+  ipcMain.handle('memo:lockChildren', (_e, { parentId, locked }) => {
+    const memos = getMemos();
+    const children = memos.filter(m => m.parentId === parentId);
+    let changed = false;
+    for (const child of children) {
+      const idx = memos.findIndex(m => m.id === child.id);
+      if (idx !== -1) { memos[idx].isLocked = locked; memos[idx].updatedAt = new Date().toISOString(); changed = true; }
+      const w = memoWindows.get(child.id);
+      if (w && !w.isDestroyed()) {
+        w.webContents.send('memo:parentLocked', locked);
+        try { w.setMovable(!locked); } catch {}
+      }
+    }
+    if (changed) { saveMemos(memos); broadcastListUpdate(); }
+    return true;
+  });
+
   ipcMain.handle('memo:importBackup', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const { filePaths, canceled } = await dialog.showOpenDialog(win || undefined, {

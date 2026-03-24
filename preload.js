@@ -102,6 +102,14 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 창 이동 잠금 (SN 위치잠금) ──
   setWindowMovable: (movable) => ipcRenderer.invoke('window:setMovable', movable),
 
+  // ── 서브 메모 일괄 잠금 (부모→자식 전파) ──
+  broadcastLockToChildren: (locked) => ipcRenderer.invoke('memo:lockChildren', { parentId: memoId, locked }),
+  onParentLocked: (callback) => {
+    const handler = (_e, locked) => callback(locked);
+    ipcRenderer.on('memo:parentLocked', handler);
+    return () => ipcRenderer.removeListener('memo:parentLocked', handler);
+  },
+
   // ── 창 폭 변경 (원본 테마 적용 시 동기화) ──
   setWindowWidth: (w) => ipcRenderer.invoke('window:setWidth', w),
 

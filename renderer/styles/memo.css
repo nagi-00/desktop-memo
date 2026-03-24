@@ -760,8 +760,6 @@
 }
 .annotation-tooltip.visible { opacity: 1; transform: translateY(0); }
 
-/* 잠금 모드: 주석 패널 숨김 */
-.memo-card.locked .annotation-panel { display: none !important; }
 /* 간단히 보기: 주석 패널 숨김 */
 .memo-card.simple-mode .annotation-panel { display: none !important; }
 
@@ -776,6 +774,11 @@
   cursor: default;
   -webkit-app-region: no-drag;
 }
+/* 잠금 상태: 주석 패널은 접기/펼치기 허용, 편집/삭제만 차단 */
+.memo-card.locked .annotation-note { pointer-events: none; }
+.memo-card.locked .annotation-delete-btn { pointer-events: none; opacity: 0.3; }
+/* 미디어 헤더: 잠금 오버레이(z-index:5) 위에 배치하여 접기/펼치기 허용 */
+.media-header { position: relative; z-index: 6; }
 .memo-card.locked .memo-body {
   position: relative;
 }
