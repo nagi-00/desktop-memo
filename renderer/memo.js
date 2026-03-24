@@ -55,26 +55,35 @@ let _currentSymbolIconId = 'clover';
 let _customAppIconUrl = null;
 let _customAppIconSvgText = null;
 
-function applySymbolIcon(iconId) {
-  _currentSymbolIconId = iconId;
-  const iconEl = document.getElementById('symbolBtnIcon');
-  if (!iconEl) return;
+// SN 모드 목록 버튼 기본 클로버 SVG
+const _SN_CLOVER_SVG = `<svg viewBox="0 0 100 118" fill="none" width="13" height="13" aria-hidden="true" style="color:inherit"><circle cx="38" cy="22" r="21" fill="white"/><circle cx="62" cy="22" r="21" fill="white"/><circle cx="78" cy="38" r="21" fill="white"/><circle cx="78" cy="62" r="21" fill="white"/><circle cx="62" cy="78" r="21" fill="white"/><circle cx="38" cy="78" r="21" fill="white"/><circle cx="22" cy="62" r="21" fill="white"/><circle cx="22" cy="38" r="21" fill="white"/><circle cx="38" cy="22" r="18" fill="currentColor"/><circle cx="62" cy="22" r="18" fill="currentColor"/><circle cx="78" cy="38" r="18" fill="currentColor"/><circle cx="78" cy="62" r="18" fill="currentColor"/><circle cx="62" cy="78" r="18" fill="currentColor"/><circle cx="38" cy="78" r="18" fill="currentColor"/><circle cx="22" cy="62" r="18" fill="currentColor"/><circle cx="22" cy="38" r="18" fill="currentColor"/><line x1="50" y1="4" x2="50" y2="96" stroke="white" stroke-width="3" stroke-linecap="round"/><line x1="4" y1="50" x2="96" y2="50" stroke="white" stroke-width="3" stroke-linecap="round"/><line x1="50" y1="87" x2="30" y2="114" stroke="white" stroke-width="8" stroke-linecap="round"/><line x1="50" y1="87" x2="30" y2="114" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>`;
+
+function _applyIconEl(el, size, defaultHtmlFn) {
+  if (!el) return;
   if (_customAppIconSvgText) {
-    const colored = _customAppIconSvgText
+    const s = _customAppIconSvgText
       .replace(/fill="(?!none\b)[^"]*"/gi,   'fill="currentColor"')
       .replace(/stroke="(?!none\b)[^"]*"/gi, 'stroke="currentColor"')
       .replace(/<svg\b/, '<svg style="color:var(--color-accent)"')
-      .replace(/width="[^"]*"/, 'width="20"')
-      .replace(/height="[^"]*"/, 'height="20"');
-    iconEl.innerHTML = colored;
+      .replace(/width="[^"]*"/, `width="${size}"`)
+      .replace(/height="[^"]*"/, `height="${size}"`);
+    el.innerHTML = s;
     return;
   }
   if (_customAppIconUrl) {
-    iconEl.innerHTML = `<img src="${_customAppIconUrl}" width="20" height="20" style="object-fit:contain;display:block;border-radius:3px" alt="" draggable="false"/>`;
+    el.innerHTML = `<img src="${_customAppIconUrl}" width="${size}" height="${size}" style="object-fit:contain;display:block;border-radius:3px" alt="" draggable="false"/>`;
     return;
   }
-  const def = SYMBOL_ICONS.find(ic => ic.id === iconId) || SYMBOL_ICONS[0];
-  iconEl.innerHTML = def.svg;
+  el.innerHTML = defaultHtmlFn();
+}
+
+function applySymbolIcon(iconId) {
+  _currentSymbolIconId = iconId;
+  _applyIconEl(document.getElementById('symbolBtnIcon'), 20, () => {
+    const def = SYMBOL_ICONS.find(ic => ic.id === iconId) || SYMBOL_ICONS[0];
+    return def.svg;
+  });
+  _applyIconEl(document.getElementById('btnOpenListSN'), 13, () => _SN_CLOVER_SVG);
 }
 
 // ── 상태 ──────────────────────────────────────
@@ -1199,10 +1208,7 @@ function applyImageEdit() {
   offscreen.width  = CANVAS_W * DPR;
   offscreen.height = CANVAS_H * DPR;
   const ctx = offscreen.getContext('2d');
-  // 배경을 테마 배경색으로 채움
-  const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim() || '#1a1a2e';
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, CANVAS_W * DPR, CANVAS_H * DPR);
+  // 배경 채우지 않음 → 투명 영역 보존 (PNG 저장으로 테마 배경이 비쳐 보임)
   ctx.save();
   ctx.translate(
     CANVAS_W * DPR / 2 + imgEditorState.offsetX * DPR,
@@ -1213,7 +1219,7 @@ function applyImageEdit() {
   if (imgEditorState.flipV) ctx.scale(1, -1);
   ctx.drawImage(img, -nw * drawScale / 2, -nh * drawScale / 2, nw * drawScale, nh * drawScale);
   ctx.restore();
-  const resultDataUrl = offscreen.toDataURL('image/jpeg', 0.92);
+  const resultDataUrl = offscreen.toDataURL('image/png');
   imgEditorTarget.src = resultDataUrl;
   // 아바타 이미지면 프로필에도 저장
   if (imgEditorTarget.closest('#profileAvatar')) {
@@ -1635,8 +1641,27 @@ function bindEvents() {
     if (e.key === 'Enter') requestAnimationFrame(scrollToCursor);
   });
 
-  // URL 붙여넣기 → 하이퍼링크 자동 변환
+  // URL 붙여넣기 → 하이퍼링크 자동 변환 / 이미지 붙여넣기 → 미디어 그리드
   memoContent.addEventListener('paste', (e) => {
+    // 이미지가 클립보드에 있으면 미디어 그리드로 이동 (인라인 삽입 방지 → 잘림 현상 해결)
+    const imageItems = Array.from(e.clipboardData.items).filter(item => item.type.startsWith('image/'));
+    if (imageItems.length > 0) {
+      e.preventDefault();
+      const grid = getOrCreateGrid();
+      let loaded = 0;
+      imageItems.forEach(item => {
+        const file = item.getAsFile();
+        if (!file) { loaded++; if (loaded === imageItems.length) updateGridCount(grid); return; }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          addImageToGrid(grid, ev.target.result);
+          loaded++;
+          if (loaded === imageItems.length) updateGridCount(grid);
+        };
+        reader.readAsDataURL(file);
+      });
+      return;
+    }
     const text = e.clipboardData.getData('text/plain').trim();
     if (/^https?:\/\/\S+$/.test(text)) {
       e.preventDefault();
