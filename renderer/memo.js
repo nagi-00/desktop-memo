@@ -185,14 +185,22 @@ function syncAnnotationQuotes() {
     if (ann.quote !== newQuote) {
       ann.quote = newQuote;
       anyChanged = true;
-      // 패널 전체 재렌더 없이 해당 항목만 업데이트
-      const quoteEl = document.querySelector(
-        `.annotation-entry[data-annotation-id="${id}"] .annotation-quote-text`
-      );
-      if (quoteEl) quoteEl.textContent = `"${newQuote}"`;
     }
   });
-  if (anyChanged) saveMemoChanges({ annotations });
+  if (anyChanged) {
+    saveMemoChanges({ annotations });
+    // annotation-note에 포커스 중이면 포커스 잃지 않도록 재렌더 건너뜀
+    if (document.activeElement?.classList.contains('annotation-note')) {
+      annotations.forEach(ann => {
+        const quoteEl = document.querySelector(
+          `.annotation-entry[data-annotation-id="${ann.id}"] .annotation-quote-text`
+        );
+        if (quoteEl) quoteEl.textContent = `"${ann.quote}"`;
+      });
+    } else {
+      renderAnnotationPanel();
+    }
+  }
 }
 
 function scrollToAnnotation(id) {
@@ -1047,15 +1055,34 @@ function _applyLink() {
   if (!url || url === 'https://') return;
 
   const text = _linkSelectedText || url;
-  const linkHtml = `<a href="${url}" target="_blank" rel="noopener">${escHtml(text)}</a>`;
+
+  // execCommand 대신 직접 DOM 조작 (range 복원 후 insertHTML 불안정 문제 해결)
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = text;
+
+  const range = _linkSavedRange ?? (() => {
+    // 저장된 range 없으면 현재 커서 위치 사용
+    const sel = window.getSelection();
+    return sel.rangeCount ? sel.getRangeAt(0) : null;
+  })();
+
+  if (!range) return;
 
   memoContent.focus();
-  const s = window.getSelection();
-  s.removeAllRanges();
-  if (_linkSavedRange) {
-    s.addRange(_linkSavedRange);
-  }
-  document.execCommand('insertHTML', false, linkHtml);
+  range.deleteContents();
+  range.insertNode(a);
+
+  // 커서를 링크 뒤로 이동
+  const newRange = document.createRange();
+  newRange.setStartAfter(a);
+  newRange.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+
   scheduleSave();
 }
 
