@@ -105,6 +105,10 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 마우스 이벤트 무시 (잠금 클릭스루) ──
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore, options),
 
+  // ── 팝업 창 확장/복원 ──
+  expandWindowForPopup:   (size)  => ipcRenderer.invoke('window:expandForPopup', size),
+  restoreWindowFromPopup: (prev)  => ipcRenderer.invoke('window:restoreFromPopup', prev),
+
   // ── 서브 메모 일괄 잠금 (부모→자식 전파) ──
   broadcastLockToChildren: (locked) => ipcRenderer.invoke('memo:lockChildren', { parentId: memoId, locked }),
   onParentLocked: (callback) => {

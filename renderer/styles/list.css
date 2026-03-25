@@ -969,14 +969,14 @@ body {
 .welcome-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 18px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
-  width: 460px;
-  max-width: 94vw;
-  height: 490px;
-  max-height: 92vh;
+  border-radius: 20px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  width: 480px;
+  max-width: 96vw;
+  height: 520px;
+  max-height: 94vh;
   overflow: hidden;
-  padding: 20px 24px 14px;
+  padding: 22px 26px 16px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1008,9 +1008,9 @@ body {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   box-sizing: border-box;
-  padding-right: 2px;
+  padding-right: 4px;
 }
 .wc-page::-webkit-scrollbar { width: 4px; }
 .wc-page::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
@@ -1020,11 +1020,11 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--color-accent);
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  letter-spacing: 0.8px;
   flex-shrink: 0;
 }
 
@@ -1056,14 +1056,14 @@ body {
 .wc-tip {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 11.5px;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-  background: var(--color-bg);
+  gap: 10px;
+  font-size: 12px;
+  color: var(--color-text);
+  line-height: 1.55;
+  background: color-mix(in srgb, var(--color-bg) 80%, var(--color-surface));
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 .wc-tip svg {
   flex-shrink: 0;
@@ -1112,29 +1112,33 @@ body {
   flex-shrink: 0;
 }
 .wc-nav-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1.5px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   padding: 0 0 2px 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
 }
 .wc-nav-btn:hover:not(:disabled) {
   background: var(--color-accent);
   color: white;
   border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  transform: scale(1.08);
 }
 .wc-nav-btn:disabled {
-  opacity: 0.28;
+  opacity: 0.22;
   cursor: not-allowed;
+  box-shadow: none;
 }
 .wc-dots {
   display: flex;
@@ -1145,18 +1149,19 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--color-border);
-  transition: all 0.22s ease;
+  background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   flex-shrink: 0;
 }
 .wc-dot.active {
   background: var(--color-accent);
-  width: 18px;
+  width: 22px;
   border-radius: 4px;
 }
 .wc-dot:hover:not(.active) {
-  background: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 60%, var(--color-border));
+  transform: scale(1.2);
 }
 
 /* ── 환영 히어로 ── */
@@ -1204,9 +1209,9 @@ body {
 }
 .welcome-greeting p {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--color-text);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 .welcome-greeting p:last-child { margin-bottom: 0; }
 .welcome-desc {
@@ -1218,23 +1223,25 @@ body {
 .welcome-shortcut-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 14px;
+  gap: 7px 16px;
   align-items: center;
   flex-shrink: 0;
 }
 .welcome-shortcut-grid kbd {
   background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: 5px;
-  padding: 2px 7px;
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 2px 8px;
   font-size: 11px;
   font-family: monospace;
   color: var(--color-text);
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 .welcome-shortcut-grid span {
-  font-size: 12px;
-  color: var(--color-text-muted);
+  font-size: 12.5px;
+  color: var(--color-text);
 }
 
 /* ── 구분선 ── */

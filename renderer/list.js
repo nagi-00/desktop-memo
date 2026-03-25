@@ -57,6 +57,7 @@ async function init() {
   if (settings?.theme) setThemeMode(settings.theme);
   isStickyNotesMode = settings?.stickyNotesMode || false;
   if (settings?.accentColor) applyAccentColor(settings.accentColor);
+  applyListSymbolIcon(settings?.symbolIcon || 'clover');
   if (settings?.customAppIcon) applyListCloverCustomIcon(settings.customAppIcon);
 
   await loadMemos();
@@ -94,6 +95,16 @@ async function init() {
     api.onCustomIconChanged(({ dataUrl } = {}) => {
       applyListCloverCustomIcon(dataUrl);
       renderSettingsCustomIcon();
+    });
+  }
+
+  if (api.onSymbolIconChanged) {
+    api.onSymbolIconChanged((iconId) => {
+      applyListSymbolIcon(iconId);
+      // 커스텀 아이콘이 없는 경우에만 타이틀에 반영
+      api.getSettings().then(s => {
+        if (!s?.customAppIcon) applyListCloverCustomIcon(null);
+      });
     });
   }
 
@@ -632,6 +643,7 @@ function renderPreview(memo, isTrash = false) {
 // ── 웰컴 오버레이 (캐러셀) ──
 let _wcPage = 0;
 const WC_TOTAL = 5;
+let _popupPrevBounds = null; // 팝업 표시 전 창 크기 저장
 
 function _wcGoTo(n) {
   _wcPage = Math.max(0, Math.min(WC_TOTAL - 1, n));
@@ -646,12 +658,12 @@ function _wcGoTo(n) {
   if (next) next.disabled = _wcPage === WC_TOTAL - 1;
 }
 
-function showWelcomeOverlay() {
+async function showWelcomeOverlay() {
   const overlay = document.getElementById('welcomeOverlay');
-  if (overlay) {
-    overlay.classList.add('visible');
-    _wcGoTo(0);
-  }
+  if (!overlay) return;
+  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 560, height: 600 }) ?? null;
+  overlay.classList.add('visible');
+  _wcGoTo(0);
 }
 
 function hideWelcomeOverlay() {
@@ -661,6 +673,7 @@ function hideWelcomeOverlay() {
   if (document.getElementById('welcomeNoShow')?.checked) {
     localStorage.setItem('welcomeShown', '1');
   }
+  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
 }
 
 // ── 심볼 아이콘 목록 ──
@@ -743,6 +756,22 @@ function readFileAsText(file) {
   });
 }
 
+let _listSymbolIconId = 'clover';
+
+function applyListSymbolIcon(iconId) {
+  const svgEl = document.getElementById('listCloverSvg');
+  if (!svgEl) return;
+  _listSymbolIconId = iconId || 'clover';
+  const def = SYMBOL_ICONS.find(ic => ic.id === _listSymbolIconId) || SYMBOL_ICONS[0];
+  const tmp = document.createElement('div');
+  tmp.innerHTML = def.svg;
+  const parsed = tmp.querySelector('svg');
+  if (!parsed) return;
+  svgEl.setAttribute('viewBox', parsed.getAttribute('viewBox') || '0 0 24 24');
+  svgEl.setAttribute('fill', parsed.getAttribute('fill') || 'currentColor');
+  svgEl.innerHTML = parsed.innerHTML;
+}
+
 function applyListCloverCustomIcon(dataUrl) {
   const svg = document.getElementById('listCloverSvg');
   const img = document.getElementById('listCustomIconImg');
@@ -752,8 +781,9 @@ function applyListCloverCustomIcon(dataUrl) {
     img.src = dataUrl;
     img.style.display = '';
   } else {
-    svg.style.display = '';
     img.style.display = 'none';
+    svg.style.display = '';
+    applyListSymbolIcon(_listSymbolIconId);
   }
 }
 
@@ -773,9 +803,11 @@ function renderSettingsCustomIcon() {
   });
 }
 
-function showSettingsOverlay() {
+async function showSettingsOverlay() {
   const overlay = document.getElementById('settingsOverlay');
-  if (overlay) overlay.classList.add('visible');
+  if (!overlay) return;
+  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 560, height: 580 }) ?? null;
+  overlay.classList.add('visible');
   renderSettingsColors();
   renderSettingsIcons();
   renderSettingsCustomIcon();
@@ -784,6 +816,7 @@ function showSettingsOverlay() {
 function hideSettingsOverlay() {
   const overlay = document.getElementById('settingsOverlay');
   if (overlay) overlay.classList.remove('visible');
+  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
 }
 
 function renderSettingsColors() {
@@ -854,8 +887,17 @@ function toHex(rgb) {
 }
 
 // ── 단축키 도움말 오버레이 ──
-function showShortcutOverlay() {
-  document.getElementById('shortcutOverlay').classList.add('visible');
+async function showShortcutOverlay() {
+  const overlay = document.getElementById('shortcutOverlay');
+  if (!overlay) return;
+  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 480, height: 580 }) ?? null;
+  overlay.classList.add('visible');
+}
+
+function hideShortcutOverlay() {
+  const overlay = document.getElementById('shortcutOverlay');
+  if (overlay) overlay.classList.remove('visible');
+  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
 }
 
 // ── 이벤트 바인딩 ──
@@ -940,13 +982,9 @@ function bindEvents() {
 
   // 단축키 도움말
   btnShortcutHelp?.addEventListener('click', showShortcutOverlay);
-  document.getElementById('shortcutClose')?.addEventListener('click', () => {
-    document.getElementById('shortcutOverlay').classList.remove('visible');
-  });
+  document.getElementById('shortcutClose')?.addEventListener('click', hideShortcutOverlay);
   document.getElementById('shortcutOverlay')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('shortcutOverlay')) {
-      document.getElementById('shortcutOverlay').classList.remove('visible');
-    }
+    if (e.target === document.getElementById('shortcutOverlay')) hideShortcutOverlay();
   });
 
   // 웰컴 오버레이
@@ -1017,8 +1055,8 @@ function bindEvents() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (isMultiSelectMode) { exitMultiSelectMode(); return; }
-      document.getElementById('shortcutOverlay')?.classList.remove('visible');
-      document.getElementById('settingsOverlay')?.classList.remove('visible');
+      hideShortcutOverlay();
+      hideSettingsOverlay();
       hideWelcomeOverlay();
     }
   });

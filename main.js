@@ -702,6 +702,29 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // 팝업 표시를 위한 창 확장 (현재 bounds 저장 후 중앙에 크게 배치)
+  ipcMain.handle('window:expandForPopup', (event, { width, height }) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return null;
+    const prev = win.getBounds();
+    const { screen } = require('electron');
+    const display = screen.getDisplayNearestPoint({ x: prev.x + Math.floor(prev.width / 2), y: prev.y + Math.floor(prev.height / 2) });
+    const { workArea } = display;
+    const newW = Math.min(width,  workArea.width  - 40);
+    const newH = Math.min(height, workArea.height - 40);
+    const newX = workArea.x + Math.floor((workArea.width  - newW) / 2);
+    const newY = workArea.y + Math.floor((workArea.height - newH) / 2);
+    win.setBounds({ x: newX, y: newY, width: newW, height: newH }, true);
+    return prev;
+  });
+
+  // 팝업 닫은 후 창 복원
+  ipcMain.handle('window:restoreFromPopup', (event, prev) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed() || !prev) return;
+    win.setBounds(prev, true);
+  });
+
   // 창 폭 변경 (원본 테마 적용 시 폭 동기화)
   ipcMain.handle('window:setWidth', (event, width) => {
     const win = BrowserWindow.fromWebContents(event.sender);

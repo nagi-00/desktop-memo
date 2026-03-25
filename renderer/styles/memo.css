@@ -1315,21 +1315,33 @@
   display: block;
 }
 
-/* SVG 아이콘은 잘리지 않도록 contain으로 표시 */
+/* SVG 아이콘: 자연 종횡비 유지, 정중앙 배치, 잘림 방지 */
 .media-grid .img-wrap img[src^="data:image/svg"],
 .media-grid .img-wrap img[src$=".svg"] {
   object-fit: contain;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 140px;
 }
-/* SVG의 고유 크기가 작은 경우(예: 24×24) 그리드 셀이 너무 작아지는 문제 방지 */
 .media-grid .img-wrap:has(img[src^="data:image/svg"]),
 .media-grid .img-wrap:has(img[src$=".svg"]) {
-  min-height: 120px;
+  min-height: 80px;
+  max-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
-/* Sticky Notes 모드: SVG 셀 높이를 제한해 잘림 방지 */
+/* Sticky Notes 모드: 더 작게 */
 .memo-card.sticky-notes-mode .media-grid .img-wrap:has(img[src^="data:image/svg"]),
 .memo-card.sticky-notes-mode .media-grid .img-wrap:has(img[src$=".svg"]) {
-  min-height: 60px;
-  max-height: 120px;
+  min-height: 48px;
+  max-height: 88px;
+}
+.memo-card.sticky-notes-mode .media-grid .img-wrap img[src^="data:image/svg"],
+.memo-card.sticky-notes-mode .media-grid .img-wrap img[src$=".svg"] {
+  max-height: 88px;
 }
 /* 삭제 버튼 (X) */
 .media-grid .img-remove {
