@@ -62,6 +62,10 @@ async function init() {
 
   // ── 팝업 전용 창 모드 ──
   if (_popupType) {
+    // 팝업 창 투명 배경 처리
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    document.body.classList.add('popup-mode');
     // list-root 숨김, 오버레이 배경 투명화
     document.querySelector('.list-root')?.style.setProperty('display', 'none');
     ['welcomeOverlay', 'settingsOverlay', 'shortcutOverlay'].forEach(id => {
@@ -702,7 +706,7 @@ function _wcGoTo(n) {
 }
 
 function showWelcomeOverlay() {
-  api.openPopup?.({ type: 'welcome', width: 600, height: 660 });
+  api.openPopup?.({ type: 'welcome', width: 640, height: 700 });
 }
 
 function hideWelcomeOverlay() {

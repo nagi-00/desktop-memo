@@ -2095,7 +2095,7 @@ function bindEvents() {
     memoContent.focus();
     // 포커스 아웃 시 재잠금
     function relock() {
-      memoContent.removeEventListener('blur', relock);
+      window.removeEventListener('blur', relock);
       document.removeEventListener('mousedown', onOutsideClick, true);
       if (!isLocked) applyLock(true);
     }
@@ -2103,7 +2103,7 @@ function bindEvents() {
       if (!document.querySelector('.memo-card')?.contains(e.target)) relock();
     }
     setTimeout(() => {
-      memoContent.addEventListener('blur', relock);
+      window.addEventListener('blur', relock);
       document.addEventListener('mousedown', onOutsideClick, true);
     }, 150);
   }

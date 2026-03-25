@@ -710,8 +710,8 @@ function registerIpcHandlers() {
       ? screen.getDisplayNearestPoint(senderWin.getBounds())
       : screen.getPrimaryDisplay();
     const { workArea } = display;
-    const w = Math.min(width  || 580, workArea.width  - 40);
-    const h = Math.min(height || 640, workArea.height - 40);
+    const w = Math.min(width  || 640, workArea.width  - 40);
+    const h = Math.min(height || 700, workArea.height - 40);
     const x = workArea.x + Math.floor((workArea.width  - w) / 2);
     const y = workArea.y + Math.floor((workArea.height - h) / 2);
     const popup = new BrowserWindow({
