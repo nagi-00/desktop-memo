@@ -971,12 +971,12 @@ body {
   border: 1px solid var(--color-border);
   border-radius: 20px;
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04);
-  width: 480px;
+  width: 520px;
   max-width: 96vw;
-  height: 520px;
+  height: 580px;
   max-height: 94vh;
   overflow: hidden;
-  padding: 22px 26px 16px;
+  padding: 26px 30px 18px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1008,7 +1008,7 @@ body {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   box-sizing: border-box;
   padding-right: 4px;
 }
@@ -1057,13 +1057,13 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--color-text);
-  line-height: 1.55;
+  line-height: 1.65;
   background: color-mix(in srgb, var(--color-bg) 80%, var(--color-surface));
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 11px 14px;
 }
 .wc-tip svg {
   flex-shrink: 0;
@@ -1382,18 +1382,26 @@ body {
   margin-bottom: 10px;
 }
 .settings-color-swatch {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  border: 2px solid transparent;
+  border: none;
   cursor: pointer;
-  transition: transform 0.12s, border-color 0.12s;
+  transition: transform 0.15s, box-shadow 0.15s;
   outline: none;
+  padding: 4px;
+  box-sizing: border-box;
+  background-clip: content-box;
 }
-.settings-color-swatch:hover { transform: scale(1.15); }
+.settings-color-swatch:hover {
+  transform: scale(1.12) translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
 .settings-color-swatch.active {
-  border-color: var(--color-text);
-  transform: scale(1.1);
+  transform: scale(1.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25),
+              0 0 0 2px var(--color-surface),
+              0 0 0 4px var(--color-accent);
 }
 .settings-custom-color-row {
   display: flex;

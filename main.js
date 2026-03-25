@@ -702,6 +702,27 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // 팝업 전용 투명 창 열기 (list.html?popup=TYPE)
+  ipcMain.handle('popup:open', (event, { type, width, height }) => {
+    const { screen } = require('electron');
+    const senderWin = BrowserWindow.fromWebContents(event.sender);
+    const display   = senderWin
+      ? screen.getDisplayNearestPoint(senderWin.getBounds())
+      : screen.getPrimaryDisplay();
+    const { workArea } = display;
+    const w = Math.min(width  || 580, workArea.width  - 40);
+    const h = Math.min(height || 640, workArea.height - 40);
+    const x = workArea.x + Math.floor((workArea.width  - w) / 2);
+    const y = workArea.y + Math.floor((workArea.height - h) / 2);
+    const popup = new BrowserWindow({
+      x, y, width: w, height: h,
+      frame: false, transparent: true, resizable: false, show: false,
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+    });
+    popup.loadFile(path.join(__dirname, 'renderer', 'list.html'), { query: { popup: type } });
+    popup.once('ready-to-show', () => popup.show());
+  });
+
   // 팝업 표시를 위한 창 확장 (현재 bounds 저장 후 중앙에 크게 배치)
   ipcMain.handle('window:expandForPopup', (event, { width, height }) => {
     const win = BrowserWindow.fromWebContents(event.sender);

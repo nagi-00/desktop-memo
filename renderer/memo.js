@@ -1698,14 +1698,19 @@ function bindEvents() {
       });
       return;
     }
-    const text = e.clipboardData.getData('text/plain').trim();
-    if (/^https?:\/\/\S+$/.test(text)) {
-      e.preventDefault();
-      const sel  = window.getSelection();
-      const label = sel?.toString().trim() || text;
+    // 외부 HTML 서식(배경색·폰트·크기 등) 제거 — 항상 순수 텍스트로 삽입
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    // 단일 URL → 하이퍼링크 자동 변환
+    if (/^https?:\/\/\S+$/.test(text.trim())) {
+      const sel   = window.getSelection();
+      const label = sel?.toString().trim() || text.trim();
       document.execCommand('insertHTML', false,
-        `<a href="${text}" target="_blank" rel="noopener">${label}</a>`);
+        `<a href="${text.trim()}" target="_blank" rel="noopener">${label}</a>`);
+      return;
     }
+    document.execCommand('insertText', false, text);
   });
 
   // 핀
@@ -2046,32 +2051,27 @@ function bindEvents() {
     }
   }
 
-  // ── 잠금 클릭스루: 상태바 호버 시 마우스 이벤트 활성화 ──
-  let _lockMouseMoveHandler = null;
-  let _lastIgnoreState = null;
+  // ── 잠금 클릭스루: 마우스 진입 시 이벤트 활성, 이탈 시 click-through 복귀 ──
+  let _lockMouseMoveHandler  = null;
+  let _lockMouseLeaveHandler = null;
+  let _lastIgnoreState       = null;
 
   function _startClickThrough() {
     api.setIgnoreMouseEvents?.(true, { forward: true });
     _lastIgnoreState = true;
-    _lockMouseMoveHandler = (e) => {
-      const statusBar = document.querySelector('.status-bar-inner');
-      if (!statusBar) return;
-      const rect = statusBar.getBoundingClientRect();
-      const overBar = e.clientX >= rect.left && e.clientX <= rect.right &&
-                      e.clientY >= rect.top  && e.clientY <= rect.bottom;
-      const shouldIgnore = !overBar;
-      if (_lastIgnoreState === shouldIgnore) return;
-      _lastIgnoreState = shouldIgnore;
-      api.setIgnoreMouseEvents?.(shouldIgnore, shouldIgnore ? { forward: true } : {});
+    _lockMouseMoveHandler = () => {
+      if (_lastIgnoreState) { _lastIgnoreState = false; api.setIgnoreMouseEvents?.(false); }
     };
-    document.addEventListener('mousemove', _lockMouseMoveHandler);
+    _lockMouseLeaveHandler = () => {
+      if (!_lastIgnoreState) { _lastIgnoreState = true; api.setIgnoreMouseEvents?.(true, { forward: true }); }
+    };
+    document.addEventListener('mousemove',  _lockMouseMoveHandler);
+    document.addEventListener('mouseleave', _lockMouseLeaveHandler);
   }
 
   function _stopClickThrough() {
-    if (_lockMouseMoveHandler) {
-      document.removeEventListener('mousemove', _lockMouseMoveHandler);
-      _lockMouseMoveHandler = null;
-    }
+    if (_lockMouseMoveHandler)  { document.removeEventListener('mousemove',  _lockMouseMoveHandler);  _lockMouseMoveHandler  = null; }
+    if (_lockMouseLeaveHandler) { document.removeEventListener('mouseleave', _lockMouseLeaveHandler); _lockMouseLeaveHandler = null; }
     _lastIgnoreState = null;
     api.setIgnoreMouseEvents?.(false);
   }
@@ -2087,6 +2087,27 @@ function bindEvents() {
     // 클릭스루 적용
     if (locked) _startClickThrough(); else _stopClickThrough();
   }
+
+  // ── 잠금 오버레이 더블클릭 → 임시 잠금 해제 ──
+  function tempUnlock() {
+    if (!isLocked) return;
+    applyLock(false);
+    memoContent.focus();
+    // 포커스 아웃 시 재잠금
+    function relock() {
+      memoContent.removeEventListener('blur', relock);
+      document.removeEventListener('mousedown', onOutsideClick, true);
+      if (!isLocked) applyLock(true);
+    }
+    function onOutsideClick(e) {
+      if (!document.querySelector('.memo-card')?.contains(e.target)) relock();
+    }
+    setTimeout(() => {
+      memoContent.addEventListener('blur', relock);
+      document.addEventListener('mousedown', onOutsideClick, true);
+    }, 150);
+  }
+  lockOverlay?.addEventListener('dblclick', tempUnlock);
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));

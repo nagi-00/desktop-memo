@@ -105,7 +105,10 @@ contextBridge.exposeInMainWorld('memoAPI', {
   // ── 마우스 이벤트 무시 (잠금 클릭스루) ──
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore, options),
 
-  // ── 팝업 창 확장/복원 ──
+  // ── 팝업 전용 창 열기 ──
+  openPopup: (opts) => ipcRenderer.invoke('popup:open', opts),
+
+  // ── 팝업 창 확장/복원 (legacy fallback) ──
   expandWindowForPopup:   (size)  => ipcRenderer.invoke('window:expandForPopup', size),
   restoreWindowFromPopup: (prev)  => ipcRenderer.invoke('window:restoreFromPopup', prev),
 

@@ -49,14 +49,57 @@ function applyAccentColor(color) {
   });
 }
 
+// ── 팝업 모드 감지 ──
+const _popupType = new URLSearchParams(window.location.search).get('popup');
+
 // ── 초기화 ──
 async function init() {
   if (window.lucide) lucide.createIcons();
 
   const settings = await api.getSettings();
   if (settings?.theme) setThemeMode(settings.theme);
-  isStickyNotesMode = settings?.stickyNotesMode || false;
   if (settings?.accentColor) applyAccentColor(settings.accentColor);
+
+  // ── 팝업 전용 창 모드 ──
+  if (_popupType) {
+    // list-root 숨김, 오버레이 배경 투명화
+    document.querySelector('.list-root')?.style.setProperty('display', 'none');
+    ['welcomeOverlay', 'settingsOverlay', 'shortcutOverlay'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.style.background = 'transparent'; el.style.backdropFilter = 'none'; }
+    });
+    // 팝업별 초기화
+    if (_popupType === 'welcome') {
+      const overlay = document.getElementById('welcomeOverlay');
+      overlay?.classList.add('visible');
+      _wcGoTo(0);
+      document.getElementById('welcomeClose')?.addEventListener('click', () => { if (document.getElementById('welcomeNoShow')?.checked) localStorage.setItem('welcomeShown','1'); window.close(); });
+      document.getElementById('welcomeOverlay')?.addEventListener('click', e => { if (e.target.id === 'welcomeOverlay') window.close(); });
+      document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
+      document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
+      document.querySelectorAll('.wc-dot').forEach((d, i) => d.addEventListener('click', () => _wcGoTo(i)));
+    } else if (_popupType === 'settings') {
+      const overlay = document.getElementById('settingsOverlay');
+      overlay?.classList.add('visible');
+      renderSettingsColors();
+      renderSettingsIcons();
+      renderSettingsCustomIcon();
+      document.getElementById('settingsClose')?.addEventListener('click', () => window.close());
+      document.getElementById('settingsOverlay')?.addEventListener('click', e => { if (e.target.id === 'settingsOverlay') window.close(); });
+      _bindSettingsFormEvents();
+    } else if (_popupType === 'shortcut') {
+      const overlay = document.getElementById('shortcutOverlay');
+      overlay?.classList.add('visible');
+      document.getElementById('shortcutClose')?.addEventListener('click', () => window.close());
+      document.getElementById('shortcutOverlay')?.addEventListener('click', e => { if (e.target.id === 'shortcutOverlay') window.close(); });
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') window.close(); });
+    // accent/symbol 변경 수신 (설정 팝업에서 바꿀 경우 즉시 반영)
+    api.onAccentColorChanged?.(color => applyAccentColor(color));
+    return;
+  }
+
+  isStickyNotesMode = settings?.stickyNotesMode || false;
   applyListSymbolIcon(settings?.symbolIcon || 'clover');
   if (settings?.customAppIcon) applyListCloverCustomIcon(settings.customAppIcon);
 
@@ -658,22 +701,13 @@ function _wcGoTo(n) {
   if (next) next.disabled = _wcPage === WC_TOTAL - 1;
 }
 
-async function showWelcomeOverlay() {
-  const overlay = document.getElementById('welcomeOverlay');
-  if (!overlay) return;
-  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 560, height: 600 }) ?? null;
-  overlay.classList.add('visible');
-  _wcGoTo(0);
+function showWelcomeOverlay() {
+  api.openPopup?.({ type: 'welcome', width: 600, height: 660 });
 }
 
 function hideWelcomeOverlay() {
-  const overlay = document.getElementById('welcomeOverlay');
-  if (!overlay) return;
-  overlay.classList.remove('visible');
-  if (document.getElementById('welcomeNoShow')?.checked) {
-    localStorage.setItem('welcomeShown', '1');
-  }
-  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
+  // 팝업 창 모드에서는 window.close()로 닫힘; 일반 모드에선 no-op
+  document.getElementById('welcomeOverlay')?.classList.remove('visible');
 }
 
 // ── 심볼 아이콘 목록 ──
@@ -803,20 +837,54 @@ function renderSettingsCustomIcon() {
   });
 }
 
-async function showSettingsOverlay() {
-  const overlay = document.getElementById('settingsOverlay');
-  if (!overlay) return;
-  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 560, height: 580 }) ?? null;
-  overlay.classList.add('visible');
-  renderSettingsColors();
-  renderSettingsIcons();
-  renderSettingsCustomIcon();
+function showSettingsOverlay() {
+  api.openPopup?.({ type: 'settings', width: 420, height: 560 });
 }
 
 function hideSettingsOverlay() {
-  const overlay = document.getElementById('settingsOverlay');
-  if (overlay) overlay.classList.remove('visible');
-  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
+  document.getElementById('settingsOverlay')?.classList.remove('visible');
+}
+
+// 설정 폼 이벤트 바인딩 (팝업 창 / 일반 모드 공용)
+function _bindSettingsFormEvents() {
+  document.getElementById('settingsCustomColor')?.addEventListener('input', async (e) => {
+    const color = e.target.value;
+    await api.setAccentColor(color);
+    applyAccentColor(color);
+    updateSettingsSwatchActive(color);
+  });
+  document.getElementById('btnDarkMode')?.addEventListener('click', async () => {
+    await api.setThemeMode('dark'); setThemeMode('dark');
+  });
+  document.getElementById('btnLightMode')?.addEventListener('click', async () => {
+    await api.setThemeMode('light'); setThemeMode('light');
+  });
+  document.getElementById('btnUploadIcon')?.addEventListener('click', () => {
+    document.getElementById('iconFileInput')?.click();
+  });
+  document.getElementById('iconFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+    let pngDataUrl, svgText = null;
+    if (isSvg) {
+      svgText = await readFileAsText(file);
+      if (!svgText) { e.target.value = ''; return; }
+      const s = await api.getSettings();
+      pngDataUrl = await svgToColoredPng(svgText, s?.accentColor || '#8fbc8f');
+    } else {
+      pngDataUrl = await fileToIconPng(file);
+    }
+    if (pngDataUrl) { await api.setCustomIcon({ dataUrl: pngDataUrl, svgText }); renderSettingsCustomIcon(); }
+    e.target.value = '';
+  });
+  document.getElementById('btnResetIcon')?.addEventListener('click', async () => {
+    await api.setCustomIcon({ dataUrl: null, svgText: null });
+    renderSettingsCustomIcon();
+  });
+  document.getElementById('btnIconStack')?.addEventListener('click', (e) => {
+    e.preventDefault(); api.openExternal('https://iconstack.lovable.app/');
+  });
 }
 
 function renderSettingsColors() {
@@ -887,17 +955,12 @@ function toHex(rgb) {
 }
 
 // ── 단축키 도움말 오버레이 ──
-async function showShortcutOverlay() {
-  const overlay = document.getElementById('shortcutOverlay');
-  if (!overlay) return;
-  _popupPrevBounds = await api.expandWindowForPopup?.({ width: 480, height: 580 }) ?? null;
-  overlay.classList.add('visible');
+function showShortcutOverlay() {
+  api.openPopup?.({ type: 'shortcut', width: 460, height: 580 });
 }
 
 function hideShortcutOverlay() {
-  const overlay = document.getElementById('shortcutOverlay');
-  if (overlay) overlay.classList.remove('visible');
-  if (_popupPrevBounds) { api.restoreWindowFromPopup?.(_popupPrevBounds); _popupPrevBounds = null; }
+  document.getElementById('shortcutOverlay')?.classList.remove('visible');
 }
 
 // ── 이벤트 바인딩 ──
@@ -1004,53 +1067,7 @@ function bindEvents() {
   document.getElementById('settingsOverlay')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('settingsOverlay')) hideSettingsOverlay();
   });
-  document.getElementById('settingsCustomColor')?.addEventListener('input', async (e) => {
-    const color = e.target.value;
-    await api.setAccentColor(color);
-    applyAccentColor(color);
-    updateSettingsSwatchActive(color);
-  });
-  document.getElementById('btnDarkMode')?.addEventListener('click', async () => {
-    await api.setThemeMode('dark');
-    setThemeMode('dark');
-  });
-  document.getElementById('btnLightMode')?.addEventListener('click', async () => {
-    await api.setThemeMode('light');
-    setThemeMode('light');
-  });
-
-  // 커스텀 앱 아이콘 업로드
-  document.getElementById('btnUploadIcon')?.addEventListener('click', () => {
-    document.getElementById('iconFileInput')?.click();
-  });
-  document.getElementById('iconFileInput')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
-    let pngDataUrl, svgText = null;
-    if (isSvg) {
-      svgText = await readFileAsText(file);
-      if (!svgText) { e.target.value = ''; return; }
-      const settings = await api.getSettings();
-      const color = settings?.accentColor || '#8fbc8f';
-      pngDataUrl = await svgToColoredPng(svgText, color);
-    } else {
-      pngDataUrl = await fileToIconPng(file);
-    }
-    if (pngDataUrl) {
-      await api.setCustomIcon({ dataUrl: pngDataUrl, svgText });
-      renderSettingsCustomIcon();
-    }
-    e.target.value = '';
-  });
-  document.getElementById('btnResetIcon')?.addEventListener('click', async () => {
-    await api.setCustomIcon({ dataUrl: null, svgText: null });
-    renderSettingsCustomIcon();
-  });
-  document.getElementById('btnIconStack')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    api.openExternal('https://iconstack.lovable.app/');
-  });
+  _bindSettingsFormEvents();
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
