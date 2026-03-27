@@ -602,7 +602,31 @@ async function init() {
 }
 
 // ── 테마 ──────────────────────────────────────
+// ── 글자색 테마 연동 ──────────────────────────
+function hexToRgb(hex) {
+  if (!hex || !hex.startsWith('#')) return null;
+  const h = hex.length === 4
+    ? '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3]
+    : hex;
+  return `rgb(${parseInt(h.slice(1,3),16)}, ${parseInt(h.slice(3,5),16)}, ${parseInt(h.slice(5,7),16)})`;
+}
+function remapTextColors(oldHex, newHex) {
+  if (!memoContent || !oldHex || !newHex || oldHex === newHex) return;
+  const oldRgb = hexToRgb(oldHex);
+  let changed = false;
+  memoContent.querySelectorAll('[style]').forEach(el => {
+    const c = el.style.color;
+    if (c && (c === oldHex || c === oldRgb)) {
+      el.style.color = newHex;
+      changed = true;
+    }
+  });
+  if (changed) scheduleSave();
+}
+
 function applyTheme(accentHex, mode) {
+  const oldAccent = memoData?.theme?.accent ??
+    getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim();
   if (!accentHex) {
     resetPalette();
     setThemeMode(mode);
@@ -620,6 +644,8 @@ function applyTheme(accentHex, mode) {
     a.style.removeProperty('font-weight');
     if (!a.getAttribute('style')) a.removeAttribute('style');
   });
+  // 글자색이 이전 accent와 일치하면 새 accent로 교체
+  if (accentHex) remapTextColors(oldAccent, accentHex);
 }
 
 function updateThemeToggleIcon() {
