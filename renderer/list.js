@@ -79,9 +79,7 @@ async function init() {
       _wcGoTo(0);
       document.getElementById('welcomeClose')?.addEventListener('click', () => { if (document.getElementById('welcomeNoShow')?.checked) localStorage.setItem('welcomeShown','1'); window.close(); });
       document.getElementById('welcomeOverlay')?.addEventListener('click', e => { if (e.target.id === 'welcomeOverlay') window.close(); });
-      document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
-      document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
-      document.querySelectorAll('.wc-dot').forEach((d, i) => d.addEventListener('click', () => _wcGoTo(i)));
+      _bindWelcomeCarouselEvents();
     } else if (_popupType === 'settings') {
       const overlay = document.getElementById('settingsOverlay');
       overlay?.classList.add('visible');
@@ -97,7 +95,13 @@ async function init() {
       document.getElementById('shortcutClose')?.addEventListener('click', () => window.close());
       document.getElementById('shortcutOverlay')?.addEventListener('click', e => { if (e.target.id === 'shortcutOverlay') window.close(); });
     }
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') window.close(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.close();
+        return;
+      }
+      _handleWelcomeKeydown(e);
+    });
     // accent/symbol 변경 수신 (설정 팝업에서 바꿀 경우 즉시 반영)
     api.onAccentColorChanged?.(color => applyAccentColor(color));
     return;
@@ -696,13 +700,48 @@ function _wcGoTo(n) {
   _wcPage = Math.max(0, Math.min(WC_TOTAL - 1, n));
   const track = document.getElementById('wcTrack');
   if (track) track.style.transform = `translateX(-${_wcPage * 100}%)`;
+
   document.querySelectorAll('.wc-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === _wcPage);
+    const isActive = i === _wcPage;
+    d.classList.toggle('active', isActive);
+    d.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    d.setAttribute('tabindex', isActive ? '0' : '-1');
   });
+
   const prev = document.getElementById('wcPrev');
   const next = document.getElementById('wcNext');
   if (prev) prev.disabled = _wcPage === 0;
   if (next) next.disabled = _wcPage === WC_TOTAL - 1;
+}
+
+function _isWelcomeOverlayVisible() {
+  if (_popupType === 'welcome') return true;
+  return document.getElementById('welcomeOverlay')?.classList.contains('visible');
+}
+
+function _handleWelcomeKeydown(e) {
+  if (!_isWelcomeOverlayVisible()) return;
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    _wcGoTo(_wcPage - 1);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    _wcGoTo(_wcPage + 1);
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    _wcGoTo(0);
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    _wcGoTo(WC_TOTAL - 1);
+  }
+}
+
+function _bindWelcomeCarouselEvents() {
+  document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
+  document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
+  document.querySelectorAll('.wc-dot').forEach((d, i) => {
+    d.addEventListener('click', () => _wcGoTo(i));
+  });
 }
 
 function showWelcomeOverlay() {
@@ -1059,11 +1098,7 @@ function bindEvents() {
   document.getElementById('welcomeOverlay')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('welcomeOverlay')) hideWelcomeOverlay();
   });
-  document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
-  document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
-  document.querySelectorAll('.wc-dot').forEach((d, i) => {
-    d.addEventListener('click', () => _wcGoTo(i));
-  });
+  _bindWelcomeCarouselEvents();
 
   // 설정 오버레이
   btnSettings?.addEventListener('click', showSettingsOverlay);
@@ -1079,7 +1114,9 @@ function bindEvents() {
       hideShortcutOverlay();
       hideSettingsOverlay();
       hideWelcomeOverlay();
+      return;
     }
+    _handleWelcomeKeydown(e);
   });
 
   bindTagInput();
