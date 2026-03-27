@@ -1255,6 +1255,54 @@ body.popup-mode .shortcut-overlay {
   color: var(--color-text);
 }
 
+/* ── 단축키 그리드 (9페이지 레이아웃) ── */
+.wc-sc-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+.wc-sc-group {
+  background: color-mix(in srgb, var(--color-bg) 70%, var(--color-surface));
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.wc-sc-header {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+.wc-sc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+.wc-sc-item kbd {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 3px 7px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--color-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+
 /* ── 구분선 ── */
 .welcome-divider {
   height: 1px;
