@@ -954,6 +954,11 @@ body.popup-mode .shortcut-overlay {
   background: transparent !important;
   backdrop-filter: none !important;
 }
+body.popup-mode .welcome-card,
+body.popup-mode .settings-box,
+body.popup-mode .shortcut-box {
+  box-shadow: none !important;
+}
 
 /* ══════════════════════════════════════════════
    웰컴 오버레이
@@ -962,14 +967,14 @@ body.popup-mode .shortcut-overlay {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.34);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 .welcome-overlay.visible {
   opacity: 1;
@@ -979,8 +984,8 @@ body.popup-mode .shortcut-overlay {
 .welcome-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  border-radius: 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255,255,255,0.03);
   width: 620px;
   max-width: 96vw;
   height: 680px;
@@ -992,6 +997,66 @@ body.popup-mode .shortcut-overlay {
   flex-direction: column;
   gap: 0;
   animation: welcome-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.wc-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.wc-skip-btn {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.wc-skip-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-border-hover);
+  background: var(--color-surface-hover);
+}
+.wc-page-indicator {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.wc-progress {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border) 82%, transparent);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.wc-progress-bar {
+  width: 11.11%;
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 0.22s ease;
+}
+.wc-help-panel {
+  margin-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 22%, var(--color-border));
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
+}
+.wc-help-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.wc-help-desc {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
 }
 
 @keyframes welcome-pop {
@@ -1008,7 +1073,7 @@ body.popup-mode .shortcut-overlay {
 .wc-track {
   display: flex;
   height: 100%;
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .wc-page {
   min-width: 100%;
@@ -1160,10 +1225,16 @@ body.popup-mode .shortcut-overlay {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  border: none;
+  padding: 0;
   background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   flex-shrink: 0;
+}
+.wc-dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 75%, white);
+  outline-offset: 2px;
 }
 .wc-dot.active {
   background: var(--color-accent);
