@@ -363,76 +363,6 @@ function generateTextPalette() {
   }
 }
 
-function normalizeToHexColor(value) {
-  if (!value) return null;
-  const raw = String(value).trim().toLowerCase();
-  if (raw.startsWith('#')) {
-    if (raw.length === 4) {
-      return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`;
-    }
-    return raw.length === 7 ? raw : null;
-  }
-  const m = raw.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!m) return null;
-  return '#' + [m[1], m[2], m[3]].map(n => Number(n).toString(16).padStart(2, '0')).join('');
-}
-
-function getNearestThemeTextColorIndex(hexColor, palette = generateTextPalette()) {
-  const target = normalizeToHexColor(hexColor);
-  if (!target || !palette?.length) return 2;
-  const [tr, tg, tb] = [target.slice(1, 3), target.slice(3, 5), target.slice(5, 7)].map(v => parseInt(v, 16));
-  let bestIdx = 0;
-  let bestDist = Number.POSITIVE_INFINITY;
-  palette.forEach((c, i) => {
-    const n = normalizeToHexColor(c);
-    if (!n) return;
-    const [r, g, b] = [n.slice(1, 3), n.slice(3, 5), n.slice(5, 7)].map(v => parseInt(v, 16));
-    const dist = (tr - r) ** 2 + (tg - g) ** 2 + (tb - b) ** 2;
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = i;
-    }
-  });
-  return bestIdx;
-}
-
-function linkThemeColorFromSelection(appliedColor) {
-  const normalized = normalizeToHexColor(appliedColor);
-  if (!normalized || !memoContent) return;
-
-  const palette = generateTextPalette();
-  const idx = getNearestThemeTextColorIndex(normalized, palette);
-  const mappedColor = palette[idx] || normalized;
-  const selector = 'font[color], [style*="color"]';
-
-  memoContent.querySelectorAll(selector).forEach((el) => {
-    const raw = el.tagName === 'FONT' ? el.getAttribute('color') : el.style.color;
-    if (normalizeToHexColor(raw) !== normalized) return;
-
-    let target = el;
-    if (el.tagName === 'FONT') {
-      const span = document.createElement('span');
-      span.style.color = mappedColor;
-      while (el.firstChild) span.appendChild(el.firstChild);
-      el.replaceWith(span);
-      target = span;
-    }
-    target.dataset.themeLinkedTextColor = '1';
-    target.dataset.themeLinkedTextColorIndex = String(idx);
-    target.style.color = mappedColor;
-  });
-}
-
-function refreshThemeLinkedTextColors() {
-  if (!memoContent) return;
-  const palette = generateTextPalette();
-  memoContent.querySelectorAll('[data-theme-linked-text-color="1"]').forEach((el) => {
-    const idx = Number.parseInt(el.dataset.themeLinkedTextColorIndex || '2', 10);
-    const safeIdx = Number.isNaN(idx) ? 2 : Math.max(0, Math.min(palette.length - 1, idx));
-    if (palette[safeIdx]) el.style.color = palette[safeIdx];
-  });
-}
-
 // ── 초기화 ────────────────────────────────────
 async function init() {
   if (window.lucide) lucide.createIcons();
@@ -690,7 +620,6 @@ function applyTheme(accentHex, mode) {
     a.style.removeProperty('font-weight');
     if (!a.getAttribute('style')) a.removeAttribute('style');
   });
-  refreshThemeLinkedTextColors();
 }
 
 function updateThemeToggleIcon() {
@@ -1878,7 +1807,6 @@ function bindEvents() {
       savedTextRange = null;
     }
     document.execCommand('foreColor', false, color);
-    linkThemeColorFromSelection(color);
     scheduleSave();
   });
 
@@ -2248,7 +2176,6 @@ function bindEvents() {
               savedTextRange = null;
             }
             document.execCommand('foreColor', false, color);
-            linkThemeColorFromSelection(color);
             scheduleSave();
             hideFmtMenu();
           });
