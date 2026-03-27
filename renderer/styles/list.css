@@ -954,6 +954,11 @@ body.popup-mode .shortcut-overlay {
   background: transparent !important;
   backdrop-filter: none !important;
 }
+body.popup-mode .welcome-card,
+body.popup-mode .settings-box,
+body.popup-mode .shortcut-box {
+  box-shadow: none !important;
+}
 
 /* ══════════════════════════════════════════════
    웰컴 오버레이
@@ -962,14 +967,14 @@ body.popup-mode .shortcut-overlay {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.34);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
 }
 .welcome-overlay.visible {
   opacity: 1;
@@ -979,8 +984,8 @@ body.popup-mode .shortcut-overlay {
 .welcome-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
-  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.04);
+  border-radius: 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255,255,255,0.03);
   width: 620px;
   max-width: 96vw;
   height: 680px;
@@ -1160,10 +1165,16 @@ body.popup-mode .shortcut-overlay {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  border: none;
+  padding: 0;
   background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   flex-shrink: 0;
+}
+.wc-dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 75%, white);
+  outline-offset: 2px;
 }
 .wc-dot.active {
   background: var(--color-accent);
