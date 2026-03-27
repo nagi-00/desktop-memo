@@ -689,7 +689,7 @@ function renderPreview(memo, isTrash = false) {
 
 // ── 웰컴 오버레이 (캐러셀) ──
 let _wcPage = 0;
-const WC_TOTAL = 9;
+const WC_TOTAL = 5;
 let _popupPrevBounds = null; // 팝업 표시 전 창 크기 저장
 
 function _wcGoTo(n) {
