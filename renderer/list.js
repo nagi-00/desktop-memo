@@ -695,6 +695,44 @@ function renderPreview(memo, isTrash = false) {
 let _wcPage = 0;
 const WC_TOTAL = 9;
 let _popupPrevBounds = null; // 팝업 표시 전 창 크기 저장
+const WC_PAGE_HELP = [
+  {
+    title: 'nagi memo에 오신 걸 환영해요',
+    desc: '아래 소개는 “처음 쓰는 분도 바로 익숙해지는 흐름”으로 구성되어 있어요. 부담 없이 다음으로 넘겨보세요.'
+  },
+  {
+    title: '서식 편집은 이렇게 쓰면 편해요',
+    desc: '강조/기울임/밑줄/취소선을 상황에 맞게 섞으면 메모를 나중에 다시 볼 때 핵심을 빠르게 찾을 수 있어요.'
+  },
+  {
+    title: '목록·체크박스로 할 일을 정리해요',
+    desc: '아이디어 메모와 실행 체크리스트를 같은 카드에 담아두면 계획→실행 전환이 훨씬 매끄러워집니다.'
+  },
+  {
+    title: '태그·이미지로 맥락을 남겨요',
+    desc: '태그는 검색/분류를 쉽게 만들고, 이미지는 당시 상황을 그대로 보존해 주기 때문에 회고에 특히 유용해요.'
+  },
+  {
+    title: '주석·답글로 생각을 이어가요',
+    desc: '한 문장에 주석을 달거나 답글을 이어붙이면 아이디어가 흩어지지 않고 한 흐름으로 관리됩니다.'
+  },
+  {
+    title: '메모 목록에서 빠르게 탐색해요',
+    desc: '검색·필터·태그를 함께 쓰면 메모가 많아져도 원하는 내용을 몇 초 안에 찾을 수 있어요.'
+  },
+  {
+    title: '트레이 상주로 언제든 꺼내 쓰세요',
+    desc: '앱을 닫지 않아도 트레이에서 바로 복귀할 수 있어, 생각이 떠오를 때 기록 타이밍을 놓치지 않게 도와줍니다.'
+  },
+  {
+    title: '테마/아이콘으로 나답게 꾸며보세요',
+    desc: '색상과 아이콘을 맞춰두면 매일 보는 작업 화면에 자연스럽게 어울려 더 오래, 편하게 사용할 수 있어요.'
+  },
+  {
+    title: '이제 바로 시작해볼까요?',
+    desc: '마지막 페이지의 “시작하기”를 누르면 바로 메모 작성이 가능해요. 필요하면 설정에서 언제든 다시 볼 수 있습니다.'
+  }
+];
 
 function _wcGoTo(n) {
   _wcPage = Math.max(0, Math.min(WC_TOTAL - 1, n));
@@ -712,6 +750,49 @@ function _wcGoTo(n) {
   const next = document.getElementById('wcNext');
   if (prev) prev.disabled = _wcPage === 0;
   if (next) next.disabled = _wcPage === WC_TOTAL - 1;
+
+  const indicator = document.getElementById('wcPageIndicator');
+  if (indicator) indicator.textContent = `${_wcPage + 1} / ${WC_TOTAL}`;
+  const progress = document.getElementById('wcProgressBar');
+  if (progress) progress.style.width = `${((_wcPage + 1) / WC_TOTAL) * 100}%`;
+  const helpTitle = document.getElementById('wcHelpTitle');
+  const helpDesc = document.getElementById('wcHelpDesc');
+  const help = WC_PAGE_HELP[_wcPage] || WC_PAGE_HELP[0];
+  if (helpTitle) helpTitle.textContent = help.title;
+  if (helpDesc) helpDesc.textContent = help.desc;
+}
+
+function _isWelcomeOverlayVisible() {
+  if (_popupType === 'welcome') return true;
+  return document.getElementById('welcomeOverlay')?.classList.contains('visible');
+}
+
+function _handleWelcomeKeydown(e) {
+  if (!_isWelcomeOverlayVisible()) return;
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    _wcGoTo(_wcPage - 1);
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    _wcGoTo(_wcPage + 1);
+  } else if (e.key === 'Home') {
+    e.preventDefault();
+    _wcGoTo(0);
+  } else if (e.key === 'End') {
+    e.preventDefault();
+    _wcGoTo(WC_TOTAL - 1);
+  }
+}
+
+function _bindWelcomeCarouselEvents() {
+  document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
+  document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
+  document.querySelectorAll('.wc-dot').forEach((d, i) => {
+    d.addEventListener('click', () => _wcGoTo(i));
+  });
+  document.getElementById('wcSkip')?.addEventListener('click', () => {
+    document.getElementById('welcomeClose')?.click();
+  });
 }
 
 function _isWelcomeOverlayVisible() {

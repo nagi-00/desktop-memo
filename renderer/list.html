@@ -96,6 +96,13 @@
 <!-- ══ 웰컴 오버레이 ══ -->
 <div class="welcome-overlay" id="welcomeOverlay">
   <div class="welcome-card">
+    <div class="wc-topbar">
+      <button class="wc-skip-btn" id="wcSkip" type="button">건너뛰기</button>
+      <span class="wc-page-indicator" id="wcPageIndicator">1 / 9</span>
+    </div>
+    <div class="wc-progress" aria-hidden="true">
+      <div class="wc-progress-bar" id="wcProgressBar"></div>
+    </div>
 
     <!-- ── 페이지 슬라이더 ── -->
     <div class="wc-track-outer">
@@ -371,6 +378,10 @@
         <button type="button" class="wc-dot" role="tab" aria-label="9페이지" aria-selected="false"></button>
       </div>
       <button class="wc-nav-btn" id="wcNext" aria-label="다음">&#8250;</button>
+    </div>
+    <div class="wc-help-panel" id="wcHelpPanel" aria-live="polite">
+      <p class="wc-help-title" id="wcHelpTitle">빠르게 훑어보기</p>
+      <p class="wc-help-desc" id="wcHelpDesc">각 페이지에서 어떤 기능을 언제 쓰면 좋은지 친절하게 안내해드립니다.</p>
     </div>
 
   </div><!-- /.welcome-card -->
