@@ -1160,10 +1160,16 @@ body.popup-mode .shortcut-overlay {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  border: none;
+  padding: 0;
   background: color-mix(in srgb, var(--color-text-muted) 40%, transparent);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   flex-shrink: 0;
+}
+.wc-dot:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 75%, white);
+  outline-offset: 2px;
 }
 .wc-dot.active {
   background: var(--color-accent);
