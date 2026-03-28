@@ -250,6 +250,25 @@ const btnDelete      = document.getElementById('btnDelete');
 
 const btnStickyNotes = document.getElementById('btnStickyNotes');
 const btnThreadFold  = document.getElementById('btnThreadFold');
+
+// ── 액션바 버튼 핸들러 (bindEvents 밖에 등록 — 초기화 오류와 무관하게 동작) ──
+btnStickyNotes?.addEventListener('click', () => {
+  const card = document.querySelector('.memo-card');
+  const isNowSN = card?.classList.contains('sticky-notes-mode') ?? false;
+  card?.classList.toggle('sticky-notes-mode', !isNowSN);   // 즉시 시각적 반영
+  api.setStickyNotesMode?.(!isNowSN);                       // 전역 설정 동기화
+  if (!isNowSN && !isPinned) btnPin?.click();               // SN ON → 핀 연동
+  else if (isNowSN && isPinned) btnPin?.click();            // SN OFF → 핀 해제
+});
+
+btnThreadFold?.addEventListener('click', () => {
+  const annotPanel = document.getElementById('annotationPanel');
+  const annotFolded = annotPanel?.classList.contains('folded') ?? true;
+  const shouldFold  = !(annotFolded && mediaFolded);        // 둘 다 접혀야 펼치기
+  if (shouldFold !== mediaFolded)   document.getElementById('btnMediaFold')?.click();
+  if (annotPanel && shouldFold !== annotFolded) document.getElementById('btnAnnotationFold')?.click();
+});
+
 const btnLike       = document.getElementById('btnLike');
 const btnNewMemo    = document.getElementById('btnNewMemo');
 const btnImage      = document.getElementById('btnImage');
@@ -1825,19 +1844,7 @@ function bindEvents() {
     updateLikeButton();
   });
 
-  // 일괄 접기/펼치기: 미디어 + 주석 패널 동시 제어
-  btnThreadFold.addEventListener('click', () => {
-    const annotPanel = document.getElementById('annotationPanel');
-    const annotFolded = annotPanel?.classList.contains('folded') ?? true;
-    // 둘 다 접혀있으면 → 펼치기, 아니면 → 모두 접기
-    const shouldFold = !(annotFolded && mediaFolded);
-    if (shouldFold !== mediaFolded) {
-      document.getElementById('btnMediaFold')?.click();
-    }
-    if (annotPanel && shouldFold !== annotFolded) {
-      document.getElementById('btnAnnotationFold')?.click();
-    }
-  });
+  // btnThreadFold: 모듈 최상단에 등록됨
 
   // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
@@ -1967,14 +1974,7 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // Sticky Notes 모드 토글 (전역 설정 + 핀 연동)
-  btnStickyNotes.addEventListener('click', async () => {
-    const isNowSN = document.querySelector('.memo-card')?.classList.contains('sticky-notes-mode');
-    await api.setStickyNotesMode?.(!isNowSN);
-    // 핀(항상 위)도 연동
-    if (!isNowSN && !isPinned) btnPin.click();
-    else if (isNowSN && isPinned) btnPin.click();
-  });
+  // btnStickyNotes: 모듈 최상단에 등록됨
 
   // 심볼 버튼 → 메모 목록 열기
   symbolBtn.addEventListener('click', () => api.openList());
