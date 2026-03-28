@@ -752,6 +752,7 @@ memoContent.addEventListener('click', (e) => {
 });
 
 function scheduleSave() {
+  if (!memoData) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const contentHtml = memoContent.innerHTML;
@@ -1824,7 +1825,19 @@ function bindEvents() {
     updateLikeButton();
   });
 
-  btnThreadFold.addEventListener('click', () => document.getElementById('btnAnnotationFold')?.click());
+  // 일괄 접기/펼치기: 미디어 + 주석 패널 동시 제어
+  btnThreadFold.addEventListener('click', () => {
+    const annotPanel = document.getElementById('annotationPanel');
+    const annotFolded = annotPanel?.classList.contains('folded') ?? true;
+    // 둘 다 접혀있으면 → 펼치기, 아니면 → 모두 접기
+    const shouldFold = !(annotFolded && mediaFolded);
+    if (shouldFold !== mediaFolded) {
+      document.getElementById('btnMediaFold')?.click();
+    }
+    if (annotPanel && shouldFold !== annotFolded) {
+      document.getElementById('btnAnnotationFold')?.click();
+    }
+  });
 
   // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
@@ -1954,9 +1967,13 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // Sticky Notes 모드 (항상 위 고정 토글)
-  btnStickyNotes.addEventListener('click', () => {
-    btnPin.click();
+  // Sticky Notes 모드 토글 (전역 설정 + 핀 연동)
+  btnStickyNotes.addEventListener('click', async () => {
+    const isNowSN = document.querySelector('.memo-card')?.classList.contains('sticky-notes-mode');
+    await api.setStickyNotesMode?.(!isNowSN);
+    // 핀(항상 위)도 연동
+    if (!isNowSN && !isPinned) btnPin.click();
+    else if (isNowSN && isPinned) btnPin.click();
   });
 
   // 심볼 버튼 → 메모 목록 열기
