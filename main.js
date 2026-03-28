@@ -293,33 +293,6 @@ function registerIpcHandlers() {
   });
 
   // 답글(스레드) 메모 생성
-  ipcMain.handle('memo:createReply', (_e, { parentId }) => {
-    const parent = getMemoById(parentId);
-    if (!parent) return null;
-
-    // 같은 부모를 가진 기존 형제 중 가장 최근 것 → 그 아래에 붙임
-    const siblings = getMemos()
-      .filter(m => m.parentId === parentId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    let attachAbove = memoWindows.get(parentId);
-    if (siblings.length > 0) {
-      const lastWin = memoWindows.get(siblings[0].id);
-      if (lastWin && !lastWin.isDestroyed()) attachAbove = lastWin;
-    }
-
-    let replyX, replyY, replyWidth = 320;
-    if (attachAbove && !attachAbove.isDestroyed()) {
-      const pb = attachAbove.getBounds();
-      replyX = pb.x; replyY = pb.y + pb.height + 2; replyWidth = pb.width;
-    }
-
-    const memo = buildNewMemo({
-      parentId,
-      profile: { ...parent.profile },
-      theme:   { ...parent.theme },
-      font:    { ...parent.font },
-      window:  { x: replyX, y: replyY, width: replyWidth, height: 180 },
-    });
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);
@@ -582,22 +555,6 @@ function registerIpcHandlers() {
   });
 
   // 서브 메모(답글) 일괄 잠금 — 부모 잠금 시 자식 창에 전파
-  ipcMain.handle('memo:lockChildren', (_e, { parentId, locked }) => {
-    const memos = getMemos();
-    const children = memos.filter(m => m.parentId === parentId);
-    let changed = false;
-    for (const child of children) {
-      const idx = memos.findIndex(m => m.id === child.id);
-      if (idx !== -1) { memos[idx].isLocked = locked; memos[idx].updatedAt = new Date().toISOString(); changed = true; }
-      const w = memoWindows.get(child.id);
-      if (w && !w.isDestroyed()) {
-        w.webContents.send('memo:parentLocked', locked);
-        try { w.setMovable(!locked); } catch {}
-      }
-    }
-    if (changed) { saveMemos(memos); broadcastListUpdate(); }
-    return true;
-  });
 
   ipcMain.handle('memo:importBackup', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
@@ -799,14 +756,6 @@ function registerIpcHandlers() {
   });
 
   // 답글 스레드 접기/펼치기 — 자식 창 숨기기/보이기 + 목록창 동기화
-  ipcMain.handle('memo:foldThread', (_e, rootId) => {
-    const memos = getMemos();
-    const children = memos.filter(m => m.parentId === rootId);
-    if (children.length > 0) {
-      const anyVisible = children.some(m => {
-        const w = memoWindows.get(m.id);
-        return w && !w.isDestroyed() && w.isVisible();
-      });
       for (const m of children) {
         const w = memoWindows.get(m.id);
         if (w && !w.isDestroyed()) {

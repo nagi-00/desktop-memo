@@ -496,27 +496,8 @@ body {
 }
 
 /* 답글 라벨 */
-.reply-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--color-text-placeholder);
-  margin-left: 4px;
-}
 
 /* ── 사이드바: 답글 아이템 — 인셋 섀도로 단순 직선 표현 ── */
-.memo-list-item.reply-item {
-  padding-left: 16px;
-  border-bottom: none;
-  box-shadow: inset 3px 0 0 var(--color-border);
-}
-.memo-list-item.reply-item .item-avatar {
-  width: 24px;
-  height: 24px;
-  font-size: 11px;
-}
-.memo-list-item.last-reply {
-  border-bottom: 1px solid var(--color-border);
-}
 
 /* ── 미리보기: 스레드 컨텍스트 (답글의 부모 표시) ── */
 .preview-thread-ctx {

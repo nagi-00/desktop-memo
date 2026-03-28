@@ -14,7 +14,6 @@ contextBridge.exposeInMainWorld('memoAPI', {
 
   // ── 메모 CRUD ──
   createMemo: ()          => ipcRenderer.invoke('memo:create'),
-  createReply:(parentId)  => ipcRenderer.invoke('memo:createReply', { parentId }),
   updateMemo: (changes)   => ipcRenderer.invoke('memo:update', { id: memoId, changes }),
   deleteMemo: ()          => ipcRenderer.invoke('memo:delete', memoId),
   deleteById: (id)        => ipcRenderer.invoke('memo:delete', id),
@@ -113,7 +112,6 @@ contextBridge.exposeInMainWorld('memoAPI', {
   restoreWindowFromPopup: (prev)  => ipcRenderer.invoke('window:restoreFromPopup', prev),
 
   // ── 서브 메모 일괄 잠금 (부모→자식 전파) ──
-  broadcastLockToChildren: (locked) => ipcRenderer.invoke('memo:lockChildren', { parentId: memoId, locked }),
   onParentLocked: (callback) => {
     const handler = (_e, locked) => callback(locked);
     ipcRenderer.on('memo:parentLocked', handler);
@@ -124,7 +122,6 @@ contextBridge.exposeInMainWorld('memoAPI', {
   setWindowWidth: (w) => ipcRenderer.invoke('window:setWidth', w),
 
   // ── 답글 스레드 접기 ──
-  foldThread: (id) => ipcRenderer.invoke('memo:foldThread', id),
 
   // ── 캡처 (이미지 저장 / 클립보드) ──
   captureCard: ({ rect, action }) => ipcRenderer.invoke('memo:captureCard', { id: memoId, rect, action }),

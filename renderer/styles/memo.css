@@ -471,79 +471,8 @@
   text-align: right;
 }
 
-/* ── 답글 컨텍스트 배너 ── */
-.reply-context {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
-  border-bottom: 1px solid var(--color-border);
-  font-size: 11px;
-  color: var(--color-text-muted);
-  flex-shrink: 0;
-  transition: background var(--transition-fast);
-}
-.reply-context:hover {
-  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
-}
-.reply-context-icon {
-  color: var(--color-accent);
-  font-size: 12px;
-}
-.reply-apply-parent-theme {
-  padding: 2px 8px;
-  font-size: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  -webkit-app-region: no-drag;
-  pointer-events: all;
-}
-.reply-apply-parent-theme:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-text);
-}
 
-/* 답글 메모 최소 컨트롤 버튼 (상태바 대신) */
-.reply-ctx-ctrls { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-.reply-ctx-spacer { flex: 1; }
-.reply-ctx-ctrl {
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-muted);
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-.reply-ctx-ctrl:hover { background: var(--color-surface-hover); color: var(--color-text); }
-.reply-ctx-ctrl.danger:hover {
-  background: color-mix(in srgb, #ef4444 15%, transparent);
-  color: #ef4444;
-}
 
-/* 답글 메모 — 상단바 없이 reply-context가 최상단이므로 radius 적용 */
-.memo-card.is-reply .status-bar { display: none; }
-.memo-card.is-reply .profile-row { display: none; }
-.memo-card.is-reply .action-bar { display: none; }
-.memo-card.is-reply .reply-context {
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
-  /* 독립 이동 불가: 부모 메모와 항상 붙어있음 */
-  -webkit-app-region: no-drag;
-  cursor: default;
-}
-.memo-card.is-reply .reply-context > * { -webkit-app-region: no-drag; }
 
 /* ══════════════════════════════════════════════
    SIMPLE MODE (간단히 보기)
@@ -1144,8 +1073,8 @@
 .action-icon-btn:hover { transform: scale(1.12); }
 
 /* 각 버튼별 색상 */
-.action-icon-btn.reply       { color: var(--action-reply);    }
-.action-icon-btn.thread-fold { color: var(--action-reply);    }
+.action-icon-btn.thread-fold  { color: var(--color-text-muted); }
+.action-icon-btn.sticky-notes  { color: var(--color-accent);     }
 .action-icon-btn.like     { color: var(--action-like);     }
 .action-icon-btn.image    { color: var(--action-link);     }
 .action-icon-btn.new-memo { color: var(--color-text-muted);}
@@ -1231,8 +1160,8 @@
   transform: scale(1.15);
 }
 
-.action-icon-btn.reply:hover       { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
-.action-icon-btn.thread-fold:hover { background: color-mix(in srgb, var(--action-reply) 15%, transparent); }
+.action-icon-btn.thread-fold:hover  { background: color-mix(in srgb, var(--color-text-muted) 12%, transparent); }
+.action-icon-btn.sticky-notes:hover  { background: color-mix(in srgb, var(--color-accent) 15%, transparent); }
 .action-icon-btn.like:hover     { background: color-mix(in srgb, var(--action-like)     15%, transparent); }
 .action-icon-btn.image:hover    { background: color-mix(in srgb, var(--action-link)     15%, transparent); }
 .action-icon-btn.text-color:hover { background: var(--color-surface-hover); }
@@ -1761,7 +1690,6 @@
 /* Sticky Notes 모드: 프로필 행 / 액션 바 숨김 */
 .memo-card.sticky-notes-mode .profile-row { display: none; }
 .memo-card.sticky-notes-mode .action-bar { display: none; }
-.memo-card.sticky-notes-mode .reply-context { display: none !important; }
 .memo-card.sticky-notes-mode .media-header { display: none !important; }
 .memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
 .memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
@@ -1785,3 +1713,50 @@
 /* SN 위치잠금: 모든 드래그 영역 비활성화 (Linux setMovable 미지원 대응) */
 .memo-card.sn-move-locked .status-bar-inner { -webkit-app-region: no-drag !important; }
 .memo-card.sn-move-locked .status-bar-inner .sb-spacer { -webkit-app-region: no-drag !important; }
+
+/* ── 토글 블록 ── */
+.memo-toggle {
+  margin: 1px 0;
+}
+.toggle-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  padding: 1px 2px;
+  border-radius: 3px;
+  cursor: text;
+  min-height: 1.4em;
+  word-break: break-word;
+}
+.toggle-header::before {
+  content: '▶';
+  font-size: 8px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+  display: inline-block;
+  width: 18px;
+  min-width: 18px;
+  cursor: pointer;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.memo-toggle[data-open="true"] > .toggle-header::before {
+  transform: rotate(90deg);
+}
+.toggle-header:empty::after {
+  content: attr(data-placeholder);
+  color: var(--color-text-placeholder);
+  pointer-events: none;
+}
+.toggle-body {
+  padding-left: 18px;
+  min-height: 1em;
+}
+.memo-toggle:not([data-open="true"]) > .toggle-body {
+  display: none;
+}
+/* 중첩 토글 */
+.toggle-body .memo-toggle {
+  margin: 0;
+}
+

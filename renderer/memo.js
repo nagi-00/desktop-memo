@@ -248,7 +248,7 @@ const colorSwatches  = document.getElementById('colorSwatches');
 const colorPickerCustom = document.getElementById('colorPickerCustom');
 const btnDelete      = document.getElementById('btnDelete');
 
-const btnReply       = document.getElementById('btnReply');
+const btnStickyNotes = document.getElementById('btnStickyNotes');
 const btnThreadFold  = document.getElementById('btnThreadFold');
 const btnLike       = document.getElementById('btnLike');
 const btnNewMemo    = document.getElementById('btnNewMemo');
@@ -457,80 +457,6 @@ async function init() {
 
   // 저장된 미디어 그리드에 래퍼/이벤트 재적용
   initMediaGrids();
-
-  // 답글 컨텍스트 표시
-  if (memoData.parentId) {
-    // 상태바 숨기고 reply 스타일 적용
-    document.querySelector('.memo-card').classList.add('is-reply');
-
-    // reply-context 바에 최소화/삭제 컨트롤 추가
-    const replyCtx = document.getElementById('replyContext');
-    const ctrlsDiv = document.createElement('div');
-    ctrlsDiv.className = 'reply-ctx-ctrls';
-    const rMinBtn = document.createElement('button');
-    rMinBtn.className = 'reply-ctx-ctrl';
-    rMinBtn.title = '숨기기';
-    rMinBtn.innerHTML = '<i data-lucide="minimize-2" width="11" height="11"></i>';
-    rMinBtn.addEventListener('click', (e) => { e.stopPropagation(); hideWindow(); });
-    const rDelBtn = document.createElement('button');
-    rDelBtn.className = 'reply-ctx-ctrl danger';
-    rDelBtn.title = '메모 삭제';
-    rDelBtn.innerHTML = '<i data-lucide="trash-2" width="11" height="11"></i>';
-    rDelBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (confirm('이 메모를 삭제할까요?')) await api.deleteMemo();
-    });
-    ctrlsDiv.appendChild(rMinBtn);
-    ctrlsDiv.appendChild(rDelBtn);
-    replyCtx.appendChild(ctrlsDiv);
-
-    const allMemos = await api.getAllMemos();
-    const parent = allMemos?.find(m => m.id === memoData.parentId);
-    if (parent) {
-      const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = `${parent.profile?.name || '메모'}의 답글`;
-      replyCtx.style.display = 'flex';
-      ctxText.style.cursor = 'pointer';
-      ctxText.addEventListener('click', () => api.focusMemo(parent.id));
-      // 원본 테마 적용 버튼 — mousedown 사용 (drag region 안에서도 동작)
-      const btnApplyParentTheme = document.getElementById('btnApplyParentTheme');
-      if (btnApplyParentTheme) {
-        btnApplyParentTheme.style.display = '';
-        // mousedown: 드래그 영역에서도 이벤트 수신, 매 클릭마다 최신 부모 데이터 조회
-        btnApplyParentTheme.addEventListener('mousedown', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          // 최신 부모 데이터 조회 (부모 테마가 변경된 경우 반영)
-          const freshMemos = await api.getAllMemos();
-          const freshParent = freshMemos?.find(m => m.id === memoData.parentId);
-          if (!freshParent) return;
-          const parentAccent = freshParent.theme?.accent ?? null;
-          memoData.theme = { ...(memoData.theme || {}), accent: parentAccent };
-          applyTheme(parentAccent, currentMode);
-          renderColorSwatches();
-          // 부모 폰트도 동기화
-          if (freshParent.font) {
-            memoData.font = { ...freshParent.font };
-            document.documentElement.style.setProperty('--memo-font-family', memoData.font.family || 'system-ui');
-            document.documentElement.style.setProperty('--memo-font-size', `${memoData.font.size || 14}px`);
-          }
-          // 부모 폭도 동기화
-          if (freshParent.window?.width) {
-            api.setWindowWidth(freshParent.window.width);
-          }
-          saveMemoChanges({ theme: memoData.theme, font: memoData.font });
-        });
-      }
-    } else {
-      // 부모 메모를 못 찾아도 context bar 표시
-      const ctxText = document.getElementById('replyContextText');
-      ctxText.textContent = '답글 메모';
-      replyCtx.style.display = 'flex';
-    }
-
-    // 아이콘 렌더 (lucide)
-    if (window.lucide) lucide.createIcons({ nodes: [rMinBtn, rDelBtn] });
-  }
 
   // 프로필
   const profile = memoData.profile || {};
@@ -758,6 +684,73 @@ function scrollToCursor() {
 }
 
 // ── 저장 ──────────────────────────────────────
+
+// ── 토글 블록 ─────────────────────────────────
+function insertToggleBlock(range, textNode) {
+  // >> 텍스트 제거
+  const fullText = textNode.textContent;
+  const offset = range.startOffset;
+  const beforeText = fullText.slice(0, offset).trimStart();
+  if (beforeText !== '>>') return false;
+
+  // 현재 블록 요소 찾기
+  let block = range.startContainer;
+  while (block && block !== memoContent && !['P','DIV'].includes(block.nodeName)) {
+    block = block.parentNode;
+  }
+  if (!block || block === memoContent) return false;
+
+  // 블록 내 >> 이후 텍스트를 title로 사용
+  const titleText = fullText.slice(offset).replace(/^\s/, ''); // >> 뒤 텍스트
+
+  const toggle = document.createElement('div');
+  toggle.className = 'memo-toggle';
+  toggle.dataset.open = 'true';
+
+  const header = document.createElement('div');
+  header.className = 'toggle-header';
+  header.textContent = titleText;
+
+  const body = document.createElement('div');
+  body.className = 'toggle-body';
+  body.innerHTML = '<br>';
+
+  toggle.append(header, body);
+
+  // 현재 블록이 다른 toggle-body 안에 있으면 거기 삽입, 아니면 memoContent에 삽입
+  const parentBody = block.closest?.('.toggle-body');
+  if (parentBody) {
+    parentBody.insertBefore(toggle, block);
+    block.remove();
+  } else {
+    block.replaceWith(toggle);
+  }
+
+  // 커서를 header 시작에 배치
+  const sel = window.getSelection();
+  const newRange = document.createRange();
+  newRange.setStart(header, 0);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+  return true;
+}
+
+// 토글 arrow 클릭 처리
+memoContent.addEventListener('click', (e) => {
+  const header = e.target.closest?.('.toggle-header');
+  if (!header) return;
+  const toggle = header.closest('.memo-toggle');
+  if (!toggle) return;
+  // arrow 영역(왼쪽 22px) 클릭 시에만 toggle
+  const rect = header.getBoundingClientRect();
+  if (e.clientX - rect.left < 22) {
+    e.preventDefault();
+    toggle.dataset.open = toggle.dataset.open === 'true' ? 'false' : 'true';
+    scheduleSave();
+  }
+});
+
 function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -1477,7 +1470,42 @@ function bindEvents() {
     else if (mod && e.key === 'z')                       { e.preventDefault(); document.execCommand('undo'); }
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
+    } else if (e.key === ' ' && !mod && !e.shiftKey) {
+      // >> + Space → 토글 블록 변환
+      const sel = window.getSelection();
+      if (sel?.rangeCount && sel.isCollapsed) {
+        const range = sel.getRangeAt(0);
+        const node = range.startContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const before = node.textContent.slice(0, range.startOffset).trimStart();
+          if (before === '>>') {
+            e.preventDefault();
+            insertToggleBlock(range, node);
+            scheduleSave();
+          }
+        }
+      }
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
+      // toggle-header에서 Enter → toggle-body로 이동
+      {
+        const sel = window.getSelection();
+        if (sel?.rangeCount) {
+          const node = sel.getRangeAt(0).startContainer;
+          const header = (node.nodeType === 3 ? node.parentNode : node).closest?.('.toggle-header');
+          if (header) {
+            e.preventDefault();
+            const body = header.parentElement.querySelector('.toggle-body');
+            if (body) {
+              const r = document.createRange();
+              r.setStart(body, 0);
+              r.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(r);
+            }
+            return;
+          }
+        }
+      }
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
         let node = sel.getRangeAt(0).startContainer;
@@ -1796,11 +1824,7 @@ function bindEvents() {
     updateLikeButton();
   });
 
-  // 답글 스레드 접기/펼치기 버튼
-  btnThreadFold.addEventListener('click', () => {
-    const id = memoData?.parentId || memoData?.id;
-    if (id) api.foldThread(id);
-  });
+  btnThreadFold.addEventListener('click', () => document.getElementById('btnAnnotationFold')?.click());
 
   // 이미지 첨부 — Twitter-style 미디어 그리드
   btnImage.addEventListener('click', () => imageFileInput.click());
@@ -1930,9 +1954,9 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 답글 (스레드)
-  btnReply.addEventListener('click', () => {
-    if (memoData?.id) api.createReply(memoData.id);
+  // Sticky Notes 모드 (항상 위 고정 토글)
+  btnStickyNotes.addEventListener('click', () => {
+    btnPin.click();
   });
 
   // 심볼 버튼 → 메모 목록 열기
@@ -2109,7 +2133,6 @@ function bindEvents() {
     _setLockIcon(locked);
     saveMemoChanges({ isLocked: locked });
     // 서브 메모(답글)도 일괄 잠금/해제
-    api.broadcastLockToChildren?.(locked);
     // 클릭스루 적용
     if (locked) _startClickThrough(); else _stopClickThrough();
   }
@@ -2458,7 +2481,6 @@ function bindEvents() {
     const actionIcons = document.querySelector('.action-icons');
     const BTN = 32;
     const hideOrder = [
-      '.action-icon-btn.reply',
       '.action-icon-btn.thread-fold',
       '.action-icon-btn.font',
       '.action-icon-btn.image',

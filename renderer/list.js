@@ -206,46 +206,6 @@ function renderTagFilterChips() {
   });
 }
 
-// ── 스레드 그룹화 ──
-function buildThreads(memos) {
-  const byId = new Map();
-  memos.forEach(m => byId.set(m.id, m));
-
-  const roots = [];
-  const children = new Map();
-
-  memos.forEach(m => {
-    if (!m.parentId || !byId.has(m.parentId)) {
-      roots.push(m);
-    } else {
-      const arr = children.get(m.parentId) || [];
-      arr.push(m);
-      children.set(m.parentId, arr);
-    }
-  });
-
-  children.forEach(arr => arr.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
-
-  roots.sort((a, b) => {
-    const aLatest = getThreadLatest(a.id, children, byId);
-    const bLatest = getThreadLatest(b.id, children, byId);
-    return bLatest - aLatest;
-  });
-
-  return { roots, children };
-}
-
-function getThreadLatest(id, children, byId) {
-  let latest = 0;
-  const memo = byId.get(id);
-  if (memo) latest = new Date(memo.updatedAt).getTime();
-  const kids = children.get(id) || [];
-  kids.forEach(k => {
-    const t = new Date(k.updatedAt).getTime();
-    if (t > latest) latest = t;
-  });
-  return latest;
-}
 
 // ── 필터링 ──
 function getFilteredMemos() {
@@ -255,9 +215,6 @@ function getFilteredMemos() {
 
   if (currentFilter === 'liked') {
     list = list.filter(m => m.liked);
-  } else if (currentFilter === 'threads') {
-    const parentIds = new Set(list.filter(m => m.parentId).map(m => m.parentId));
-    list = list.filter(m => parentIds.has(m.id) || m.parentId);
   } else if (currentFilter.startsWith('tag:')) {
     const tag = currentFilter.slice(4);
     list = list.filter(m => (m.tags || []).includes(tag));
@@ -293,66 +250,16 @@ function renderList() {
   }
   emptyList.style.display = 'none';
 
-  if (isTrash) {
-    // 휴지통: 단순 리스트 (스레드 없음)
-    memos
-      .slice()
-      .sort((a, b) => new Date(b.deletedAt || b.updatedAt) - new Date(a.deletedAt || a.updatedAt))
-      .forEach(memo => sidebar.appendChild(buildListItem(memo, { isTrashItem: true })));
-    return;
-  }
-
-  const { roots, children } = buildThreads(memos);
-
-  roots.forEach(root => {
-    const replies = children.get(root.id) || [];
-    const hasReplies = replies.length > 0;
-
-    // 루트 아이템
-    const rootEl = buildListItem(root, { isThreadRoot: hasReplies, replyCount: replies.length });
-    sidebar.appendChild(rootEl);
-
-    // 답글 — 접기/펼치기 지원
-    if (hasReplies) {
-      const replyEls = [];
-      replies.forEach((reply, idx) => {
-        const isLast = idx === replies.length - 1;
-        const replyEl = buildListItem(reply, { isReply: true, isLastReply: isLast });
-        sidebar.appendChild(replyEl);
-        replyEls.push(replyEl);
-      });
-      const toggleBtn = rootEl.querySelector('.thread-toggle');
-      if (toggleBtn) {
-        toggleBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const collapsed = toggleBtn.dataset.collapsed === 'true';
-          const next = !collapsed;
-          toggleBtn.dataset.collapsed = String(next);
-          toggleBtn.title = next ? '답글 펼치기' : '답글 접기';
-          toggleBtn.classList.toggle('collapsed', next);
-          replyEls.forEach(el => {
-            if (next) {
-              el.style.maxHeight = el.scrollHeight + 'px';
-              requestAnimationFrame(() => { el.style.maxHeight = '0'; el.style.opacity = '0'; });
-            } else {
-              el.style.maxHeight = el.scrollHeight + 'px';
-              el.style.opacity = '1';
-              el.addEventListener('transitionend', () => { el.style.maxHeight = ''; }, { once: true });
-            }
-          });
-        });
-      }
-    }
-  });
+  const sortKey = isTrash ? 'deletedAt' : 'updatedAt';
+  memos
+    .slice()
+    .sort((a, b) => new Date(b[sortKey] || b.updatedAt) - new Date(a[sortKey] || a.updatedAt))
+    .forEach(memo => sidebar.appendChild(buildListItem(memo, { isTrashItem: isTrash })));
 }
 
-function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastReply = false, replyCount = 0, isTrashItem = false } = {}) {
+function buildListItem(memo, { isTrashItem = false } = {}) {
   const el = document.createElement('div');
-  el.className = 'memo-list-item';
-  if (isReply) el.classList.add('reply-item');
-  if (isReply && isLastReply) el.classList.add('last-reply');
-  if (isThreadRoot && replyCount > 0) el.classList.add('thread-root');
-  if (isTrashItem) el.classList.add('trash-item');
+  el.className = 'memo-list-item';  if (isTrashItem) el.classList.add('trash-item');
   el.dataset.id = memo.id;
   if (memo.id === selectedId) el.classList.add('active');
 
@@ -383,25 +290,12 @@ function buildListItem(memo, { isThreadRoot = false, isReply = false, isLastRepl
     <div class="item-info">
       <div class="item-name">
         ${escHtml(memo.profile?.name || '메모')}
-        ${isReply ? '<span class="reply-label">답글</span>' : ''}
-        ${isThreadRoot && replyCount > 0 ? `<span class="thread-count">${replyCount}</span>` : ''}
       </div>
       <div class="item-preview">${escHtml(preview)}</div>
       <div class="item-date">${dateStr}</div>
       ${badgesHtml ? `<div class="item-badges">${badgesHtml}</div>` : ''}
     </div>
   `;
-
-  // 스레드 루트에 접기/펼치기 토글 버튼 추가
-  if (isThreadRoot && replyCount > 0) {
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'thread-toggle';
-    toggleBtn.dataset.collapsed = 'false';
-    toggleBtn.title = '답글 접기';
-    toggleBtn.innerHTML = `<span class="tt-arrow">▾</span>${replyCount}`;
-    toggleBtn.addEventListener('click', (e) => e.stopPropagation());
-    el.appendChild(toggleBtn);
-  }
 
   // 다중 선택 모드: 체크박스 추가
   if (isMultiSelectMode && !isTrashItem) {

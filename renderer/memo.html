@@ -95,13 +95,6 @@
         </div>
       </div>
 
-      <!-- 답글 컨텍스트 (부모 메모가 있을 때 표시) -->
-      <div class="reply-context" id="replyContext" style="display:none">
-        <span class="reply-context-icon">↩</span>
-        <span class="reply-context-text" id="replyContextText"></span>
-        <button class="reply-apply-parent-theme" id="btnApplyParentTheme" title="원본 테마 적용" style="display:none">원본 테마 적용</button>
-      </div>
-
       <!-- 프로필 행 (drag region) -->
       <div class="profile-row" id="profileRow">
         <div class="avatar" id="profileAvatar"></div>
@@ -179,10 +172,10 @@
         <span class="created-date" id="createdDate"></span>
         <!-- 버튼 영역 (overflow:hidden — 팝업 없는 버튼만) -->
         <div class="action-icons">
-          <button class="action-icon-btn reply"      id="btnReply"      title="답글 추가">
-            <i data-lucide="message-circle" width="15" height="15"></i>
+          <button class="action-icon-btn sticky-notes" id="btnStickyNotes" title="Sticky Notes 모드">
+            <i data-lucide="pin" width="15" height="15"></i>
           </button>
-          <button class="action-icon-btn thread-fold" id="btnThreadFold" title="주석 접기/펼치기">
+          <button class="action-icon-btn thread-fold" id="btnThreadFold" title="주석 패널 접기/펼치기">
             <i data-lucide="chevrons-up-down" width="15" height="15"></i>
           </button>
           <!-- 글꼴 설정 (액션바) -->
