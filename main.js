@@ -292,16 +292,6 @@ function registerIpcHandlers() {
     return memo.id;
   });
 
-  // 답글(스레드) 메모 생성
-    const memos = getMemos();
-    memos.push(memo);
-    saveMemos(memos);
-    createMemoWindow(memo, { immediateAttach: attachAbove });
-    updateTrayMenu();
-    broadcastListUpdate();
-    return memo.id;
-  });
-
   // 메모 업데이트
   ipcMain.handle('memo:update', (_e, { id, changes }) => {
     const memos = getMemos();
@@ -755,19 +745,6 @@ function registerIpcHandlers() {
     }
   });
 
-  // 답글 스레드 접기/펼치기 — 자식 창 숨기기/보이기 + 목록창 동기화
-      for (const m of children) {
-        const w = memoWindows.get(m.id);
-        if (w && !w.isDestroyed()) {
-          if (anyVisible) w.hide();
-          else w.show();
-        }
-      }
-    }
-    if (listWindow && !listWindow.isDestroyed()) {
-      listWindow.webContents.send('thread:fold', rootId);
-    }
-  });
 }
 
 // 목록 창에 메모 변경 알림
