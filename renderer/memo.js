@@ -246,7 +246,6 @@ const colorDot       = document.getElementById('colorDot');
 const colorPopup     = document.getElementById('colorPopup');
 const colorSwatches  = document.getElementById('colorSwatches');
 const colorPickerCustom = document.getElementById('colorPickerCustom');
-const btnDelete      = document.getElementById('btnDelete');
 
 const btnStickyNotes = document.getElementById('btnStickyNotes');
 const btnThreadFold  = document.getElementById('btnThreadFold');
@@ -267,6 +266,13 @@ btnThreadFold?.addEventListener('click', () => {
   const shouldFold  = !(annotFolded && mediaFolded);        // 둘 다 접혀야 펼치기
   if (shouldFold !== mediaFolded)   document.getElementById('btnMediaFold')?.click();
   if (annotPanel && shouldFold !== annotFolded) document.getElementById('btnAnnotationFold')?.click();
+});
+
+// SN 모드 해제 버튼
+document.getElementById('btnExitSN')?.addEventListener('click', () => {
+  const card = document.querySelector('.memo-card');
+  card?.classList.remove('sticky-notes-mode');
+  api.setStickyNotesMode?.(false);
 });
 
 const btnLike       = document.getElementById('btnLike');
@@ -1353,6 +1359,77 @@ function resetFormattingAtCursor() {
   }
 }
 
+// ── 잠금/간단히 보기 헬퍼 (init()에서도 호출되므로 bindEvents 밖에 선언) ──
+function applySimpleMode(simple) {
+  isSimpleMode = simple;
+  document.querySelector('.memo-card').classList.toggle('simple-mode', simple);
+  const icon = btnSimpleView?.querySelector('[data-lucide]');
+  if (icon) {
+    icon.setAttribute('data-lucide', simple ? 'eye' : 'eye-off');
+    if (window.lucide) lucide.createIcons({ nodes: [icon] });
+  }
+  saveMemoChanges({ simpleMode: simple });
+}
+
+function _setLockIcon(locked) {
+  const icon = btnLock?.querySelector('[data-lucide]');
+  if (icon) {
+    icon.setAttribute('data-lucide', locked ? 'lock' : 'lock-open');
+    if (window.lucide) lucide.createIcons({ nodes: [icon] });
+  }
+}
+
+let _lockMouseMoveHandler  = null;
+let _lockMouseLeaveHandler = null;
+let _lastIgnoreState       = null;
+
+function _startClickThrough() {
+  api.setIgnoreMouseEvents?.(true, { forward: true });
+  _lastIgnoreState = true;
+  _lockMouseMoveHandler = () => {
+    if (_lastIgnoreState) { _lastIgnoreState = false; api.setIgnoreMouseEvents?.(false); }
+  };
+  _lockMouseLeaveHandler = () => {
+    if (!_lastIgnoreState) { _lastIgnoreState = true; api.setIgnoreMouseEvents?.(true, { forward: true }); }
+  };
+  document.addEventListener('mousemove',  _lockMouseMoveHandler);
+  document.addEventListener('mouseleave', _lockMouseLeaveHandler);
+}
+
+function _stopClickThrough() {
+  if (_lockMouseMoveHandler)  { document.removeEventListener('mousemove',  _lockMouseMoveHandler);  _lockMouseMoveHandler  = null; }
+  if (_lockMouseLeaveHandler) { document.removeEventListener('mouseleave', _lockMouseLeaveHandler); _lockMouseLeaveHandler = null; }
+  _lastIgnoreState = null;
+  api.setIgnoreMouseEvents?.(false);
+}
+
+function applyLock(locked) {
+  isLocked = locked;
+  document.querySelector('.memo-card').classList.toggle('locked', locked);
+  memoContent.contentEditable = locked ? 'false' : 'true';
+  _setLockIcon(locked);
+  saveMemoChanges({ isLocked: locked });
+  if (locked) _startClickThrough(); else _stopClickThrough();
+}
+
+function tempUnlock() {
+  if (!isLocked) return;
+  applyLock(false);
+  memoContent.focus();
+  function relock() {
+    window.removeEventListener('blur', relock);
+    document.removeEventListener('mousedown', onOutsideClick, true);
+    if (!isLocked) applyLock(true);
+  }
+  function onOutsideClick(e) {
+    if (!document.querySelector('.memo-card')?.contains(e.target)) relock();
+  }
+  setTimeout(() => {
+    window.addEventListener('blur', relock);
+    document.addEventListener('mousedown', onOutsideClick, true);
+  }, 150);
+}
+
 // ── 이벤트 바인딩 ─────────────────────────────
 function bindEvents() {
   // 체크박스 delegated 이벤트 (박스 자체 클릭만 토글)
@@ -1829,10 +1906,7 @@ function bindEvents() {
     selectAccentColor(colorPickerCustom.value);
   });
 
-  // 삭제
-  btnDelete.addEventListener('click', async () => {
-    if (confirm('이 메모를 삭제할까요?')) await api.deleteMemo();
-  });
+  // 삭제 버튼은 메모 목록에서만 사용 (상태바에서 제거됨)
 
   // 새 메모
   btnNewMemo.addEventListener('click', () => api.createMemo());
@@ -2097,82 +2171,8 @@ function bindEvents() {
 
   // 하이라이트 버튼 (우클릭 메뉴에서만 사용 — action bar 버튼 삭제됨)
 
-  // ── 간단히 보기 토글 (UI 크롬 숨기기) ────────────
-  function applySimpleMode(simple) {
-    isSimpleMode = simple;
-    document.querySelector('.memo-card').classList.toggle('simple-mode', simple);
-    const icon = btnSimpleView?.querySelector('[data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', simple ? 'eye' : 'eye-off');
-      if (window.lucide) lucide.createIcons({ nodes: [icon] });
-    }
-    saveMemoChanges({ simpleMode: simple });
-  }
-
-  // ── 잠금 토글 (클릭/편집 차단) ──────────────────
-  function _setLockIcon(locked) {
-    const icon = btnLock?.querySelector('[data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', locked ? 'lock' : 'lock-open');
-      if (window.lucide) lucide.createIcons({ nodes: [icon] });
-    }
-  }
-
-  // ── 잠금 클릭스루: 마우스 진입 시 이벤트 활성, 이탈 시 click-through 복귀 ──
-  let _lockMouseMoveHandler  = null;
-  let _lockMouseLeaveHandler = null;
-  let _lastIgnoreState       = null;
-
-  function _startClickThrough() {
-    api.setIgnoreMouseEvents?.(true, { forward: true });
-    _lastIgnoreState = true;
-    _lockMouseMoveHandler = () => {
-      if (_lastIgnoreState) { _lastIgnoreState = false; api.setIgnoreMouseEvents?.(false); }
-    };
-    _lockMouseLeaveHandler = () => {
-      if (!_lastIgnoreState) { _lastIgnoreState = true; api.setIgnoreMouseEvents?.(true, { forward: true }); }
-    };
-    document.addEventListener('mousemove',  _lockMouseMoveHandler);
-    document.addEventListener('mouseleave', _lockMouseLeaveHandler);
-  }
-
-  function _stopClickThrough() {
-    if (_lockMouseMoveHandler)  { document.removeEventListener('mousemove',  _lockMouseMoveHandler);  _lockMouseMoveHandler  = null; }
-    if (_lockMouseLeaveHandler) { document.removeEventListener('mouseleave', _lockMouseLeaveHandler); _lockMouseLeaveHandler = null; }
-    _lastIgnoreState = null;
-    api.setIgnoreMouseEvents?.(false);
-  }
-
-  function applyLock(locked) {
-    isLocked = locked;
-    document.querySelector('.memo-card').classList.toggle('locked', locked);
-    memoContent.contentEditable = locked ? 'false' : 'true';
-    _setLockIcon(locked);
-    saveMemoChanges({ isLocked: locked });
-    // 서브 메모(답글)도 일괄 잠금/해제
-    // 클릭스루 적용
-    if (locked) _startClickThrough(); else _stopClickThrough();
-  }
-
-  // ── 잠금 오버레이 더블클릭 → 임시 잠금 해제 ──
-  function tempUnlock() {
-    if (!isLocked) return;
-    applyLock(false);
-    memoContent.focus();
-    // 포커스 아웃 시 재잠금
-    function relock() {
-      window.removeEventListener('blur', relock);
-      document.removeEventListener('mousedown', onOutsideClick, true);
-      if (!isLocked) applyLock(true);
-    }
-    function onOutsideClick(e) {
-      if (!document.querySelector('.memo-card')?.contains(e.target)) relock();
-    }
-    setTimeout(() => {
-      window.addEventListener('blur', relock);
-      document.addEventListener('mousedown', onOutsideClick, true);
-    }, 150);
-  }
+  // ── 잠금/간단히 보기 이벤트 ────────────────────
+  // (함수 정의는 bindEvents 위 모듈 레벨로 이동됨)
   lockOverlay?.addEventListener('dblclick', tempUnlock);
 
   btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
