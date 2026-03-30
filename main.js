@@ -629,6 +629,7 @@ function registerIpcHandlers() {
   // 심볼 아이콘 변경
   ipcMain.handle('settings:setSymbolIcon', (_e, iconId) => {
     store.set('globalSettings.symbolIcon', iconId);
+    updateTrayIcon();
     BrowserWindow.getAllWindows().forEach(w => {
       if (!w.isDestroyed()) w.webContents.send('settings:symbolIconChanged', iconId);
     });
@@ -755,48 +756,58 @@ function broadcastListUpdate() {
 }
 
 // ──────────────────────────────────────────
-// 클로버 트레이 아이콘 동적 생성
+// 트레이 아이콘 동적 생성 (심볼별 SVG)
 // ──────────────────────────────────────────
-function buildCloverIcon(color = '#8fbc8f') {
-  // color hex → rgb
-  const hex = color.replace('#', '');
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
+function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
+  const hex  = (color || '#8fbc8f').replace('#', '');
+  const r    = parseInt(hex.slice(0, 2), 16);
+  const g    = parseInt(hex.slice(2, 4), 16);
+  const b    = parseInt(hex.slice(4, 6), 16);
+  const fill = `rgb(${r},${g},${b})`;
+  // viewBox에 1px 여백을 줘서 가장자리 클리핑 방지
+  const vb   = '-1 -1 26 26';
 
-  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-    <!-- 클로버 4잎 (흰색 아웃라인 먼저) -->
-    <circle cx="11" cy="12" r="8.5" fill="white"/>
-    <circle cx="21" cy="12" r="8.5" fill="white"/>
-    <circle cx="11" cy="21" r="8.5" fill="white"/>
-    <circle cx="21" cy="21" r="8.5" fill="white"/>
-    <!-- 줄기 흰색 아웃라인 -->
-    <line x1="16" y1="24" x2="10" y2="31" stroke="white" stroke-width="4" stroke-linecap="round"/>
-    <!-- 클로버 4잎 채우기 -->
-    <circle cx="11" cy="12" r="7.5" fill="rgb(${r},${g},${b})"/>
-    <circle cx="21" cy="12" r="7.5" fill="rgb(${r},${g},${b})"/>
-    <circle cx="11" cy="21" r="7.5" fill="rgb(${r},${g},${b})"/>
-    <circle cx="21" cy="21" r="7.5" fill="rgb(${r},${g},${b})"/>
-    <!-- 중앙 채우기 (잎 사이 빈공간) -->
-    <rect x="11" y="12" width="10" height="9" fill="rgb(${r},${g},${b})"/>
-    <!-- 잎 사이 흰색 분리선 -->
-    <line x1="16" y1="4" x2="16" y2="29" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
-    <line x1="3" y1="16.5" x2="29" y2="16.5" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
-    <!-- 줄기 -->
-    <line x1="16" y1="24" x2="10" y2="31" stroke="rgb(${r},${g},${b})" stroke-width="2.8" stroke-linecap="round"/>
-  </svg>`;
-  const dataUrl = 'data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64');
-  return nativeImage.createFromDataURL(dataUrl);
+  const shapes = {
+    clover: `
+      <circle cx="12" cy="7"  r="5.5" fill="white"/>
+      <circle cx="17" cy="12" r="5.5" fill="white"/>
+      <circle cx="12" cy="17" r="5.5" fill="white"/>
+      <circle cx="7"  cy="12" r="5.5" fill="white"/>
+      <circle cx="12" cy="7"  r="4.8" fill="${fill}"/>
+      <circle cx="17" cy="12" r="4.8" fill="${fill}"/>
+      <circle cx="12" cy="17" r="4.8" fill="${fill}"/>
+      <circle cx="7"  cy="12" r="4.8" fill="${fill}"/>
+      <line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>`,
+    heart: `<path fill="${fill}" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
+    moon:  `<path fill="${fill}" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`,
+    'pen-sparkle': `
+      <path fill="${fill}" d="M5 1.5C5.5 3.5 8.5 4.5 9.5 5.5C8.5 6.5 5.5 7.5 5 9.5C4.5 7.5 1.5 6.5 0.5 5.5C1.5 4.5 4.5 3.5 5 1.5Z"/>
+      <rect fill="${fill}" x="7" y="9" width="14" height="6" rx="3" transform="rotate(-47 14 12)"/>
+      <rect fill="${fill}" x="13" y="20.5" width="9" height="2.5" rx="1.25"/>`,
+    note: `<path fill="${fill}" fill-rule="evenodd" d="M4 2C2.9 2 2 2.9 2 4v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zM14 22v-6h6z"/>`,
+  };
+
+  const inner  = shapes[symbolId] || shapes.clover;
+  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="32" height="32">${inner}</svg>`;
+  return nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64'));
 }
 
 function updateTrayIcon() {
   if (!tray) return;
-  const accentColor = store.get('globalSettings.accentColor') || '#8fbc8f';
+  const accentColor  = store.get('globalSettings.accentColor')  || '#8fbc8f';
+  const symbolId     = store.get('globalSettings.symbolIcon')   || 'clover';
+  const customDataUrl = store.get('globalSettings.customAppIcon') || null;
   try {
-    const icon = buildCloverIcon(accentColor);
-    tray.setImage(icon);
+    if (customDataUrl) {
+      // 커스텀 PNG: 32x32으로 리사이즈해서 클리핑 없이 정사각형으로 표시
+      let img = nativeImage.createFromDataURL(customDataUrl);
+      img = img.resize({ width: 32, height: 32 });
+      tray.setImage(img);
+    } else {
+      tray.setImage(buildTrayIcon(symbolId, accentColor));
+    }
   } catch {
-    // fallback: PNG 파일 사용
     const iconPath = path.join(__dirname, 'assets', 'tray-icon.png');
     try { tray.setImage(nativeImage.createFromPath(iconPath)); } catch { /* ignore */ }
   }

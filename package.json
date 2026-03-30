@@ -5,8 +5,11 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "gen-icons": "node scripts/gen-icon.js"
+    "gen-icons": "node scripts/gen-icon.js",
+    "build": "npm run gen-icons && electron-builder",
+    "build:win": "npm run gen-icons && electron-builder --win",
+    "build:linux": "npm run gen-icons && electron-builder --linux",
+    "build:mac": "npm run gen-icons && electron-builder --mac"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -19,16 +22,40 @@
   "build": {
     "appId": "com.nagi.memo",
     "productName": "nagi memo",
+    "copyright": "© 2024 nagi",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "extraMetadata": {
+      "main": "main.js"
+    },
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.png"
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "nagi memo",
+      "uninstallDisplayName": "nagi memo"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.png"
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "icon": "assets/icon.png",
+      "category": "Utility"
     },
     "mac": {
-      "icon": "assets/icon.png"
-    }
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "assets/icon-512.png",
+      "category": "public.app-category.productivity"
+    },
+    "artifactName": "nagi-memo-${version}-${os}.${ext}"
   }
 }

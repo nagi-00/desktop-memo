@@ -144,6 +144,73 @@ function drawClover(buf, width, height, color, strokeColor, scale) {
   drawLine(buf, width, stemX1, stemY1, stemX2, stemY2, stemW, fr, fg, fb, 255);
 }
 
+// ── PNG → ICO (PNG-in-ICO, Windows Vista+) ───────────────
+function writeICO(pngBuffers, sizes, outPath) {
+  // pngBuffers: Buffer[] (각 사이즈별 PNG 바이트)
+  // sizes: number[] (각 PNG의 픽셀 크기)
+  const count  = pngBuffers.length;
+  const headerSize = 6 + count * 16;
+  let offset = headerSize;
+
+  const header = Buffer.allocUnsafe(6);
+  header.writeUInt16LE(0,     0); // reserved
+  header.writeUInt16LE(1,     2); // type: ICO
+  header.writeUInt16LE(count, 4);
+
+  const entries = [];
+  for (let i = 0; i < count; i++) {
+    const sz  = sizes[i];
+    const len = pngBuffers[i].length;
+    const entry = Buffer.allocUnsafe(16);
+    entry[0] = sz >= 256 ? 0 : sz; // width (0 = 256)
+    entry[1] = sz >= 256 ? 0 : sz; // height
+    entry[2] = 0;  // color count (0 = true color)
+    entry[3] = 0;  // reserved
+    entry.writeUInt16LE(1,   4); // planes
+    entry.writeUInt16LE(32,  6); // bit count
+    entry.writeUInt32LE(len, 8);
+    entry.writeUInt32LE(offset, 12);
+    entries.push(entry);
+    offset += len;
+  }
+
+  fs.writeFileSync(outPath, Buffer.concat([header, ...entries, ...pngBuffers]));
+  console.log(`✓ ${outPath} (ICO: ${sizes.join(', ')}px)`);
+}
+
+function makePNG(size) {
+  const buf = Buffer.alloc(size * size * 4, 0);
+  drawClover(buf, size, size, [143, 188, 143], [255, 255, 255], 1.0);
+  // PNG를 Buffer로 반환 (파일 저장 없이)
+  const rowBytes = size * 4;
+  const raw = Buffer.allocUnsafe(size * (1 + rowBytes));
+  for (let y = 0; y < size; y++) {
+    raw[y * (1 + rowBytes)] = 0;
+    buf.copy(raw, y * (1 + rowBytes) + 1, y * rowBytes, (y + 1) * rowBytes);
+  }
+  const compressed = zlib.deflateSync(raw, { level: 9 });
+
+  function crc32b(b) {
+    let crc = 0xffffffff;
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); t[i] = c; }
+    for (let i = 0; i < b.length; i++) crc = t[(crc ^ b[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+  function chunk(type, data) {
+    const typeB = Buffer.from(type, 'ascii');
+    const body  = Buffer.concat([typeB, data]);
+    const len   = Buffer.allocUnsafe(4); len.writeUInt32BE(data.length);
+    const crc   = Buffer.allocUnsafe(4); crc.writeUInt32BE(crc32b(body));
+    return Buffer.concat([len, body, crc]);
+  }
+  const sig  = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.allocUnsafe(13);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = ihdr[11] = ihdr[12] = 0;
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', Buffer.alloc(0))]);
+}
+
 // ── 메인 ────────────────────────────────────────────────
 const assetsDir = path.join(__dirname, '..', 'assets');
 if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
@@ -156,12 +223,27 @@ if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
   writePNG(buf, W, H, path.join(assetsDir, 'tray-icon.png'));
 }
 
-// 앱 아이콘: 256x256
+// 앱 아이콘: 256x256 (Linux 기본)
 {
   const W = 256, H = 256;
   const buf = Buffer.alloc(W * H * 4, 0);
   drawClover(buf, W, H, [143, 188, 143], [255, 255, 255], 1.0);
   writePNG(buf, W, H, path.join(assetsDir, 'icon.png'));
+}
+
+// 앱 아이콘: 512x512 (macOS, 고해상도)
+{
+  const W = 512, H = 512;
+  const buf = Buffer.alloc(W * H * 4, 0);
+  drawClover(buf, W, H, [143, 188, 143], [255, 255, 255], 1.0);
+  writePNG(buf, W, H, path.join(assetsDir, 'icon-512.png'));
+}
+
+// Windows ICO: 16, 32, 48, 64, 128, 256 px 멀티 사이즈
+{
+  const sizes  = [16, 32, 48, 64, 128, 256];
+  const bufs   = sizes.map(s => makePNG(s));
+  writeICO(bufs, sizes, path.join(assetsDir, 'icon.ico'));
 }
 
 console.log('아이콘 생성 완료!');
