@@ -251,19 +251,25 @@ const btnStickyNotes = document.getElementById('btnStickyNotes');
 const btnThreadFold  = document.getElementById('btnThreadFold');
 
 // ── 액션바 버튼 핸들러 (bindEvents 밖에 등록 — 초기화 오류와 무관하게 동작) ──
+function _updateSNActiveState(isActive) {
+  btnStickyNotes?.classList.toggle('active', isActive);
+}
+
 btnStickyNotes?.addEventListener('click', () => {
   const card = document.querySelector('.memo-card');
   const isNowSN = card?.classList.contains('sticky-notes-mode') ?? false;
-  card?.classList.toggle('sticky-notes-mode', !isNowSN);   // 즉시 시각적 반영
-  api.setStickyNotesMode?.(!isNowSN);                       // 전역 설정 동기화
-  if (!isNowSN && !isPinned) btnPin?.click();               // SN ON → 핀 연동
-  else if (isNowSN && isPinned) btnPin?.click();            // SN OFF → 핀 해제
+  const nextSN = !isNowSN;
+  card?.classList.toggle('sticky-notes-mode', nextSN);
+  _updateSNActiveState(nextSN);
+  api.setStickyNotesMode?.(nextSN);
+  if (nextSN && !isPinned) btnPin?.click();
+  else if (!nextSN && isPinned) btnPin?.click();
 });
 
 btnThreadFold?.addEventListener('click', () => {
   const annotPanel = document.getElementById('annotationPanel');
   const annotFolded = annotPanel?.classList.contains('folded') ?? true;
-  const shouldFold  = !(annotFolded && mediaFolded);        // 둘 다 접혀야 펼치기
+  const shouldFold  = !(annotFolded && mediaFolded);
   if (shouldFold !== mediaFolded)   document.getElementById('btnMediaFold')?.click();
   if (annotPanel && shouldFold !== annotFolded) document.getElementById('btnAnnotationFold')?.click();
 });
@@ -272,6 +278,7 @@ btnThreadFold?.addEventListener('click', () => {
 document.getElementById('btnExitSN')?.addEventListener('click', () => {
   const card = document.querySelector('.memo-card');
   card?.classList.remove('sticky-notes-mode');
+  _updateSNActiveState(false);
   api.setStickyNotesMode?.(false);
 });
 
@@ -401,9 +408,11 @@ async function init() {
   // Sticky Notes 모드 초기 적용
   if (settings?.stickyNotesMode) {
     document.querySelector('.memo-card')?.classList.add('sticky-notes-mode');
+    _updateSNActiveState(true);
   }
   api.onStickyNotesModeChanged?.((enabled) => {
     document.querySelector('.memo-card')?.classList.toggle('sticky-notes-mode', enabled);
+    _updateSNActiveState(enabled);
   });
 
   // Sticky Notes 모드: 목록 열기 버튼 (클로버 SVG는 HTML에 이미 있음)

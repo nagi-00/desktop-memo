@@ -1168,6 +1168,11 @@
 .action-icon-btn.new-memo:hover { background: var(--color-surface-hover); color: var(--color-text); }
 
 /* 토글 활성 상태 — 트위터 방식: SVG fill 채색 */
+.action-icon-btn.sticky-notes.active {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+.action-icon-btn.sticky-notes.active svg { fill: currentColor; }
+
 .action-icon-btn.like.active {
   color: var(--action-like);
 }
@@ -1694,10 +1699,12 @@
 .memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
 .memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
 
-/* 상태바: SN 전용 버튼 / 핀 / 투명도 / 색상 / 숨기기 / 삭제만 표시 */
-.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only):not(#btnDelete) { display: none; }
+/* 상태바: SN 전용 버튼 / 핀 / 투명도 / 색상 / 숨기기만 표시 */
+.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-spacer { display: none; }
+/* 닫기 버튼: 스페이서가 숨겨진 SN 모드에서도 우측 끝에 고정 */
+.memo-card.sticky-notes-mode #btnMinimize { margin-left: auto; }
 
 /* 상태바를 메모 색상 기반 반투명으로 */
 .memo-card.sticky-notes-mode .status-bar-inner {
