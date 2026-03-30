@@ -58,6 +58,8 @@ function _applyIconEl(el, size, defaultHtmlFn) {
     el.innerHTML = `<img src="${_customAppIconUrl}" width="${size}" height="${size}" style="object-fit:contain;display:block;border-radius:3px" alt="" draggable="false"/>`;
     return;
   }
+  // 기본 심볼: accent 색상을 명시해 CSS 변수 미로드 상태에서도 표시되게 함
+  el.style.color = 'var(--color-accent, #8fbc8f)';
   el.innerHTML = defaultHtmlFn();
 }
 
@@ -2512,6 +2514,7 @@ function bindEvents() {
       '.action-icon-btn.image',
       '.action-icon-btn.like',
       '.action-icon-btn.new-memo',
+      '.action-icon-btn.sticky-notes', // 최후 수단 — 극단적 좁은 폭에서만 숨김
     ];
 
     function syncActionIcons() {

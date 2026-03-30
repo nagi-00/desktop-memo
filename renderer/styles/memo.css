@@ -1038,7 +1038,12 @@
   font-size: 11px;
   color: var(--color-text-muted);
   padding-left: 4px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 110px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   transition: color var(--transition-base);
 }
 
@@ -1047,7 +1052,7 @@
   align-items: center;
   gap: 0;
   flex: 1;
-  min-width: 0;
+  min-width: 32px; /* btnStickyNotes 1개는 항상 유지 */
   justify-content: flex-end;
   flex-wrap: nowrap;
   /* overflow 제거 — JS가 동적으로 버튼을 숨겨 클리핑 방지 */
