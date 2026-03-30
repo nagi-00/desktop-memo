@@ -279,6 +279,7 @@
   color: var(--color-text);
 }
 .sb-btn.active { color: var(--color-accent); }
+.sb-btn.active svg { fill: currentColor; }
 .sb-btn.delete:hover {
   background: color-mix(in srgb, #ef4444 15%, transparent);
   color: #ef4444;
