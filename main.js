@@ -760,7 +760,7 @@ function broadcastListUpdate() {
 }
 
 // ──────────────────────────────────────────
-// 트레이 아이콘 동적 생성 (순수 PNG 픽셀 렌더링 — 4원 클로버 디자인)
+// 트레이 아이콘 동적 생성 (순수 PNG 픽셀 렌더링 — SVG 미사용)
 // ──────────────────────────────────────────
 function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
   const zlib = require('zlib');
@@ -793,17 +793,40 @@ function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
       }
     }
   }
-
-  // 4원 2×2 클로버 (배경 없음, 투명)
-  {
-    const pad = W * 0.1;
-    const gap = W * 0.08;
-    const r   = (W - 2 * pad - gap) / 4;
-    const cx1 = pad + r, cx2 = W - pad - r;
-    const cy1 = pad + r, cy2 = H - pad - r;
-    for (const [cx, cy] of [[cx1, cy1], [cx2, cy1], [cx1, cy2], [cx2, cy2]]) {
-      fillCircle(cx, cy, r, fr, fg, fb, 255);
+  function drawLine(x1, y1, x2, y2, thick, r2, g2, b2, a2) {
+    const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 3;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      fillCircle(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, thick / 2, r2, g2, b2, a2);
     }
+  }
+
+  // 연결된 클로버 + 흰 × 및 + 이중 십자
+  {
+    const leafR  = W * 0.27, offset = W * 0.175;
+    const leafCY = H * 0.44;
+    const leaves = [
+      { x: W/2 - offset, y: leafCY - offset },
+      { x: W/2 + offset, y: leafCY - offset },
+      { x: W/2 - offset, y: leafCY + offset },
+      { x: W/2 + offset, y: leafCY + offset },
+    ];
+    const sw = Math.max(2, leafR * 0.18);
+    for (const { x, y } of leaves) fillCircle(x, y, leafR + sw / 2, 255, 255, 255, 255);
+    const stemW  = Math.max(1.5, W * 0.07);
+    const stemX1 = W/2 - W * 0.01, stemY1 = leafCY + offset + leafR * 0.6;
+    const stemX2 = W/2 - W * 0.18, stemY2 = H - H * 0.08;
+    drawLine(stemX1, stemY1, stemX2, stemY2, stemW + sw, 255, 255, 255, 255);
+    for (const { x, y } of leaves) fillCircle(x, y, leafR, fr, fg, fb, 255);
+    const cw = Math.max(1, W * 0.04);
+    // + 십자
+    drawLine(W/2, leafCY - leafR, W/2, leafCY + leafR, cw, 255, 255, 255, 200);
+    drawLine(W/2 - leafR, leafCY, W/2 + leafR, leafCY, cw, 255, 255, 255, 200);
+    // × 십자 (대각선)
+    const diag = leafR / Math.SQRT2;
+    drawLine(W/2 - diag, leafCY - diag, W/2 + diag, leafCY + diag, cw, 255, 255, 255, 200);
+    drawLine(W/2 + diag, leafCY - diag, W/2 - diag, leafCY + diag, cw, 255, 255, 255, 200);
+    drawLine(stemX1, stemY1, stemX2, stemY2, stemW, fr, fg, fb, 255);
   }
 
   // ── PNG 인코딩 ──
