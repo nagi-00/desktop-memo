@@ -84,14 +84,10 @@ function makeCloverPNG(W, H, color = '#8fbc8f', withBackground = true) {
   // 잎 채우기
   for (const { x, y } of leaves) fillCircle(x, y, leafR, fr, fg, fb, 255);
 
-  // + 십자
+  // + 십자만
   const cw = Math.max(1, W * 0.04);
   drawLine(W/2, leafCY - leafR, W/2, leafCY + leafR, cw, 255, 255, 255, 200);
   drawLine(W/2 - leafR, leafCY, W/2 + leafR, leafCY, cw, 255, 255, 255, 200);
-  // × 십자 (대각선)
-  const diag = leafR / Math.SQRT2;
-  drawLine(W/2 - diag, leafCY - diag, W/2 + diag, leafCY + diag, cw, 255, 255, 255, 200);
-  drawLine(W/2 + diag, leafCY - diag, W/2 - diag, leafCY + diag, cw, 255, 255, 255, 200);
 
   // 줄기 색상
   drawLine(stemX1, stemY1, stemX2, stemY2, stemW, fr, fg, fb, 255);
