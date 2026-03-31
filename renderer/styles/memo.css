@@ -241,7 +241,8 @@
 .status-bar {
   flex-shrink: 0;
   min-width: 0;
-  overflow: hidden; /* 버튼이 카드 폭을 넘어 우측으로 밀려나지 않게 */
+  overflow: visible; /* 팝업이 상태바 아래로 펼쳐질 수 있게 */
+  position: relative; /* 팝업 z-index 기준점 */
 }
 
 .status-bar-inner {
@@ -283,8 +284,12 @@
   background: var(--color-surface-hover);
   color: var(--color-text);
 }
-.sb-btn.active { color: var(--color-accent); }
-.sb-btn.active svg { fill: currentColor; }
+.sb-btn.active {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-radius: var(--radius-sm);
+}
+.sb-btn.active svg { fill: none; }
 .sb-btn.delete:hover {
   background: color-mix(in srgb, #ef4444 15%, transparent);
   color: #ef4444;
@@ -1510,6 +1515,23 @@
   color: var(--color-text-muted);
   min-width: 34px;
   text-align: right;
+}
+.img-rotate-num {
+  width: 42px;
+  padding: 2px 4px;
+  font-size: 11px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  -moz-appearance: textfield;
+}
+.img-rotate-num::-webkit-inner-spin-button,
+.img-rotate-num::-webkit-outer-spin-button { opacity: 0.5; }
+.img-rotate-unit {
+  font-size: 11px;
+  color: var(--color-text-muted);
 }
 
 .img-editor-btn {

@@ -1212,8 +1212,9 @@ function openImageEditor(imgEl) {
   Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
   document.getElementById('imgScale').value           = 100;
   document.getElementById('imgRotateSlider').value    = 0;
+  document.getElementById('imgRotateNum').value       = 0;
   document.getElementById('imgScaleVal').textContent  = '100%';
-  document.getElementById('imgRotateVal').textContent = '0°';
+
 
   // 프로필 아바타 편집 시 원형 가이드 표시
   const circleOverlay = document.getElementById('imgEditorCircleOverlay');
@@ -2387,8 +2388,9 @@ function bindEvents() {
     Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
     document.getElementById('imgScale').value        = 100;
     document.getElementById('imgRotateSlider').value = 0;
+    document.getElementById('imgRotateNum').value    = 0;
     document.getElementById('imgScaleVal').textContent  = '100%';
-    document.getElementById('imgRotateVal').textContent = '0°';
+    
     imgEditorSrc = new Image();
     imgEditorSrc.onload = redrawEditorCanvas;
     imgEditorSrc.src = imgEditorOriginalSrc;
@@ -2409,15 +2411,24 @@ function bindEvents() {
   });
   document.getElementById('imgRotateSlider').addEventListener('input', (e) => {
     imgEditorState.rotation = parseInt(e.target.value);
-    document.getElementById('imgRotateVal').textContent = `${imgEditorState.rotation}°`;
+    document.getElementById('imgRotateNum').value = imgEditorState.rotation;
+    redrawEditorCanvas();
+  });
+  document.getElementById('imgRotateNum').addEventListener('input', (e) => {
+    let v = parseInt(e.target.value);
+    if (isNaN(v)) return;
+    v = Math.max(-180, Math.min(180, v));
+    imgEditorState.rotation = v;
+    document.getElementById('imgRotateSlider').value = v;
     redrawEditorCanvas();
   });
   document.getElementById('imgResetTransform').addEventListener('click', () => {
     Object.assign(imgEditorState, { rotation: 0, flipH: false, flipV: false, scale: 100, offsetX: 0, offsetY: 0 });
     document.getElementById('imgScale').value        = 100;
     document.getElementById('imgRotateSlider').value = 0;
+    document.getElementById('imgRotateNum').value    = 0;
     document.getElementById('imgScaleVal').textContent  = '100%';
-    document.getElementById('imgRotateVal').textContent = '0°';
+    
     redrawEditorCanvas();
   });
 
