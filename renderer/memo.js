@@ -1933,14 +1933,33 @@ function bindEvents() {
 
   // 글자 색상 적용 헬퍼 (선택 범위 복원 후 foreColor 실행)
   function applyForeColor(color) {
+    const range = savedTextRange;
+    savedTextRange = null;
+    if (!range || range.collapsed) return;
+
+    // 기존 color span 중첩 제거 — 같은 범위 안의 기존 색상 span을 unwrap
+    const fragment = range.extractContents();
+    fragment.querySelectorAll('span[style*="color"]').forEach(span => {
+      span.style.removeProperty('color');
+      if (!span.getAttribute('style')) span.removeAttribute('style');
+    });
+
+    // 새 색상 span으로 감싸기
+    const span = document.createElement('span');
+    span.style.color = color;
+    span.appendChild(fragment);
+
+    range.insertNode(span);
+
+    // 커서를 span 끝으로 이동
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.setStartAfter(span);
+    newRange.collapse(true);
+    sel.addRange(newRange);
+
     memoContent.focus();
-    if (savedTextRange) {
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(savedTextRange);
-      savedTextRange = null;
-    }
-    document.execCommand('foreColor', false, color);
     scheduleSave();
   }
 
