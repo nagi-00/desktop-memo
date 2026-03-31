@@ -2492,7 +2492,6 @@ function bindEvents() {
       '.action-icon-btn.image',
       '.action-icon-btn.like',
       '.action-icon-btn.new-memo',
-      '.action-icon-btn.sticky-notes', // 최후 수단 — 극단적 좁은 폭에서만 숨김
     ];
 
     function syncActionIcons() {

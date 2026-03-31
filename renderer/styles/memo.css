@@ -237,6 +237,8 @@
    ══════════════════════════════════════════════ */
 .status-bar {
   flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden; /* 버튼이 카드 폭을 넘어 우측으로 밀려나지 않게 */
 }
 
 .status-bar-inner {
@@ -1705,12 +1707,10 @@
 .memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
 .memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
 
-/* 상태바: SN 전용 버튼 / 핀 / 투명도 / 색상 / 숨기기만 표시 */
+/* 상태바 SN 모드: 일반 버튼 숨김(pin/minimize 제외), SN 전용 버튼 표시
+   스페이서는 유지 → 버튼 위치가 일반 모드와 동일하게 우측 정렬 */
 .memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
-.memo-card.sticky-notes-mode .status-bar .sb-spacer { display: none; }
-/* 닫기 버튼: 스페이서가 숨겨진 SN 모드에서도 우측 끝에 고정 */
-.memo-card.sticky-notes-mode #btnMinimize { margin-left: auto; }
 
 /* 상태바를 메모 색상 기반 반투명으로 */
 .memo-card.sticky-notes-mode .status-bar-inner {

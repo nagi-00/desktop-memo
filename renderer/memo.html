@@ -25,21 +25,7 @@
         <div class="status-bar-inner">
 
           <!-- Sticky Notes 모드 전용 버튼 (평소엔 숨김) -->
-          <!-- 목록 열기 (클로버) -->
-          <button class="sb-btn sb-sn-only" id="btnOpenListSN" title="메모 목록 열기">
-            <!-- JS에서 applySymbolIcon()이 덮어씀 (선택된 심볼 13px 표시) -->
-            <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </button>
-          <!-- 위치잠금 -->
-          <button class="sb-btn sb-sn-only" id="btnSNMoveLock" title="위치 잠금">
-            <i data-lucide="lock-open" width="13" height="13"></i>
-          </button>
-          <!-- SN 모드 해제 -->
-          <button class="sb-btn sb-sn-only active" id="btnExitSN" title="Sticky Notes 모드 해제">
-            <i data-lucide="sticky-note" width="13" height="13"></i>
-          </button>
-
-          <!-- 핀 -->
+          <!-- 핀 (항상 좌측 첫 번째) -->
           <button class="sb-btn" id="btnPin" title="항상 위 고정">
             <i data-lucide="pin" width="13" height="13"></i>
           </button>
@@ -71,12 +57,31 @@
 
           <div class="sb-spacer"></div>
 
-          <!-- 잠금 (클릭 차단) -->
+          <!-- 잠금 (클릭 차단) — 일반 모드 우측 -->
           <button class="sb-btn" id="btnLock" title="잠금 (클릭 차단)">
             <i data-lucide="lock-open" width="13" height="13"></i>
           </button>
 
-          <!-- 닫기 (목록에 숨기기) -->
+          <!-- SN 모드 전환 — 일반 모드 우측, SN 모드에서는 숨김 -->
+          <button class="sb-btn" id="btnStickyNotes" title="Sticky Notes 모드">
+            <i data-lucide="sticky-note" width="13" height="13"></i>
+          </button>
+
+          <!-- SN 모드 전용 버튼 (평소엔 숨김) — 우측 -->
+          <!-- 목록 열기 (클로버) -->
+          <button class="sb-btn sb-sn-only" id="btnOpenListSN" title="메모 목록 열기">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <!-- 위치잠금 -->
+          <button class="sb-btn sb-sn-only" id="btnSNMoveLock" title="위치 잠금">
+            <i data-lucide="lock-open" width="13" height="13"></i>
+          </button>
+          <!-- SN 모드 해제 (btnStickyNotes와 동일 위치) -->
+          <button class="sb-btn sb-sn-only active" id="btnExitSN" title="Sticky Notes 모드 해제">
+            <i data-lucide="sticky-note" width="13" height="13"></i>
+          </button>
+
+          <!-- 닫기 — 항상 우측 끝 -->
           <button class="sb-btn" id="btnMinimize" title="목록에 숨기기 (창 닫기)">
             <i data-lucide="x" width="13" height="13"></i>
           </button>
@@ -161,9 +166,6 @@
         <span class="created-date" id="createdDate"></span>
         <!-- 버튼 영역 (overflow:hidden — 팝업 없는 버튼만) -->
         <div class="action-icons">
-          <button class="action-icon-btn sticky-notes" id="btnStickyNotes" title="Sticky Notes 모드">
-            <i data-lucide="sticky-note" width="15" height="15"></i>
-          </button>
           <button class="action-icon-btn thread-fold" id="btnThreadFold" title="일괄 접기/펼치기">
             <i data-lucide="chevrons-up-down" width="15" height="15"></i>
           </button>
