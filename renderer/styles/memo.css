@@ -211,22 +211,25 @@
 .card-view {
   flex: 1;
   min-height: 0;
+  min-width: 0; /* flex 아이템이 내용보다 좁아질 수 있게 */
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 }
 
 /* ── 카드 본체 ── */
 .memo-card {
   flex: 1;
   min-height: 0;
+  min-width: 0; /* 동일 이유 */
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
-  overflow: hidden; /* 팝업은 카드 내부 방향으로 열려 잘리지 않음 */
+  overflow: hidden;
   transition:
     background var(--transition-base),
     border-color var(--transition-base);
