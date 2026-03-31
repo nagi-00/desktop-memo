@@ -824,8 +824,13 @@ function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
     drawLine(stemX1, stemY1, stemX2, stemY2, stemW + sw, 255, 255, 255, 255);
     for (const { x, y } of leaves) fillCircle(x, y, leafR, fr, fg, fb, 255);
     const cw = Math.max(1, W * 0.04);
+    // + 십자
     drawLine(W/2, leafCY - leafR, W/2, leafCY + leafR, cw, 255, 255, 255, 200);
     drawLine(W/2 - leafR, leafCY, W/2 + leafR, leafCY, cw, 255, 255, 255, 200);
+    // × 십자 (대각선)
+    const diag = leafR / Math.SQRT2;
+    drawLine(W/2 - diag, leafCY - diag, W/2 + diag, leafCY + diag, cw, 255, 255, 255, 200);
+    drawLine(W/2 + diag, leafCY - diag, W/2 - diag, leafCY + diag, cw, 255, 255, 255, 200);
     drawLine(stemX1, stemY1, stemX2, stemY2, stemW, fr, fg, fb, 255);
   }
 
