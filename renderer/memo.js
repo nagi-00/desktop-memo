@@ -433,7 +433,7 @@ async function init() {
       document.querySelector('.memo-card')?.classList.toggle('sn-move-locked', isSNMoveLocked);
       const icon = btnSNMoveLock.querySelector('[data-lucide]');
       if (icon) {
-        icon.setAttribute('data-lucide', isSNMoveLocked ? 'lock' : 'lock-open');
+        icon.setAttribute('data-lucide', isSNMoveLocked ? 'pin' : 'pin-off');
         if (window.lucide) lucide.createIcons({ nodes: [icon] });
       }
       btnSNMoveLock.classList.toggle('active', isSNMoveLocked);

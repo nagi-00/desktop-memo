@@ -1734,7 +1734,7 @@
 
 /* 상태바 SN 모드: 일반 버튼 숨김(pin/minimize 제외), SN 전용 버튼 표시
    스페이서는 유지 → 버튼 위치가 일반 모드와 동일하게 우측 정렬 */
-.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(#btnLock):not(.sb-sn-only) { display: none; }
+.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
 
 /* 상태바를 메모 색상 기반 반투명으로 */
