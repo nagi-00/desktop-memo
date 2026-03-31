@@ -79,7 +79,7 @@ let memoData      = null;
 let currentMode   = 'dark';
 let isPinned      = false;
 let isLiked       = false;
-let isSimpleMode  = false;
+// isSimpleMode 제거됨 — SN 모드로 통합
 let isLocked      = false;
 let isSNMoveLocked = false;
 let saveTimer     = null;
@@ -294,7 +294,7 @@ const btnCapture      = document.getElementById('btnCapture');
 const capturePopup    = document.getElementById('capturePopup');
 const btnCaptureClipboard = document.getElementById('btnCaptureClipboard');
 const btnCaptureSave      = document.getElementById('btnCaptureSave');
-const btnSimpleView       = document.getElementById('btnSimpleView');
+// btnSimpleView 제거됨 — SN 모드로 통합
 const btnLock             = document.getElementById('btnLock');
 const lockOverlay         = document.getElementById('lockOverlay');
 const btnFont         = document.getElementById('btnFont');
@@ -509,16 +509,6 @@ async function init() {
   isPinned = memoData.pinned || false;
   updatePinButton();
 
-  // 간단히 보기 모드 복원
-  if (memoData.simpleMode) {
-    isSimpleMode = true;
-    document.querySelector('.memo-card').classList.add('simple-mode');
-    const icon = btnSimpleView?.querySelector('[data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', 'eye');
-      if (window.lucide) lucide.createIcons({ nodes: [icon] });
-    }
-  }
   // 잠금 모드 복원
   if (memoData.isLocked) {
     isLocked = true;
@@ -1370,18 +1360,7 @@ function resetFormattingAtCursor() {
   }
 }
 
-// ── 잠금/간단히 보기 헬퍼 (init()에서도 호출되므로 bindEvents 밖에 선언) ──
-function applySimpleMode(simple) {
-  isSimpleMode = simple;
-  document.querySelector('.memo-card').classList.toggle('simple-mode', simple);
-  const icon = btnSimpleView?.querySelector('[data-lucide]');
-  if (icon) {
-    icon.setAttribute('data-lucide', simple ? 'eye' : 'eye-off');
-    if (window.lucide) lucide.createIcons({ nodes: [icon] });
-  }
-  saveMemoChanges({ simpleMode: simple });
-}
-
+// ── 잠금 헬퍼 ──────────────────────────────────────
 function _setLockIcon(locked) {
   const icon = btnLock?.querySelector('[data-lucide]');
   if (icon) {
@@ -2186,14 +2165,13 @@ function bindEvents() {
   // (함수 정의는 bindEvents 위 모듈 레벨로 이동됨)
   lockOverlay?.addEventListener('dblclick', tempUnlock);
 
-  btnSimpleView?.addEventListener('click', () => applySimpleMode(!isSimpleMode));
   btnLock?.addEventListener('click', () => applyLock(!isLocked));
 
   // 부모 메모가 잠글/해제될 때 함께 잠금
   api.onParentLocked?.((locked) => applyLock(locked));
 
   // 잠금 복원 버튼 — 간단히 보기만 해제 (잠금은 독립적)
-  document.getElementById('btnRestoreDetail')?.addEventListener('click', () => applySimpleMode(false));
+  // btnRestoreDetail 제거됨 — SN 모드 해제는 btnExitSN 사용
 
 
   // ── 우클릭 서식 메뉴 (텍스트 선택 시) ───────────
