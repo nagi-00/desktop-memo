@@ -756,41 +756,184 @@ function broadcastListUpdate() {
 }
 
 // ──────────────────────────────────────────
-// 트레이 아이콘 동적 생성 (심볼별 SVG)
+// 트레이 아이콘 동적 생성 (순수 PNG 픽셀 렌더링 — SVG 미사용)
 // ──────────────────────────────────────────
 function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
-  const hex  = (color || '#8fbc8f').replace('#', '');
-  const r    = parseInt(hex.slice(0, 2), 16);
-  const g    = parseInt(hex.slice(2, 4), 16);
-  const b    = parseInt(hex.slice(4, 6), 16);
-  const fill = `rgb(${r},${g},${b})`;
-  // viewBox에 1px 여백을 줘서 가장자리 클리핑 방지
-  const vb   = '-1 -1 26 26';
+  const zlib = require('zlib');
+  const W = 32, H = 32;
+  const hex = (color || '#8fbc8f').replace('#', '');
+  const fr  = parseInt(hex.slice(0, 2), 16);
+  const fg  = parseInt(hex.slice(2, 4), 16);
+  const fb  = parseInt(hex.slice(4, 6), 16);
+  const buf = Buffer.alloc(W * H * 4, 0); // RGBA all transparent
 
-  const shapes = {
-    clover: `
-      <circle cx="12" cy="7"  r="5.5" fill="white"/>
-      <circle cx="17" cy="12" r="5.5" fill="white"/>
-      <circle cx="12" cy="17" r="5.5" fill="white"/>
-      <circle cx="7"  cy="12" r="5.5" fill="white"/>
-      <circle cx="12" cy="7"  r="4.8" fill="${fill}"/>
-      <circle cx="17" cy="12" r="4.8" fill="${fill}"/>
-      <circle cx="12" cy="17" r="4.8" fill="${fill}"/>
-      <circle cx="7"  cy="12" r="4.8" fill="${fill}"/>
-      <line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="${fill}" stroke-width="2" stroke-linecap="round"/>`,
-    heart: `<path fill="${fill}" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>`,
-    moon:  `<path fill="${fill}" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`,
-    'pen-sparkle': `
-      <path fill="${fill}" d="M5 1.5C5.5 3.5 8.5 4.5 9.5 5.5C8.5 6.5 5.5 7.5 5 9.5C4.5 7.5 1.5 6.5 0.5 5.5C1.5 4.5 4.5 3.5 5 1.5Z"/>
-      <rect fill="${fill}" x="7" y="9" width="14" height="6" rx="3" transform="rotate(-47 14 12)"/>
-      <rect fill="${fill}" x="13" y="20.5" width="9" height="2.5" rx="1.25"/>`,
-    note: `<path fill="${fill}" fill-rule="evenodd" d="M4 2C2.9 2 2 2.9 2 4v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2H4zM14 22v-6h6z"/>`,
-  };
+  // ── 픽셀 유틸 ──
+  function setPixel(x, y, r, g, b, a) {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    const i  = (y * W + x) * 4;
+    const sA = a / 255, dA = buf[i + 3] / 255;
+    const oA = sA + dA * (1 - sA);
+    if (oA === 0) { buf[i] = buf[i+1] = buf[i+2] = buf[i+3] = 0; return; }
+    buf[i]   = Math.round((r * sA + buf[i]   * dA * (1 - sA)) / oA);
+    buf[i+1] = Math.round((g * sA + buf[i+1] * dA * (1 - sA)) / oA);
+    buf[i+2] = Math.round((b * sA + buf[i+2] * dA * (1 - sA)) / oA);
+    buf[i+3] = Math.round(oA * 255);
+  }
+  function fillCircle(cx, cy, r, r2, g2, b2, a2) {
+    for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y++) {
+      for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x++) {
+        const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (d <= r - 0.5) setPixel(x, y, r2, g2, b2, a2);
+        else if (d <= r + 0.5) setPixel(x, y, r2, g2, b2, Math.round(a2 * (r + 0.5 - d)));
+      }
+    }
+  }
+  function drawLine(x1, y1, x2, y2, thick, r2, g2, b2, a2) {
+    const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) * 3;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      fillCircle(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, thick / 2, r2, g2, b2, a2);
+    }
+  }
+  function fillRect(x, y, w, h, r2, g2, b2, a2) {
+    for (let py = y; py < y + h; py++)
+      for (let px = x; px < x + w; px++)
+        setPixel(px, py, r2, g2, b2, a2);
+  }
 
-  const inner  = shapes[symbolId] || shapes.clover;
-  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="32" height="32">${inner}</svg>`;
-  return nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svgStr).toString('base64'));
+  if (symbolId === 'heart') {
+    // Heart — scaled to 32x32
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        // Normalize to [-1.2, 1.2]
+        const x = (px - W / 2) / (W * 0.42);
+        const y = -(py - H * 0.52) / (H * 0.42);
+        // Heart formula: (x²+y²-1)³ ≤ x²y³
+        const val = Math.pow(x*x + y*y - 1, 3) - x*x * y*y*y;
+        if (val <= 0) setPixel(px, py, fr, fg, fb, 255);
+      }
+    }
+    // Outline (white, 1px shrink)
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const x = (px - W / 2) / (W * 0.42);
+        const y = -(py - H * 0.52) / (H * 0.42);
+        const val = Math.pow(x*x + y*y - 1, 3) - x*x * y*y*y;
+        const xO = (px - W / 2) / (W * 0.39);
+        const yO = -(py - H * 0.49) / (H * 0.39);
+        const valO = Math.pow(xO*xO + yO*yO - 1, 3) - xO*xO * yO*yO*yO;
+        if (val <= 0.02 && valO > 0) setPixel(px, py, 255, 255, 255, 200);
+      }
+    }
+  } else if (symbolId === 'moon') {
+    // Crescent moon: large circle minus offset circle
+    const cx = W * 0.5, cy = H * 0.5, R = W * 0.42;
+    const ocx = cx + W * 0.14, ocy = cy - H * 0.1, oR = R * 0.78;
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const d1 = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+        const d2 = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
+        if (d1 <= R && d2 > oR) setPixel(px, py, fr, fg, fb, 255);
+      }
+    }
+    // thin white outline
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const d1 = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+        const d2 = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
+        const inside = d1 <= R && d2 > oR;
+        const d1o = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+        const d2o = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
+        const insideOuter = d1o <= R + 1.5 && d2o > oR - 1.5;
+        if (!inside && insideOuter) setPixel(px, py, 255, 255, 255, 180);
+      }
+    }
+  } else if (symbolId === 'note') {
+    // Document icon: rounded rect + folded corner
+    const m = 4;
+    fillRect(m, m, W - m * 2, H - m * 2, fr, fg, fb, 255);
+    // folded corner (bottom-right)
+    const foldS = 7;
+    for (let fy = 0; fy < foldS; fy++)
+      for (let fx = 0; fx < foldS - fy; fx++)
+        setPixel(W - m - foldS + fx, H - m - foldS + fy, 0, 0, 0, 0);
+    // corner triangle fill (white)
+    for (let fy = 0; fy < foldS; fy++)
+      for (let fx = foldS - fy; fx < foldS; fx++)
+        setPixel(W - m - foldS + fx, H - m - foldS + fy, 255, 255, 255, 180);
+    // white outline
+    for (let py = m - 1; py <= H - m; py++) setPixel(m - 1, py, 255, 255, 255, 200);
+    for (let px = m - 1; px <= W - m; px++) setPixel(px, m - 1, 255, 255, 255, 200);
+    for (let py = m - 1; py <= H - m; py++) setPixel(W - m, py, 255, 255, 255, 200);
+    for (let px = m - 1; px <= W - m; px++) setPixel(px, H - m, 255, 255, 255, 200);
+  } else if (symbolId === 'pen-sparkle') {
+    // Pencil body (rotated rect) + sparkle star
+    // Draw a diagonal thick line (pen body)
+    drawLine(5, 26, 22, 9, 5.5, fr, fg, fb, 255);
+    // pen tip
+    fillCircle(23.5, 7.5, 3, fr, fg, fb, 255);
+    // eraser end
+    fillCircle(4, 27, 2.5, 255, 255, 255, 180);
+    // sparkle dots
+    [[7, 7, 2.5], [26, 20, 2], [14, 3, 1.5]].forEach(([sx, sy, sr]) =>
+      fillCircle(sx, sy, sr, fr, fg, fb, 200));
+    // thin outline along pen
+    drawLine(5, 26, 22, 9, 7, 255, 255, 255, 100);
+    drawLine(5, 26, 22, 9, 5.5, fr, fg, fb, 255);
+  } else {
+    // Default: clover (from gen-icon.js)
+    const leafR  = W * 0.27, offset = W * 0.175;
+    const leafCY = H * 0.44;
+    const leaves = [
+      { x: W/2 - offset, y: leafCY - offset },
+      { x: W/2 + offset, y: leafCY - offset },
+      { x: W/2 - offset, y: leafCY + offset },
+      { x: W/2 + offset, y: leafCY + offset },
+    ];
+    const sw = Math.max(2, leafR * 0.18);
+    for (const { x, y } of leaves) fillCircle(x, y, leafR + sw / 2, 255, 255, 255, 255);
+    const stemW  = Math.max(1.5, W * 0.07);
+    const stemX1 = W/2 - W * 0.01, stemY1 = leafCY + offset + leafR * 0.6;
+    const stemX2 = W/2 - W * 0.18,  stemY2 = H - H * 0.08;
+    drawLine(stemX1, stemY1, stemX2, stemY2, stemW + sw, 255, 255, 255, 255);
+    for (const { x, y } of leaves) fillCircle(x, y, leafR, fr, fg, fb, 255);
+    const cw = Math.max(1, W * 0.04);
+    drawLine(W/2, leafCY - leafR, W/2, leafCY + leafR, cw, 255, 255, 255, 200);
+    drawLine(W/2 - leafR, leafCY, W/2 + leafR, leafCY, cw, 255, 255, 255, 200);
+    drawLine(stemX1, stemY1, stemX2, stemY2, stemW, fr, fg, fb, 255);
+  }
+
+  // ── PNG 인코딩 ──
+  function crc32(b) {
+    let crc = 0xffffffff;
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); t[i] = c; }
+    for (let i = 0; i < b.length; i++) crc = t[(crc ^ b[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+  function chunk(type, data) {
+    const tb = Buffer.from(type, 'ascii'), body = Buffer.concat([tb, data]);
+    const lb = Buffer.allocUnsafe(4); lb.writeUInt32BE(data.length);
+    const cb = Buffer.allocUnsafe(4); cb.writeUInt32BE(crc32(body));
+    return Buffer.concat([lb, body, cb]);
+  }
+  const rowBytes = W * 4;
+  const raw = Buffer.allocUnsafe(H * (1 + rowBytes));
+  for (let y = 0; y < H; y++) {
+    raw[y * (1 + rowBytes)] = 0;
+    buf.copy(raw, y * (1 + rowBytes) + 1, y * rowBytes, (y + 1) * rowBytes);
+  }
+  const compressed = zlib.deflateSync(raw, { level: 6 });
+  const ihdr = Buffer.allocUnsafe(13);
+  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = ihdr[11] = ihdr[12] = 0;
+  const pngBuf = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', compressed),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+  return nativeImage.createFromBuffer(pngBuf);
 }
 
 function updateTrayIcon() {
