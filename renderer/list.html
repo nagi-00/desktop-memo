@@ -17,7 +17,7 @@
     <h1 class="list-title">
       <span class="list-title-clover" aria-hidden="true">
         <img id="listCustomIconImg" style="display:none;width:15px;height:15px;object-fit:contain;vertical-align:middle" alt="" draggable="false"/>
-        <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" id="listCloverSvg"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15" id="listCloverSvg"><circle cx="7.8" cy="6.4" r="6"/><circle cx="16.2" cy="6.4" r="6"/><circle cx="7.8" cy="14.8" r="6"/><circle cx="16.2" cy="14.8" r="6"/><line x1="12" y1="4.6" x2="12" y2="16.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="10.6" x2="18" y2="10.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18.4L7.7 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </span>
       nagi memo
     </h1>
@@ -93,6 +93,11 @@
 <div class="welcome-overlay" id="welcomeOverlay">
   <div class="welcome-card">
 
+    <!-- ── 언제든 닫기 버튼 ── -->
+    <button class="wc-dismiss-btn" id="wcDismiss" aria-label="닫기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
     <!-- ── 페이지 슬라이더 ── -->
     <div class="wc-track-outer">
       <div class="wc-track" id="wcTrack">
@@ -101,7 +106,7 @@
         <div class="wc-page">
           <div class="welcome-hero">
             <div class="welcome-clover">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="52" height="52" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="52" height="52" aria-hidden="true"><circle cx="7.8" cy="6.4" r="6"/><circle cx="16.2" cy="6.4" r="6"/><circle cx="7.8" cy="14.8" r="6"/><circle cx="16.2" cy="14.8" r="6"/><line x1="12" y1="4.6" x2="12" y2="16.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="10.6" x2="18" y2="10.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18.4L7.7 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </div>
             <div class="welcome-title-block">
               <h1 class="welcome-title">nagi memo</h1>
@@ -160,7 +165,7 @@
         <div class="wc-page wc-page-final">
           <div class="wc-final-hero">
             <div class="welcome-clover wc-clover-lg">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="64" height="64" aria-hidden="true"><circle cx="7.8" cy="6.4" r="6"/><circle cx="16.2" cy="6.4" r="6"/><circle cx="7.8" cy="14.8" r="6"/><circle cx="16.2" cy="14.8" r="6"/><line x1="12" y1="4.6" x2="12" y2="16.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="10.6" x2="18" y2="10.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18.4L7.7 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </div>
             <p class="wc-ready-title">준비 완료!</p>
             <p class="wc-ready-desc">이제 나만의 메모를 시작해보세요.<br/>트레이 아이콘으로 언제든 접근할 수 있어요.</p>

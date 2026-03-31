@@ -977,6 +977,7 @@ body.popup-mode .welcome-card {
   flex-direction: column;
   gap: 0;
   animation: welcome-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  position: relative;
 }
 
 @keyframes welcome-pop {
@@ -1322,6 +1323,26 @@ body.popup-mode .welcome-card {
 }
 
 /* ── 시작하기 버튼 ── */
+.wc-dismiss-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  opacity: 0.55;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 10;
+}
+.wc-dismiss-btn:hover { opacity: 1; background: var(--color-hover); }
+
 .welcome-close-btn {
   width: 100%;
   padding: 10px;

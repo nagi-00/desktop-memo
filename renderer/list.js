@@ -78,6 +78,7 @@ async function init() {
       overlay?.classList.add('visible');
       _wcGoTo(0);
       document.getElementById('welcomeClose')?.addEventListener('click', () => { if (document.getElementById('welcomeNoShow')?.checked) localStorage.setItem('welcomeShown','1'); window.close(); });
+      document.getElementById('wcDismiss')?.addEventListener('click', () => window.close());
       document.getElementById('welcomeOverlay')?.addEventListener('click', e => { if (e.target.id === 'welcomeOverlay') window.close(); });
       document.getElementById('wcPrev')?.addEventListener('click', () => _wcGoTo(_wcPage - 1));
       document.getElementById('wcNext')?.addEventListener('click', () => _wcGoTo(_wcPage + 1));
@@ -609,8 +610,8 @@ function hideWelcomeOverlay() {
 }
 
 // ── 심볼 아이콘 목록 ──
-// 4잎 클로버: 상하좌우 십자 배열 + 흰 대각선 + 줄기
-const CLOVER_SVG_SMALL = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="12" cy="7" r="5.5"/><circle cx="17" cy="12" r="5.5"/><circle cx="12" cy="17" r="5.5"/><circle cx="7" cy="12" r="5.5"/><line x1="15.5" y1="8.5" x2="8.5" y2="15.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M12 22Q14.5 23 16 23.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+// 4잎 클로버: 2×2 격자 배열 + 흰 + 십자 + 줄기
+const CLOVER_SVG_SMALL = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true"><circle cx="7.8" cy="6.4" r="6"/><circle cx="16.2" cy="6.4" r="6"/><circle cx="7.8" cy="14.8" r="6"/><circle cx="16.2" cy="14.8" r="6"/><line x1="12" y1="4.6" x2="12" y2="16.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="10.6" x2="18" y2="10.6" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M12 18.4L7.7 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 function _filledSvg(path, w = 16) {
   return `<svg viewBox="0 0 24 24" fill="currentColor" width="${w}" height="${w}" aria-hidden="true">${path}</svg>`;
@@ -952,6 +953,7 @@ function bindEvents() {
 
   // 웰컴 오버레이
   document.getElementById('welcomeClose')?.addEventListener('click', hideWelcomeOverlay);
+  document.getElementById('wcDismiss')?.addEventListener('click', hideWelcomeOverlay);
   document.getElementById('welcomeOverlay')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('welcomeOverlay')) hideWelcomeOverlay();
   });
