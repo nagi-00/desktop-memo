@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage, shell } = require('electron');
 app.setName('nagi memo');
+// GPU 캐시 에러 메시지 억제 (기능에 영향 없는 Chromium 내부 노이즈)
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
