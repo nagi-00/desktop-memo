@@ -22,11 +22,7 @@ const _FILLED = {
 };
 
 const SYMBOL_ICONS = [
-  { id: 'clover',       label: '클로버', svg: CLOVER_SVG },
-  { id: 'heart',        label: '하트',   svg: _filledSvg(_FILLED.heart) },
-  { id: 'moon',         label: '달',     svg: _filledSvg(_FILLED.moon) },
-  { id: 'pen-sparkle',  label: '펜',     svg: _filledSvg(_FILLED['pen-sparkle']) },
-  { id: 'note',         label: '메모',   svg: _filledSvg(_FILLED.note) },
+  { id: 'clover', label: '클로버', svg: CLOVER_SVG },
 ];
 
 let _currentSymbolIconId = 'clover';

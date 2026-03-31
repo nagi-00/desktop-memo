@@ -801,87 +801,8 @@ function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
         setPixel(px, py, r2, g2, b2, a2);
   }
 
-  if (symbolId === 'heart') {
-    // Heart — scaled to 32x32
-    for (let py = 0; py < H; py++) {
-      for (let px = 0; px < W; px++) {
-        // Normalize to [-1.2, 1.2]
-        const x = (px - W / 2) / (W * 0.42);
-        const y = -(py - H * 0.52) / (H * 0.42);
-        // Heart formula: (x²+y²-1)³ ≤ x²y³
-        const val = Math.pow(x*x + y*y - 1, 3) - x*x * y*y*y;
-        if (val <= 0) setPixel(px, py, fr, fg, fb, 255);
-      }
-    }
-    // Outline (white, 1px shrink)
-    for (let py = 0; py < H; py++) {
-      for (let px = 0; px < W; px++) {
-        const x = (px - W / 2) / (W * 0.42);
-        const y = -(py - H * 0.52) / (H * 0.42);
-        const val = Math.pow(x*x + y*y - 1, 3) - x*x * y*y*y;
-        const xO = (px - W / 2) / (W * 0.39);
-        const yO = -(py - H * 0.49) / (H * 0.39);
-        const valO = Math.pow(xO*xO + yO*yO - 1, 3) - xO*xO * yO*yO*yO;
-        if (val <= 0.02 && valO > 0) setPixel(px, py, 255, 255, 255, 200);
-      }
-    }
-  } else if (symbolId === 'moon') {
-    // Crescent moon: large circle minus offset circle
-    const cx = W * 0.5, cy = H * 0.5, R = W * 0.42;
-    const ocx = cx + W * 0.14, ocy = cy - H * 0.1, oR = R * 0.78;
-    for (let py = 0; py < H; py++) {
-      for (let px = 0; px < W; px++) {
-        const d1 = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
-        const d2 = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
-        if (d1 <= R && d2 > oR) setPixel(px, py, fr, fg, fb, 255);
-      }
-    }
-    // thin white outline
-    for (let py = 0; py < H; py++) {
-      for (let px = 0; px < W; px++) {
-        const d1 = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
-        const d2 = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
-        const inside = d1 <= R && d2 > oR;
-        const d1o = Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
-        const d2o = Math.sqrt((px - ocx) ** 2 + (py - ocy) ** 2);
-        const insideOuter = d1o <= R + 1.5 && d2o > oR - 1.5;
-        if (!inside && insideOuter) setPixel(px, py, 255, 255, 255, 180);
-      }
-    }
-  } else if (symbolId === 'note') {
-    // Document icon: rounded rect + folded corner
-    const m = 4;
-    fillRect(m, m, W - m * 2, H - m * 2, fr, fg, fb, 255);
-    // folded corner (bottom-right)
-    const foldS = 7;
-    for (let fy = 0; fy < foldS; fy++)
-      for (let fx = 0; fx < foldS - fy; fx++)
-        setPixel(W - m - foldS + fx, H - m - foldS + fy, 0, 0, 0, 0);
-    // corner triangle fill (white)
-    for (let fy = 0; fy < foldS; fy++)
-      for (let fx = foldS - fy; fx < foldS; fx++)
-        setPixel(W - m - foldS + fx, H - m - foldS + fy, 255, 255, 255, 180);
-    // white outline
-    for (let py = m - 1; py <= H - m; py++) setPixel(m - 1, py, 255, 255, 255, 200);
-    for (let px = m - 1; px <= W - m; px++) setPixel(px, m - 1, 255, 255, 255, 200);
-    for (let py = m - 1; py <= H - m; py++) setPixel(W - m, py, 255, 255, 255, 200);
-    for (let px = m - 1; px <= W - m; px++) setPixel(px, H - m, 255, 255, 255, 200);
-  } else if (symbolId === 'pen-sparkle') {
-    // Pencil body (rotated rect) + sparkle star
-    // Draw a diagonal thick line (pen body)
-    drawLine(5, 26, 22, 9, 5.5, fr, fg, fb, 255);
-    // pen tip
-    fillCircle(23.5, 7.5, 3, fr, fg, fb, 255);
-    // eraser end
-    fillCircle(4, 27, 2.5, 255, 255, 255, 180);
-    // sparkle dots
-    [[7, 7, 2.5], [26, 20, 2], [14, 3, 1.5]].forEach(([sx, sy, sr]) =>
-      fillCircle(sx, sy, sr, fr, fg, fb, 200));
-    // thin outline along pen
-    drawLine(5, 26, 22, 9, 7, 255, 255, 255, 100);
-    drawLine(5, 26, 22, 9, 5.5, fr, fg, fb, 255);
-  } else {
-    // Default: clover (from gen-icon.js)
+  // Clover only
+  {
     const leafR  = W * 0.27, offset = W * 0.175;
     const leafCY = H * 0.44;
     const leaves = [

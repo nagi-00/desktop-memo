@@ -727,6 +727,29 @@
 .memo-card.locked .lock-overlay {
   display: block;
 }
+/* 잠금 시 배경 일체화 — 카드 전체를 거의 투명하게 */
+.memo-card.locked {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.memo-card.locked .status-bar-inner {
+  background: transparent !important;
+  border-bottom-color: transparent !important;
+  opacity: 0.15;
+  transition: opacity 0.2s;
+}
+.memo-card.locked .status-bar-inner:hover {
+  opacity: 0.7;
+}
+.memo-card.locked .memo-body {
+  opacity: 0.08;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.memo-card.locked .memo-body:hover {
+  opacity: 0.35;
+}
 
 /* 아바타 컨텍스트 메뉴 — position:fixed로 JS에서 직접 배치 (overflow:hidden 회피) */
 .avatar-menu {
@@ -1734,7 +1757,7 @@
 
 /* 상태바 SN 모드: 일반 버튼 숨김(pin/minimize 제외), SN 전용 버튼 표시
    스페이서는 유지 → 버튼 위치가 일반 모드와 동일하게 우측 정렬 */
-.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(.sb-sn-only) { display: none; }
+.memo-card.sticky-notes-mode .status-bar .sb-btn:not(#btnPin):not(#btnMinimize):not(#btnLock):not(.sb-sn-only) { display: none; }
 .memo-card.sticky-notes-mode .status-bar .sb-popup-wrap:not(#opacityWrap):not(#colorWrap) { display: none; }
 
 /* 상태바를 메모 색상 기반 반투명으로 */
