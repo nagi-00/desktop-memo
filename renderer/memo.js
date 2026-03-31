@@ -77,7 +77,6 @@ let isPinned      = false;
 let isLiked       = false;
 // isSimpleMode 제거됨 — SN 모드로 통합
 let isLocked      = false;
-let isSNMoveLocked = false;
 let saveTimer     = null;
 let mediaFolded   = false;
 
@@ -276,6 +275,8 @@ btnThreadFold?.addEventListener('click', () => {
 document.getElementById('btnExitSN')?.addEventListener('click', () => {
   const card = document.querySelector('.memo-card');
   card?.classList.remove('sticky-notes-mode');
+  // SN 모드 해제 시 위치잠금도 함께 해제
+  if (isLocked) applyLock(false);
   _updateSNActiveState(false);
   api.setStickyNotesMode?.(false);
 });
@@ -417,29 +418,6 @@ async function init() {
   document.getElementById('btnOpenListSN')?.addEventListener('click', () => api.openList());
 
   // Sticky Notes 모드: 위치잠금 버튼
-  const btnSNMoveLock = document.getElementById('btnSNMoveLock');
-  if (btnSNMoveLock) {
-    btnSNMoveLock.addEventListener('click', async () => {
-      isSNMoveLocked = !isSNMoveLocked;
-      await api.setWindowMovable(!isSNMoveLocked);
-      // Linux에서 setMovable 미지원 → drag region 직접 조작 (CSS class보다 신뢰도 높음)
-      const statusInner = document.querySelector('.status-bar-inner');
-      if (statusInner) {
-        statusInner.style.webkitAppRegion = isSNMoveLocked ? 'no-drag' : '';
-      }
-      document.querySelectorAll('.sb-spacer').forEach(el => {
-        el.style.webkitAppRegion = isSNMoveLocked ? 'no-drag' : '';
-      });
-      document.querySelector('.memo-card')?.classList.toggle('sn-move-locked', isSNMoveLocked);
-      const icon = btnSNMoveLock.querySelector('[data-lucide]');
-      if (icon) {
-        icon.setAttribute('data-lucide', isSNMoveLocked ? 'pin' : 'pin-off');
-        if (window.lucide) lucide.createIcons({ nodes: [icon] });
-      }
-      btnSNMoveLock.classList.toggle('active', isSNMoveLocked);
-      btnSNMoveLock.title = isSNMoveLocked ? '위치 잠금 해제' : '위치 잠금';
-    });
-  }
 
   // 주석 패널 접기 버튼
   document.getElementById('btnAnnotationFold')?.addEventListener('click', () => {
@@ -1390,11 +1368,23 @@ function _stopClickThrough() {
 
 function applyLock(locked) {
   isLocked = locked;
-  document.querySelector('.memo-card').classList.toggle('locked', locked);
+  const card = document.querySelector('.memo-card');
+  card.classList.toggle('locked', locked);
   memoContent.contentEditable = locked ? 'false' : 'true';
   _setLockIcon(locked);
   saveMemoChanges({ isLocked: locked });
   if (locked) _startClickThrough(); else _stopClickThrough();
+
+  // SN 모드에서는 잠금 시 위치도 함께 고정
+  if (card.classList.contains('sticky-notes-mode')) {
+    api.setWindowMovable?.(!locked);
+    const statusInner = document.querySelector('.status-bar-inner');
+    if (statusInner) statusInner.style.webkitAppRegion = locked ? 'no-drag' : '';
+    document.querySelectorAll('.sb-spacer').forEach(el => {
+      el.style.webkitAppRegion = locked ? 'no-drag' : '';
+    });
+    card.classList.toggle('sn-move-locked', locked);
+  }
 }
 
 function tempUnlock() {
