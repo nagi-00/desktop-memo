@@ -1366,27 +1366,25 @@ function _setLockIcon(locked) {
   }
 }
 
-let _lockMouseMoveHandler  = null;
-let _lockMouseLeaveHandler = null;
-let _lastIgnoreState       = null;
+let _lockBtnEnterHandler = null;
+let _lockBtnLeaveHandler = null;
 
 function _startClickThrough() {
+  // 잠금 상태: 항상 클릭 통과. 잠금 버튼 위에 올렸을 때만 일시적으로 수신.
   api.setIgnoreMouseEvents?.(true, { forward: true });
-  _lastIgnoreState = true;
-  _lockMouseMoveHandler = () => {
-    if (_lastIgnoreState) { _lastIgnoreState = false; api.setIgnoreMouseEvents?.(false); }
-  };
-  _lockMouseLeaveHandler = () => {
-    if (!_lastIgnoreState) { _lastIgnoreState = true; api.setIgnoreMouseEvents?.(true, { forward: true }); }
-  };
-  document.addEventListener('mousemove',  _lockMouseMoveHandler);
-  document.addEventListener('mouseleave', _lockMouseLeaveHandler);
+
+  _lockBtnEnterHandler = () => api.setIgnoreMouseEvents?.(false);
+  _lockBtnLeaveHandler = () => api.setIgnoreMouseEvents?.(true, { forward: true });
+
+  btnLock?.addEventListener('mouseenter', _lockBtnEnterHandler);
+  btnLock?.addEventListener('mouseleave', _lockBtnLeaveHandler);
 }
 
 function _stopClickThrough() {
-  if (_lockMouseMoveHandler)  { document.removeEventListener('mousemove',  _lockMouseMoveHandler);  _lockMouseMoveHandler  = null; }
-  if (_lockMouseLeaveHandler) { document.removeEventListener('mouseleave', _lockMouseLeaveHandler); _lockMouseLeaveHandler = null; }
-  _lastIgnoreState = null;
+  btnLock?.removeEventListener('mouseenter', _lockBtnEnterHandler);
+  btnLock?.removeEventListener('mouseleave', _lockBtnLeaveHandler);
+  _lockBtnEnterHandler = null;
+  _lockBtnLeaveHandler = null;
   api.setIgnoreMouseEvents?.(false);
 }
 
