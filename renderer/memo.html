@@ -257,13 +257,15 @@
       <div class="img-editor-row slider-row">
         <label>크기</label>
         <input type="range" id="imgScale" min="20" max="400" value="100" step="5">
-        <span id="imgScaleVal">100%</span>
+        <div class="slider-val-wrap"><span id="imgScaleVal">100%</span></div>
       </div>
       <div class="img-editor-row slider-row">
         <label>회전</label>
         <input type="range" id="imgRotateSlider" min="-180" max="180" value="0" step="1">
-        <input type="number" id="imgRotateNum" min="-180" max="180" value="0" step="1" class="img-rotate-num">
-        <span class="img-rotate-unit">°</span>
+        <div class="slider-val-wrap">
+          <input type="number" id="imgRotateNum" min="-180" max="180" value="0" step="1" class="img-rotate-num">
+          <span class="img-rotate-unit">°</span>
+        </div>
       </div>
     </div>
     <div class="img-editor-footer">

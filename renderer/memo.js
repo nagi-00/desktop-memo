@@ -1348,7 +1348,7 @@ let _lockBtnEnterHandler = null;
 let _lockBtnLeaveHandler = null;
 
 function _startClickThrough() {
-  // 잠금 상태: 항상 클릭 통과. 잠금 버튼 / 핀 버튼 위에서만 일시적으로 수신.
+  _stopClickThrough(); // 중복 등록 방지: 기존 리스너 먼저 제거
   api.setIgnoreMouseEvents?.(true, { forward: true });
 
   _lockBtnEnterHandler = () => api.setIgnoreMouseEvents?.(false);
@@ -2419,7 +2419,10 @@ function bindEvents() {
   });
   document.getElementById('imgRotateNum').addEventListener('input', (e) => {
     let v = parseInt(e.target.value);
-    if (isNaN(v)) return;
+    if (isNaN(v)) {
+      document.getElementById('imgRotateSlider').value = imgEditorState.rotation;
+      return;
+    }
     v = Math.max(-180, Math.min(180, v));
     imgEditorState.rotation = v;
     document.getElementById('imgRotateSlider').value = v;

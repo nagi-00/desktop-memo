@@ -105,6 +105,7 @@ function createMemoWindow(memoData, options = {}) {
     alwaysOnTop:pinned,
     opacity,
     show: false,
+    skipTaskbar: true,
     ...(process.platform === 'linux' ? { type: 'desktop' } : {}),
     webPreferences: {
       preload:         path.join(__dirname, 'preload.js'),
@@ -481,6 +482,7 @@ function registerIpcHandlers() {
       transparent: false,
       resizable: true,
       show:      false,
+      skipTaskbar: false,
       webPreferences: {
         preload:         path.join(__dirname, 'preload.js'),
         contextIsolation:true,
@@ -666,7 +668,7 @@ function registerIpcHandlers() {
     const y = workArea.y + Math.floor((workArea.height - h) / 2);
     const popup = new BrowserWindow({
       x, y, width: w, height: h,
-      frame: false, transparent: true, resizable: false, show: false,
+      frame: false, transparent: true, resizable: false, show: false, skipTaskbar: true,
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
     });
     popup.loadFile(path.join(__dirname, 'renderer', 'list.html'), { query: { popup: type } });
@@ -763,7 +765,8 @@ function broadcastListUpdate() {
 function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
   const zlib = require('zlib');
   const W = 32, H = 32;
-  const hex = (color || '#8fbc8f').replace('#', '');
+  let hex = (color || '#8fbc8f').replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) hex = '8fbc8f';
   const fr  = parseInt(hex.slice(0, 2), 16);
   const fg  = parseInt(hex.slice(2, 4), 16);
   const fb  = parseInt(hex.slice(4, 6), 16);

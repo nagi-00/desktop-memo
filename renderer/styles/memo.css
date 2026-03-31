@@ -1524,6 +1524,14 @@
   min-width: 34px;
   text-align: right;
 }
+.slider-val-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 62px;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
 .img-rotate-num {
   width: 42px;
   padding: 2px 4px;
@@ -1736,7 +1744,7 @@
 /* Sticky Notes 모드: 프로필 행 / 액션 바 숨김 */
 .memo-card.sticky-notes-mode .profile-row { display: none; }
 .memo-card.sticky-notes-mode .action-bar { display: none; }
-.memo-card.sticky-notes-mode .media-header { display: none !important; }
+/* SN 모드: media-header 표시 유지 (접기/펼치기 버튼 사용 가능) */
 .memo-card.sticky-notes-mode .simple-drag-strip { display: none !important; }
 .memo-card.sticky-notes-mode .simple-restore-btn { display: none !important; }
 

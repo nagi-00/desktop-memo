@@ -893,6 +893,12 @@ function bindEvents() {
   }
   updateStickyNotesBtn(); // 초기 상태 반영
 
+  // 메모 창에서 SN 모드를 변경했을 때 목록 창도 동기화
+  api.onStickyNotesModeChanged?.((enabled) => {
+    isStickyNotesMode = enabled;
+    updateStickyNotesBtn();
+  });
+
   btnStickyNotes?.addEventListener('click', async () => {
     isStickyNotesMode = !isStickyNotesMode;
     await api.setStickyNotesMode(isStickyNotesMode);
