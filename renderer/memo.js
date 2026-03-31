@@ -1348,7 +1348,7 @@ let _lockBtnEnterHandler = null;
 let _lockBtnLeaveHandler = null;
 
 function _startClickThrough() {
-  // 잠금 상태: 항상 클릭 통과. 잠금 버튼 위에 올렸을 때만 일시적으로 수신.
+  // 잠금 상태: 항상 클릭 통과. 잠금 버튼 / 핀 버튼 위에서만 일시적으로 수신.
   api.setIgnoreMouseEvents?.(true, { forward: true });
 
   _lockBtnEnterHandler = () => api.setIgnoreMouseEvents?.(false);
@@ -1356,11 +1356,15 @@ function _startClickThrough() {
 
   btnLock?.addEventListener('mouseenter', _lockBtnEnterHandler);
   btnLock?.addEventListener('mouseleave', _lockBtnLeaveHandler);
+  btnPin?.addEventListener('mouseenter',  _lockBtnEnterHandler);
+  btnPin?.addEventListener('mouseleave',  _lockBtnLeaveHandler);
 }
 
 function _stopClickThrough() {
   btnLock?.removeEventListener('mouseenter', _lockBtnEnterHandler);
   btnLock?.removeEventListener('mouseleave', _lockBtnLeaveHandler);
+  btnPin?.removeEventListener('mouseenter',  _lockBtnEnterHandler);
+  btnPin?.removeEventListener('mouseleave',  _lockBtnLeaveHandler);
   _lockBtnEnterHandler = null;
   _lockBtnLeaveHandler = null;
   api.setIgnoreMouseEvents?.(false);
