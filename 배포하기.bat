@@ -1,10 +1,27 @@
 @echo off
 chcp 65001 > nul
+
+:: ── 관리자 권한 확인 및 자동 상승 ──────────────────────────
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+  echo  관리자 권한으로 재실행합니다...
+  powershell -Command "Start-Process '%~dpnx0' -Verb RunAs -WorkingDirectory '%~dp0'"
+  exit
+)
+
+:: ── 작업 폴더를 bat 파일 위치로 고정 ───────────────────────
+cd /d "%~dp0"
+
 echo.
 echo  ╔══════════════════════════════════════╗
 echo  ║     nagi memo — 빌드 시작           ║
 echo  ╚══════════════════════════════════════╝
 echo.
+
+:: 코드 서명 스킵 (개인용 앱 — 인증서 없음)
+set WIN_CSC_LINK=
+set CSC_LINK=
+set CSC_KEY_PASSWORD=
 
 :: Node.js 확인
 where node >nul 2>&1
