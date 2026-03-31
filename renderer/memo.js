@@ -1931,9 +1931,8 @@ function bindEvents() {
     e.target.value = '';
   });
 
-  // 글자 색상 — textColorInput (우클릭 메뉴 커스텀 색상용)
-  textColorInput.addEventListener('change', () => {
-    const color = textColorInput.value;
+  // 글자 색상 적용 헬퍼 (선택 범위 복원 후 foreColor 실행)
+  function applyForeColor(color) {
     memoContent.focus();
     if (savedTextRange) {
       const sel = window.getSelection();
@@ -1943,6 +1942,11 @@ function bindEvents() {
     }
     document.execCommand('foreColor', false, color);
     scheduleSave();
+  }
+
+  // 글자 색상 — textColorInput (우클릭 메뉴 커스텀 색상용)
+  textColorInput.addEventListener('change', () => {
+    applyForeColor(textColorInput.value);
   });
 
   // 아바타 클릭 → 파일 선택 후 에디터 자동 오픈
@@ -2222,17 +2226,7 @@ function bindEvents() {
           sw.innerHTML = `<span style="width:14px;height:14px;border-radius:50%;background:${color};display:inline-block;border:1.5px solid rgba(128,128,128,0.3);flex-shrink:0"></span>`;
           sw.addEventListener('mousedown', (ev) => {
             ev.preventDefault();
-            const sel2 = window.getSelection();
-            if (sel2?.rangeCount && !sel2.isCollapsed) savedTextRange = sel2.getRangeAt(0).cloneRange();
-            memoContent.focus();
-            if (savedTextRange) {
-              const s2 = window.getSelection();
-              s2.removeAllRanges();
-              s2.addRange(savedTextRange);
-              savedTextRange = null;
-            }
-            document.execCommand('foreColor', false, color);
-            scheduleSave();
+            applyForeColor(color);
             hideFmtMenu();
           });
           fmtMenu.appendChild(sw);
@@ -2244,8 +2238,6 @@ function bindEvents() {
         customColorBtn.innerHTML = '<span style="width:14px;height:14px;border-radius:50%;border:1.5px dashed rgba(160,160,160,0.7);display:inline-block;flex-shrink:0"></span>';
         customColorBtn.addEventListener('mousedown', (ev) => {
           ev.preventDefault();
-          const sel2 = window.getSelection();
-          if (sel2?.rangeCount && !sel2.isCollapsed) savedTextRange = sel2.getRangeAt(0).cloneRange();
           hideFmtMenu();
           textColorInput.click();
         });
@@ -2348,6 +2340,10 @@ function bindEvents() {
     memoContent.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const sel = window.getSelection();
+      // 메뉴 열기 전에 선택 범위 저장 (이 시점이 가장 안전)
+      if (sel && sel.rangeCount && !sel.isCollapsed) {
+        savedTextRange = sel.getRangeAt(0).cloneRange();
+      }
       const hasSelection = sel && !sel.isCollapsed && sel.toString().trim().length > 0;
       showFmtMenu(e.clientX, e.clientY, hasSelection, insertHr);
     });
