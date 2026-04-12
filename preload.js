@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('memoAPI', {
 
   // ── 메모 CRUD ──
   createMemo: ()          => ipcRenderer.invoke('memo:create'),
+  createReply:(parentId)  => ipcRenderer.invoke('memo:createReply', parentId),
   updateMemo: (changes)   => ipcRenderer.invoke('memo:update', { id: memoId, changes }),
   deleteMemo: ()          => ipcRenderer.invoke('memo:delete', memoId),
   deleteById: (id)        => ipcRenderer.invoke('memo:delete', id),
@@ -121,6 +122,17 @@ contextBridge.exposeInMainWorld('memoAPI', {
 
   // ── 창 폭 변경 (원본 테마 적용 시 동기화) ──
   setWindowWidth: (w) => ipcRenderer.invoke('window:setWidth', w),
+
+  // ── 데이터 경로 ──
+  getDataPath: () => ipcRenderer.invoke('app:getDataPath'),
+
+  // ── 사이드바 너비 영속화 ──
+  getSidebarWidth: ()  => ipcRenderer.invoke('settings:getSidebarWidth'),
+  setSidebarWidth: (w) => ipcRenderer.invoke('settings:setSidebarWidth', w),
+
+  // ── 메모 창 내 텍스트 검색 ──
+  findInPage: (text, opts) => ipcRenderer.invoke('window:findInPage', text, opts),
+  stopFind:   ()           => ipcRenderer.invoke('window:stopFind'),
 
   // ── 답글 스레드 접기 ──
 

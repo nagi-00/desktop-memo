@@ -139,13 +139,17 @@ function createAnnotation(selectedText, range) {
   span.className = 'annotation-ref';
   span.dataset.annotationId = id;
   try {
-    range.surroundContents(span);
-  } catch {
-    try {
+    // surroundContents는 멀티노드 선택 시 실패 → extractContents로 대체
+    if (range.startContainer === range.endContainer) {
+      range.surroundContents(span);
+    } else {
       const frag = range.extractContents();
       span.appendChild(frag);
       range.insertNode(span);
-    } catch { return; }
+    }
+  } catch {
+    // 두 방법 모두 실패하면 조용히 무시
+    return;
   }
   const ann = { id, quote: selectedText.trim().slice(0, 120), note: '', createdAt: new Date().toISOString() };
   annotations.push(ann);
@@ -452,8 +456,21 @@ async function init() {
   }
 
   // 콘텐츠 복원 (HTML 우선, fallback 플레인텍스트)
+  // XSS 방지: script/iframe/on* 핸들러 제거
   if (memoData.contentHtml) {
-    memoContent.innerHTML = memoData.contentHtml;
+    const _sanitize = (html) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('script,iframe,object,embed,form').forEach(el => el.remove());
+      doc.querySelectorAll('*').forEach(el => {
+        for (const attr of [...el.attributes]) {
+          if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+      return doc.body.innerHTML;
+    };
+    memoContent.innerHTML = _sanitize(memoData.contentHtml);
   } else if (memoData.content) {
     memoContent.textContent = memoData.content;
   }
@@ -818,6 +835,18 @@ function saveMemoChanges(changes) {
     .catch(console.error);
 }
 
+// 앱 종료 직전 미저장 변경분 즉시 저장 (500ms 디바운스 유실 방지)
+function flushSave() {
+  if (!memoData || !saveTimer) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const contentHtml = memoContent.innerHTML;
+  const content     = memoContent.textContent;
+  const images      = getMediaImages();
+  api.updateMemo({ contentHtml, content, images }).catch(() => {});
+}
+window.addEventListener('beforeunload', flushSave);
+
 // ── 미디어 그리드 (트위터 스타일 — mediaArea에 고정) ──
 function getOrCreateGrid() {
   let grid = mediaArea.querySelector('.media-grid');
@@ -942,14 +971,47 @@ function setupImgWrap(wrap, grid) {
   });
 }
 
+// 이미지 리사이즈 + 압축 (최대 1920px, JPEG 0.85 품질 — base64 크기 절감)
+const MAX_IMG_DIM = 1920;
+const IMG_QUALITY = 0.85;
+function _compressImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let { width: w, height: h } = img;
+      if (w <= MAX_IMG_DIM && h <= MAX_IMG_DIM && dataUrl.length < 500_000) {
+        resolve(dataUrl); // 이미 작음 → 그대로 사용
+        return;
+      }
+      if (w > MAX_IMG_DIM || h > MAX_IMG_DIM) {
+        const ratio = Math.min(MAX_IMG_DIM / w, MAX_IMG_DIM / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // PNG 투명 이미지면 PNG 유지, 아니면 JPEG로 압축
+      const isPng = dataUrl.startsWith('data:image/png');
+      resolve(isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', IMG_QUALITY));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function addImageToGrid(grid, src) {
-  const wrap = document.createElement('div');
-  wrap.className = 'img-wrap';
-  const img = document.createElement('img');
-  img.src = src;
-  wrap.appendChild(img);
-  grid.appendChild(wrap);
-  setupImgWrap(wrap, grid);
+  _compressImage(src).then(compressed => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
+    const img = document.createElement('img');
+    img.src = compressed;
+    wrap.appendChild(img);
+    grid.appendChild(wrap);
+    setupImgWrap(wrap, grid);
+    scheduleSave();
+  });
 }
 
 /** 저장된 이미지 복원: memoData.images → mediaArea, 인라인 이미지 마이그레이션 */
@@ -1017,6 +1079,17 @@ function _currentBlock(node) {
   return null;
 }
 
+/** 주어진 노드를 감싸는 가장 가까운 로컬 루트(memoContent 또는 .toggle-body) 반환 */
+function _localRoot(node) {
+  let el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+  while (el) {
+    if (el === memoContent) return el;
+    if (el.classList?.contains('toggle-body')) return el;
+    el = el.parentNode;
+  }
+  return memoContent;
+}
+
 function _replaceBlockWithList(blockEl, listTag, node) {
   const list = document.createElement(listTag);
   const li   = document.createElement('li');
@@ -1072,6 +1145,26 @@ function handleAutoConvert(e) {
     e.preventDefault();
     node.textContent = ''; // 트리거 전체 제거
     _replaceBlockWithList(_currentBlock(node), 'ol', node);
+    return;
+  }
+
+  // 코드 블록: ` ``` ` + Space → <pre><code> 블록
+  if (textBefore === '```') {
+    e.preventDefault();
+    const block = _currentBlock(node);
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.textContent = '\n'; // 빈 줄 하나
+    pre.appendChild(code);
+    if (block) {
+      block.replaceWith(pre);
+    } else {
+      memoContent.appendChild(pre);
+    }
+    const r = document.createRange();
+    r.setStart(code, 0); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+    scheduleSave();
     return;
   }
 
@@ -1470,19 +1563,44 @@ function bindEvents() {
   });
 
   // 콘텐츠 입력
+  let _syncAnnTimer = null;
   memoContent.addEventListener('input', () => {
     scheduleSave();
     requestAnimationFrame(scrollToCursor);
-    syncAnnotationQuotes();
+    // syncAnnotationQuotes는 200ms 디바운스 (매 입력마다 전체 주석 순회 방지)
+    clearTimeout(_syncAnnTimer);
+    _syncAnnTimer = setTimeout(syncAnnotationQuotes, 200);
   });
 
-  // 본문 내 링크 클릭 → 외부 브라우저 열기
+  // 본문 내 링크 클릭 → 외부 브라우저 열기, 더블클릭 → URL 편집
   memoContent.addEventListener('click', (e) => {
     const anchor = e.target.closest('a[href]');
-    if (anchor) {
+    if (anchor && !e.detail > 1) {
       e.preventDefault();
       api.openExternal(anchor.href);
     }
+  });
+  memoContent.addEventListener('dblclick', (e) => {
+    const anchor = e.target.closest('a[href]');
+    if (!anchor) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // 링크 편집: 기존 링크 다이얼로그를 재활용
+    _linkSelectedText = anchor.textContent;
+    linkDialogInput.value = anchor.getAttribute('href') || '';
+    linkDialogOverlay.classList.add('visible');
+    requestAnimationFrame(() => { linkDialogInput.select(); linkDialogInput.focus(); });
+    // 확인 시 기존 <a> 태그 업데이트
+    const onConfirm = () => {
+      const newUrl = linkDialogInput.value.trim();
+      if (newUrl && newUrl !== 'https://') {
+        anchor.href = newUrl;
+        scheduleSave();
+      }
+      linkDialogOverlay.classList.remove('visible');
+      linkDialogConfirm.removeEventListener('click', onConfirm);
+    };
+    linkDialogConfirm.addEventListener('click', onConfirm);
   });
 
   // ── 링크 호버 툴팁 ──────────────────────────────
@@ -1650,11 +1768,12 @@ function bindEvents() {
         const markEl = node.closest?.('mark');
         if (markEl && memoContent.contains(markEl)) {
           e.preventDefault();
+          const root = _localRoot(markEl);
           let topEl = markEl;
-          while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+          while (topEl.parentNode && topEl.parentNode !== root) topEl = topEl.parentNode;
           const newDiv = document.createElement('div');
           newDiv.innerHTML = '<br>';
-          memoContent.insertBefore(newDiv, topEl.nextSibling);
+          root.insertBefore(newDiv, topEl.nextSibling);
           const r = document.createRange();
           r.setStart(newDiv, 0);
           r.collapse(true);
@@ -1672,9 +1791,10 @@ function bindEvents() {
           const span = cbItem.querySelector('span');
           const text = span ? span.textContent.replace(/\u00A0/g, '').trim() : '';
 
-          // memoContent 직계 자식 레벨까지 올라가서 삽입 (들여쓰기 방지)
+          // 로컬 루트(memoContent 또는 toggle-body)의 직계 자식 레벨까지 올라가서 삽입
+          const cbRoot = _localRoot(cbItem);
           let insertRef = cbItem;
-          while (insertRef.parentNode && insertRef.parentNode !== memoContent) {
+          while (insertRef.parentNode && insertRef.parentNode !== cbRoot) {
             insertRef = insertRef.parentNode;
           }
 
@@ -1682,7 +1802,7 @@ function bindEvents() {
             // 빈 체크박스에서 Enter → 체크박스 삭제, 일반 텍스트로 전환
             const newP = document.createElement('div');
             newP.innerHTML = '<br>';
-            memoContent.insertBefore(newP, insertRef.nextSibling);
+            cbRoot.insertBefore(newP, insertRef.nextSibling);
             cbItem.remove();
             const r = document.createRange();
             r.setStart(newP, 0);
@@ -1701,7 +1821,7 @@ function bindEvents() {
             newSpan.textContent = '\u00A0';
             newCb.appendChild(newInput);
             newCb.appendChild(newSpan);
-            memoContent.insertBefore(newCb, insertRef.nextSibling);
+            cbRoot.insertBefore(newCb, insertRef.nextSibling);
             const r = document.createRange();
             r.selectNodeContents(newSpan);
             r.collapse(false);
@@ -1712,21 +1832,62 @@ function bindEvents() {
           return;
         }
 
-        // 빈 리스트 항목에서 엔터 → 리스트 서식 해제
+        // 빈 리스트 항목에서 엔터 → 리스트 서식 해제 (로컬 루트 경계 보호)
         const li = node.closest?.('li');
         if (li && li.textContent.trim() === '') {
           e.preventDefault();
-          document.execCommand('outdent', false);
+          const liList = li.parentElement;
+          const liRoot = _localRoot(li);
+          li.remove();
+          const newDiv = document.createElement('div');
+          newDiv.innerHTML = '<br>';
+          if (liList && liList.children.length === 0) {
+            liRoot.insertBefore(newDiv, liList);
+            liList.remove();
+          } else if (liList) {
+            liRoot.insertBefore(newDiv, liList.nextSibling);
+          } else {
+            liRoot.appendChild(newDiv);
+          }
+          const r = document.createRange();
+          r.setStart(newDiv, 0); r.collapse(true);
+          sel.removeAllRanges(); sel.addRange(r);
           scheduleSave();
         }
       }
     } else if (e.key === 'Tab') {
-      // Tab: cb-item span 또는 li 안에서 공백 삽입 (들여쓰기/포커스 이동 방지)
+      // Tab: li 안에서 → 중첩 리스트 들여쓰기 / Shift+Tab → 내어쓰기
       const tSel = window.getSelection();
       if (tSel?.rangeCount) {
         let tNode = tSel.getRangeAt(0).startContainer;
         if (tNode.nodeType === Node.TEXT_NODE) tNode = tNode.parentNode;
-        if (tNode.closest?.('.cb-item') || tNode.closest?.('li')) {
+        const li = tNode.closest?.('li');
+        if (li) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            // 내어쓰기: 부모 li가 있으면 한 단계 올림
+            const parentLi = li.parentElement?.closest('li');
+            if (parentLi) {
+              const subList = li.parentElement;
+              parentLi.parentElement?.insertBefore(li, parentLi.nextSibling);
+              if (!subList.children.length) subList.remove();
+            } else {
+              document.execCommand('outdent', false);
+            }
+          } else {
+            // 들여쓰기: 이전 형제 li 안에 중첩 리스트 생성
+            const prevLi = li.previousElementSibling;
+            if (prevLi) {
+              const subTag = li.parentElement?.tagName || 'UL';
+              let sub = prevLi.querySelector(subTag);
+              if (!sub) { sub = document.createElement(subTag); prevLi.appendChild(sub); }
+              sub.appendChild(li);
+            }
+          }
+          scheduleSave();
+          return;
+        }
+        if (tNode.closest?.('.cb-item')) {
           e.preventDefault();
           document.execCommand('insertText', false, '    ');
           scheduleSave();
@@ -1749,11 +1910,12 @@ function bindEvents() {
           if (atStart) {
             e.preventDefault();
             const text = cbSpan?.textContent.replace(/\u00A0/g, '').trim() || '';
+            const bsRoot = _localRoot(cbItem);
             let ref = cbItem;
-            while (ref.parentNode && ref.parentNode !== memoContent) ref = ref.parentNode;
+            while (ref.parentNode && ref.parentNode !== bsRoot) ref = ref.parentNode;
             const newDiv = document.createElement('div');
             if (text) newDiv.textContent = text; else newDiv.innerHTML = '<br>';
-            memoContent.insertBefore(newDiv, ref.nextSibling);
+            bsRoot.insertBefore(newDiv, ref.nextSibling);
             ref.remove();
             const r = document.createRange();
             r.setStart(newDiv, 0); r.collapse(true);
@@ -1765,7 +1927,7 @@ function bindEvents() {
 
         // 리스트 아이템 — 빈 li 또는 커서가 맨 앞인 li에서 백스페이스 → 리스트 탈출
         const li = bNode.closest?.('li');
-        if (li && memoContent.contains(li)) {
+        if (li && (memoContent.contains(li) || li.closest?.('.toggle-body'))) {
           const isEmpty = li.textContent.trim() === '';
           const atStart = !isEmpty && (() => {
             try {
@@ -2517,8 +2679,9 @@ function bindEvents() {
     });
     window.addEventListener('mousemove', (e) => {
       if (!_drag) return;
-      imgEditorState.offsetX = e.clientX - _drag.x;
-      imgEditorState.offsetY = e.clientY - _drag.y;
+      const CANVAS_W = 380, CANVAS_H = 260, MARGIN = 40;
+      imgEditorState.offsetX = Math.max(-(CANVAS_W / 2 - MARGIN), Math.min(CANVAS_W / 2 - MARGIN, e.clientX - _drag.x));
+      imgEditorState.offsetY = Math.max(-(CANVAS_H / 2 - MARGIN), Math.min(CANVAS_H / 2 - MARGIN, e.clientY - _drag.y));
       redrawEditorCanvas();
     });
     window.addEventListener('mouseup', () => {
@@ -2561,11 +2724,57 @@ function bindEvents() {
 
   // 전역 단축키
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key === 'n') { e.preventDefault(); api.createMemo(); return; }
+    // Ctrl+L: 잠금 토글 (SN 잠금 상태에서 상태바 없어도 해제 가능)
+    if (mod && e.key === 'l') { e.preventDefault(); applyLock(!isLocked); return; }
+    // Ctrl+F: 메모 내 텍스트 검색
+    if (mod && e.key === 'f') {
       e.preventDefault();
-      api.createMemo();
+      _openFindBar();
+      return;
     }
   });
+
+  // ── 메모 내 검색 바 (Ctrl+F) ──
+  function _openFindBar() {
+    let bar = document.getElementById('findBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'findBar';
+      bar.className = 'find-bar';
+      bar.innerHTML = `
+        <input type="search" id="findInput" placeholder="검색..." autocomplete="off" spellcheck="false"/>
+        <span id="findCount" class="find-count"></span>
+        <button id="findPrev" title="이전">&#8593;</button>
+        <button id="findNext" title="다음">&#8595;</button>
+        <button id="findClose" title="닫기">✕</button>
+      `;
+      document.body.appendChild(bar);
+      const input = bar.querySelector('#findInput');
+      bar.querySelector('#findClose').addEventListener('click', () => {
+        api.stopFind?.();
+        bar.remove();
+      });
+      bar.querySelector('#findNext').addEventListener('click', () => {
+        api.findInPage?.(input.value, { forward: true });
+      });
+      bar.querySelector('#findPrev').addEventListener('click', () => {
+        api.findInPage?.(input.value, { forward: false });
+      });
+      input.addEventListener('input', () => {
+        if (input.value) api.findInPage?.(input.value, { forward: true });
+        else api.stopFind?.();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { api.stopFind?.(); bar.remove(); }
+        if (e.key === 'Enter')  api.findInPage?.(input.value, { forward: !e.shiftKey });
+        e.stopPropagation();
+      });
+    }
+    bar.querySelector('#findInput').select();
+    bar.querySelector('#findInput').focus();
+  }
 
   // 반응형 액션바: 너비에 따라 낮은 우선순위 버튼부터 동적 숨김
   {
