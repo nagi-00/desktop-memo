@@ -14,7 +14,7 @@ let listWindow = null;
 // memoId → BrowserWindow 매핑
 const memoWindows = new Map();
 
-// 휴지통 (인메모리 — 재부팅 시 소멸)
+// 휴지통 (영속 저장 — electron-store의 'trash' 키 사용)
 let trash = [];
 
 // ──────────────────────────────────────────
@@ -26,6 +26,7 @@ async function initStore() {
   store = new Store({
     defaults: {
       memos: [],
+      trash: [],
       globalSettings: {
         theme:          'dark',
         accentColor:    null,
@@ -35,6 +36,13 @@ async function initStore() {
       }
     }
   });
+  // 앱 시작 시 영속된 휴지통 복원
+  trash = store.get('trash', []);
+}
+
+// 휴지통 store 동기화 헬퍼
+function saveTrash() {
+  store.set('trash', trash);
 }
 
 // ──────────────────────────────────────────
@@ -309,7 +317,7 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 메모 삭제 → 휴지통으로 이동 (인메모리, 재부팅 시 소멸)
+  // 메모 삭제 → 휴지통으로 이동 (영속 저장)
   ipcMain.handle('memo:delete', (_e, memoId) => {
     const memos = getMemos();
     const idx = memos.findIndex(m => m.id === memoId);
@@ -317,6 +325,7 @@ function registerIpcHandlers() {
       trash.push({ ...memos[idx], deletedAt: new Date().toISOString() });
       memos.splice(idx, 1);
       saveMemos(memos);
+      saveTrash();
     }
     const win = memoWindows.get(memoId);
     if (win && !win.isDestroyed()) {
@@ -340,15 +349,26 @@ function registerIpcHandlers() {
     const memos = getMemos();
     memos.push(memo);
     saveMemos(memos);
+    saveTrash();
     createMemoWindow(memo);
     updateTrayMenu();
     broadcastListUpdate();
     return true;
   });
 
-  // 휴지통 비우기
+  // 휴지통에서 특정 메모 영구 삭제 (BUG-02: emptyTrash 대신 개별 삭제)
+  ipcMain.handle('memo:deleteFromTrash', (_e, memoId) => {
+    const before = trash.length;
+    trash = trash.filter(m => m.id !== memoId);
+    if (trash.length !== before) saveTrash();
+    broadcastListUpdate();
+    return true;
+  });
+
+  // 휴지통 전체 비우기
   ipcMain.handle('memo:emptyTrash', () => {
     trash = [];
+    saveTrash();
     broadcastListUpdate();
     return true;
   });
@@ -568,7 +588,7 @@ function registerIpcHandlers() {
       const newMemos = imported.filter(m => m?.id && !existingIds.has(m.id));
       saveMemos([...existing, ...newMemos]);
       broadcastListUpdate();
-      return { success: true, count: newMemos.length };
+      return { success: true, count: newMemos.length, total: imported.length };
     } catch (e) {
       return { success: false, error: e.message };
     }
