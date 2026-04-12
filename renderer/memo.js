@@ -696,12 +696,12 @@ function insertToggleBlock(range, textNode) {
   const beforeText = fullText.slice(0, offset).trimStart();
   if (beforeText !== '>>') return false;
 
-  // 현재 블록 요소 찾기
-  let block = range.startContainer;
-  while (block && block !== memoContent && !['P','DIV'].includes(block.nodeName)) {
-    block = block.parentNode;
-  }
-  if (!block || block === memoContent) return false;
+  // toggle-header 안에서는 중첩 토글 생성 차단
+  if (textNode.parentNode?.closest?.('.toggle-header')) return false;
+
+  // _currentBlock과 동일한 로컬 루트 인식 로직 (toggle-body를 로컬 루트로 취급)
+  let block = _currentBlock(textNode);
+  if (!block) return false;
 
   // 블록 내 >> 이후 텍스트를 title로 사용
   const titleText = fullText.slice(offset).replace(/^\s/, ''); // >> 뒤 텍스트
@@ -1001,14 +1001,20 @@ function fmt(command, value = null) {
  */
 // ── 자동 변환 공통 헬퍼 ─────────────────────────
 /**
- * 커서가 있는 memoContent 직접 자식 블록을 반환.
- * execCommand('insertOrderedList') 는 빈 블록에서 윗줄 내용을 흡수하는 버그가
- * 있으므로, 직접 <ol>/<ul>을 생성해 블록을 교체한다.
+ * 커서가 있는 "로컬 루트"의 직접 자식 블록을 반환.
+ * memoContent 뿐만 아니라 .toggle-body도 로컬 루트로 취급하여
+ * 토글 내부에서 리스트/체크박스 변환 시 토글 구조를 보존한다.
  */
 function _currentBlock(node) {
   let el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-  while (el && el.parentNode !== memoContent) el = el.parentNode;
-  return el ?? null;
+  while (el) {
+    const parent = el.parentNode;
+    if (!parent) return null;
+    // memoContent 또는 toggle-body의 직접 자식이면 반환
+    if (parent === memoContent || parent.classList?.contains('toggle-body')) return el;
+    el = parent;
+  }
+  return null;
 }
 
 function _replaceBlockWithList(blockEl, listTag, node) {
@@ -1016,14 +1022,15 @@ function _replaceBlockWithList(blockEl, listTag, node) {
   const li   = document.createElement('li');
   list.appendChild(li);
 
-  if (blockEl && blockEl !== memoContent) {
+  if (blockEl && blockEl !== memoContent && !blockEl.classList?.contains('toggle-body')) {
     // 블록 안에 트리거 이외의 텍스트가 있으면 li 안으로 이동
     const remaining = blockEl.textContent.trim();
     if (remaining) li.textContent = remaining;
     blockEl.replaceWith(list);
   } else {
-    // 직접 자식이 아닌 경우(드문 케이스) — 커서 위치에 삽입
-    memoContent.appendChild(list);
+    // 직접 자식이 아닌 경우(드문 케이스) — 로컬 루트 끝에 삽입
+    const root = blockEl?.classList?.contains('toggle-body') ? blockEl : memoContent;
+    root.appendChild(list);
   }
 
   const nr = document.createRange();
@@ -1043,6 +1050,10 @@ function handleAutoConvert(e) {
   const range = sel.getRangeAt(0);
   const node  = range.startContainer;
   if (node.nodeType !== Node.TEXT_NODE) return;
+
+  // toggle-header, cb-item, li 내부에서는 자동 변환 차단
+  const ctx = node.parentNode;
+  if (ctx?.closest?.('.toggle-header') || ctx?.closest?.('.cb-item') || ctx?.closest?.('li')) return;
 
   const textBefore = node.textContent.slice(0, range.startOffset);
 
@@ -1585,20 +1596,30 @@ function bindEvents() {
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
     } else if (e.key === ' ' && !mod && !e.shiftKey) {
-      // >> + Space → 토글 블록 변환
+      // Space 키 통합 처리: 토글/자동변환 충돌 방지
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
         const range = sel.getRangeAt(0);
         const node = range.startContainer;
+        const contextEl = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+        // toggle-header / cb-item / li 내부: 모든 자동 변환 차단 (기본 space 동작만)
+        if (contextEl.closest?.('.toggle-header') ||
+            contextEl.closest?.('.cb-item') ||
+            contextEl.closest?.('li')) {
+          return; // handleAutoConvert 실행 전에 리스너 탈출
+        }
+        // >> + Space → 토글 블록 변환 (보호 영역 외부에서만)
         if (node.nodeType === Node.TEXT_NODE) {
           const before = node.textContent.slice(0, range.startOffset).trimStart();
           if (before === '>>') {
             e.preventDefault();
             insertToggleBlock(range, node);
             scheduleSave();
+            return;
           }
         }
       }
+      // 그 외: handleAutoConvert가 아래에서 처리 (- , * , 1. , [] 등)
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
       // toggle-header에서 Enter → toggle-body로 이동
       {
@@ -1711,19 +1732,6 @@ function bindEvents() {
           scheduleSave();
         }
       }
-    } else if (e.key === ' ') {
-      // Space: cb-item span 또는 li 안에서는 handleAutoConvert 전에 기본 동작 허용
-      // (autoConvert가 내부 패턴을 오감지할 경우에만 방어)
-      const sSel = window.getSelection();
-      if (sSel?.rangeCount) {
-        let sNode = sSel.getRangeAt(0).startContainer;
-        if (sNode.nodeType === Node.TEXT_NODE) sNode = sNode.parentNode;
-        if (sNode.closest?.('.cb-item') || sNode.closest?.('li')) {
-          // autoConvert 건너뜀 — return으로 handleAutoConvert 호출 전에 빠져나감
-          // 브라우저 기본 space 삽입에 맡김
-          return;
-        }
-      }
     } else if (e.key === 'Backspace') {
       // 백스페이스: 체크박스 / 리스트 서식 간편 해제
       const bSel = window.getSelection();
@@ -1805,7 +1813,8 @@ function bindEvents() {
       if (sel?.rangeCount) {
         const range = sel.getRangeAt(0);
         const node  = range.startContainer;
-        if (node.nodeType === Node.TEXT_NODE) {
+        // toggle-header 내부에서는 변환 차단
+        if (node.nodeType === Node.TEXT_NODE && !node.parentNode?.closest?.('.toggle-header')) {
           const textBefore = node.textContent.slice(0, range.startOffset);
           if (textBefore === '--') {
             e.preventDefault();
@@ -1813,18 +1822,23 @@ function bindEvents() {
             node.textContent =
               node.textContent.slice(0, range.startOffset - 2) +
               node.textContent.slice(range.startOffset);
-            // 현재 블록의 최상위 요소 찾기
+            // 로컬 루트(memoContent 또는 toggle-body)의 직접 자식 찾기
             let topEl = node;
-            while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+            while (topEl.parentNode) {
+              const parent = topEl.parentNode;
+              if (parent === memoContent || parent.classList?.contains('toggle-body')) break;
+              topEl = parent;
+            }
+            const localRoot = topEl.parentNode || memoContent;
             // <hr> 삽입
             const hr = document.createElement('hr');
-            memoContent.insertBefore(hr, topEl.nextSibling);
+            localRoot.insertBefore(hr, topEl.nextSibling);
             // hr 뒤에 새 줄 (없으면 생성)
             let nextEl = hr.nextSibling;
             if (!nextEl) {
               nextEl = document.createElement('div');
               nextEl.innerHTML = '<br>';
-              memoContent.appendChild(nextEl);
+              localRoot.appendChild(nextEl);
             }
             // 커서를 hr 다음 줄로 이동
             try {
