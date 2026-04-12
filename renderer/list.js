@@ -196,6 +196,7 @@ function renderTagFilterChips() {
     chip.textContent = `#${tag}`;
     if (currentFilter === `tag:${tag}`) chip.classList.add('active');
     chip.addEventListener('click', () => {
+      if (isMultiSelectMode) exitMultiSelectMode(); // UX-05: 필터 전환 시 다중 선택 모드 해제
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = `tag:${tag}`;
@@ -252,10 +253,16 @@ function renderList() {
   emptyList.style.display = 'none';
 
   const sortKey = isTrash ? 'deletedAt' : 'updatedAt';
-  memos
+  const sorted = memos
     .slice()
-    .sort((a, b) => new Date(b[sortKey] || b.updatedAt) - new Date(a[sortKey] || a.updatedAt))
-    .forEach(memo => sidebar.appendChild(buildListItem(memo, { isTrashItem: isTrash })));
+    .sort((a, b) => new Date(b[sortKey] || b.updatedAt) - new Date(a[sortKey] || a.updatedAt));
+
+  sorted.forEach(memo => sidebar.appendChild(buildListItem(memo, { isTrashItem: isTrash })));
+
+  // 선택된 항목이 없으면 첫 번째 메모를 자동 선택 (UX-07)
+  if (!selectedId || !sorted.find(m => m.id === selectedId)) {
+    selectMemo(sorted[0].id);
+  }
 }
 
 function buildListItem(memo, { isTrashItem = false } = {}) {
@@ -328,9 +335,11 @@ function buildListItem(memo, { isTrashItem = false } = {}) {
       showListContextMenu([
         { label: '복원', action: () => api.restoreFromTrash(memo.id) },
         'sep',
-        { label: '영구 삭제', danger: true, action: () => {
+        { label: '영구 삭제', danger: true, action: async () => {
           if (confirm('영구적으로 삭제할까요? 복구할 수 없습니다.')) {
-            api.emptyTrash();
+            await api.deleteFromTrash(memo.id);
+            const idx = trashMemos.findIndex(m => m.id === memo.id);
+            if (idx !== -1) trashMemos.splice(idx, 1);
             selectedId = null;
             renderList();
             renderPreview(null);
@@ -555,11 +564,11 @@ function renderPreview(memo, isTrash = false) {
     actions.querySelector('[data-action="restore"]').addEventListener('click', async () => {
       await api.restoreFromTrash(memo.id);
     });
-    actions.querySelector('[data-action="permanent-delete"]').addEventListener('click', () => {
+    actions.querySelector('[data-action="permanent-delete"]').addEventListener('click', async () => {
       if (confirm('영구적으로 삭제할까요? 복구할 수 없습니다.')) {
+        await api.deleteFromTrash(memo.id);
         const idx = trashMemos.findIndex(m => m.id === memo.id);
         if (idx !== -1) trashMemos.splice(idx, 1);
-        api.emptyTrash(); // 전체 비우기 대신 클라이언트에서 제거 후 목록 갱신
         selectedId = null;
         renderList();
         renderPreview(null);
@@ -868,6 +877,7 @@ function bindEvents() {
   // 기본 필터 칩
   document.querySelectorAll('.filter-chip:not(.tag-chip)').forEach(chip => {
     chip.addEventListener('click', () => {
+      if (isMultiSelectMode) exitMultiSelectMode(); // UX-05: 필터 전환 시 다중 선택 모드 해제
       document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = chip.dataset.filter;
@@ -937,10 +947,16 @@ function bindEvents() {
   btnImport?.addEventListener('click', async () => {
     const result = await api.importMemos();
     if (result?.success) {
-      showToast(`${result.count}개 메모 불러오기 완료`);
+      if (result.count === 0) {
+        showToast('새로운 메모가 없습니다 (모두 이미 존재)');
+      } else {
+        const skipped = (result.total ?? 0) - result.count;
+        const skipMsg = skipped > 0 ? ` (중복 ${skipped}개 건너뜀)` : '';
+        showToast(`${result.count}개 메모 불러오기 완료${skipMsg}`);
+      }
       await loadMemos();
     } else if (result?.error) {
-      showToast(result.error);
+      showToast(`불러오기 실패: ${result.error}`);
     }
   });
 

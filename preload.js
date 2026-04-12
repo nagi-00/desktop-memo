@@ -17,9 +17,10 @@ contextBridge.exposeInMainWorld('memoAPI', {
   updateMemo: (changes)   => ipcRenderer.invoke('memo:update', { id: memoId, changes }),
   deleteMemo: ()          => ipcRenderer.invoke('memo:delete', memoId),
   deleteById: (id)        => ipcRenderer.invoke('memo:delete', id),
-  getTrash:   ()          => ipcRenderer.invoke('memo:getTrash'),
+  getTrash:         ()    => ipcRenderer.invoke('memo:getTrash'),
   restoreFromTrash: (id)  => ipcRenderer.invoke('memo:restoreFromTrash', id),
-  emptyTrash: ()          => ipcRenderer.invoke('memo:emptyTrash'),
+  deleteFromTrash:  (id)  => ipcRenderer.invoke('memo:deleteFromTrash', id),
+  emptyTrash:       ()    => ipcRenderer.invoke('memo:emptyTrash'),
 
   // ── 윈도우 제어 ──
   pinMemo:        (pinned)  => ipcRenderer.invoke('memo:pin',        { id: memoId, pinned }),

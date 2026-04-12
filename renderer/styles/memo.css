@@ -1052,17 +1052,43 @@
   transition: border-color var(--transition-base), background var(--transition-base);
 }
 
+.action-bar-left {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 110px;
+  gap: 1px;
+}
+
 .created-date {
   font-size: 11px;
   color: var(--color-text-muted);
   padding-left: 4px;
-  flex-shrink: 1;
-  min-width: 0;
-  max-width: 110px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   transition: color var(--transition-base);
+}
+
+/* 저장 상태 인디케이터 */
+.save-indicator {
+  font-size: 10px;
+  padding-left: 4px;
+  height: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  color: var(--color-text-muted);
+}
+.save-indicator.saving {
+  opacity: 1;
+  color: var(--color-text-muted);
+}
+.save-indicator.saved {
+  opacity: 1;
+  color: var(--color-accent);
 }
 
 .action-icons {

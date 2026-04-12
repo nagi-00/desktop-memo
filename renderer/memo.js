@@ -274,9 +274,12 @@ btnThreadFold?.addEventListener('click', () => {
 // SN 모드 해제 버튼
 document.getElementById('btnExitSN')?.addEventListener('click', () => {
   const card = document.querySelector('.memo-card');
-  card?.classList.remove('sticky-notes-mode');
-  // SN 모드 해제 시 위치잠금도 함께 해제
+  // 잠금을 먼저 해제해야 applyLock 내부의 SN 전용 정리 코드가 실행됨
+  // (sticky-notes-mode 클래스 제거 전에 호출해야 sn-move-locked 등이 올바르게 처리됨)
   if (isLocked) applyLock(false);
+  card?.classList.remove('sticky-notes-mode');
+  card?.classList.remove('sn-move-locked'); // 잔류 클래스 명시적 제거
+  api.setWindowMovable?.(true);             // 창 이동 가능 상태 명시적 복원
   _updateSNActiveState(false);
   api.setStickyNotesMode?.(false);
 });
@@ -497,7 +500,7 @@ async function init() {
   }
 
   // 투명도
-  const opacity = memoData.opacity ?? 1.0;
+  const opacity = Math.max(0.2, memoData.opacity ?? 1.0); // 최솟값 0.2 보장
   opacitySlider.value = opacity;
   opacityValue.textContent = `${Math.round(opacity * 100)}%`;
 
@@ -751,8 +754,30 @@ memoContent.addEventListener('click', (e) => {
   }
 });
 
+let _savedFadeTimer = null;
+
+function _showSaveIndicator(state) {
+  const el = document.getElementById('saveIndicator');
+  if (!el) return;
+  clearTimeout(_savedFadeTimer);
+  el.className = 'save-indicator'; // reset
+  if (state === 'saving') {
+    el.textContent = '저장 중…';
+    el.classList.add('saving');
+  } else if (state === 'saved') {
+    el.textContent = '저장됨';
+    el.classList.add('saved');
+    _savedFadeTimer = setTimeout(() => {
+      el.classList.remove('saved');
+      el.classList.add('saving'); // fade via opacity:0
+      setTimeout(() => { el.className = 'save-indicator'; el.textContent = ''; }, 300);
+    }, 1500);
+  }
+}
+
 function scheduleSave() {
   if (!memoData) return;
+  _showSaveIndicator('saving');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     const contentHtml = memoContent.innerHTML;
@@ -762,17 +787,25 @@ function scheduleSave() {
     memoData.content     = content;
     memoData.images      = images;
 
-    // 해시태그 자동 감지 및 태그 병합
+    // 해시태그 자동 감지 — 본문의 해시태그와 수동 태그를 분리하여 재계산
+    // 수동 태그(해시태그로 입력되지 않은 것)는 유지, 해시태그 파생 태그는 매번 갱신
     const hashMatches = content.match(/#([가-힣a-zA-Z0-9_]+)/g) || [];
-    const detectedTags = hashMatches.map(t => t.slice(1));
+    const detectedTags = new Set(hashMatches.map(t => t.slice(1)));
+    const existing = memoData.tags || [];
+    // 이전에 해시태그로 추가됐던 태그는 제거하고 현재 감지된 것만 유지
+    const manualTags = existing.filter(tag => {
+      // 현재 본문에 해당 해시태그가 없고, 이전 저장 시 수동으로 추가된 것
+      return !memoData._detectedTags?.includes(tag);
+    });
+    const merged = [...new Set([...manualTags, ...detectedTags])];
     let changes = { contentHtml, content, images };
-    if (detectedTags.length > 0) {
-      const existing = memoData.tags || [];
-      const merged = [...new Set([...existing, ...detectedTags])];
-      if (merged.length > existing.length) {
-        memoData.tags = merged;
-        changes.tags = merged;
-      }
+    // 태그 배열이 실제로 바뀐 경우에만 저장
+    const tagsChanged = JSON.stringify(merged.sort()) !== JSON.stringify([...(memoData.tags || [])].sort());
+    if (tagsChanged) {
+      memoData.tags = merged;
+      memoData._detectedTags = [...detectedTags];
+      changes.tags = merged;
+      changes._detectedTags = [...detectedTags];
     }
 
     saveMemoChanges(changes);
@@ -780,7 +813,9 @@ function scheduleSave() {
 }
 
 function saveMemoChanges(changes) {
-  api.updateMemo(changes).catch(console.error);
+  api.updateMemo(changes)
+    .then(() => _showSaveIndicator('saved'))
+    .catch(console.error);
 }
 
 // ── 미디어 그리드 (트위터 스타일 — mediaArea에 고정) ──
@@ -932,9 +967,12 @@ function initMediaGrids() {
     img.remove();
   });
 
-  // 2) memoData.images 로드 (마이그레이션된 것과 합침)
+  // 2) memoData.images 로드 (마이그레이션된 것과 합침, 중복 제거)
   const savedImages = memoData.images || [];
-  const allImages = [...savedImages, ...migratedSrcs];
+  // 이미 savedImages에 있는 src는 migratedSrcs에서 제외 (중복 방지)
+  const savedSet = new Set(savedImages);
+  const uniqueMigrated = migratedSrcs.filter(src => !savedSet.has(src));
+  const allImages = [...savedImages, ...uniqueMigrated];
   if (allImages.length === 0) return;
 
   const grid = getOrCreateGrid();
@@ -1832,12 +1870,28 @@ function bindEvents() {
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     if (!text) return;
-    // 단일 URL → 하이퍼링크 자동 변환
+    // 단일 URL → 하이퍼링크 자동 변환 (DOM API 사용으로 XSS 방지)
     if (/^https?:\/\/\S+$/.test(text.trim())) {
       const sel   = window.getSelection();
       const label = sel?.toString().trim() || text.trim();
-      document.execCommand('insertHTML', false,
-        `<a href="${text.trim()}" target="_blank" rel="noopener">${label}</a>`);
+      const a = document.createElement('a');
+      a.href      = text.trim();   // DOM이 자동으로 이스케이프
+      a.target    = '_blank';
+      a.rel       = 'noopener';
+      a.textContent = label;
+      if (sel?.rangeCount) {
+        const r = sel.getRangeAt(0);
+        r.deleteContents();
+        r.insertNode(a);
+        const newRange = document.createRange();
+        newRange.setStartAfter(a);
+        newRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+      } else {
+        memoContent.appendChild(a);
+      }
+      scheduleSave();
       return;
     }
     document.execCommand('insertText', false, text);
