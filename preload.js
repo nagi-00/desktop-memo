@@ -34,6 +34,13 @@ contextBridge.exposeInMainWorld('memoAPI', {
   updateTheme:  (theme) => ipcRenderer.invoke('theme:update',  { id: memoId, theme }),
   setThemeMode: (mode)  => ipcRenderer.invoke('theme:setMode', mode),
 
+  // ── 메모 내 검색 결과 수신 ──
+  onFindResult: (callback) => {
+    const handler = (_e, active, total) => callback(active, total);
+    ipcRenderer.on('find:result', handler);
+    return () => ipcRenderer.removeListener('find:result', handler);
+  },
+
   // ── 메모 목록 / 공통 ──
   openList:   ()     => ipcRenderer.invoke('memo:openList'),
   hideList:   ()     => ipcRenderer.invoke('list:hide'),

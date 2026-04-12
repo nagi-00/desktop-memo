@@ -218,7 +218,15 @@ function renderTagFilterChips() {
 
 // ── 필터링 ──
 function getFilteredMemos() {
-  if (currentFilter === 'trash') return trashMemos;
+  if (currentFilter === 'trash') {
+    if (!searchQuery) return trashMemos;
+    const q = searchQuery.toLowerCase();
+    return trashMemos.filter(m =>
+      (m.content || '').toLowerCase().includes(q) ||
+      (m.profile?.name || '').toLowerCase().includes(q) ||
+      (m.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
 
   let list = allMemos;
 

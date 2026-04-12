@@ -816,6 +816,12 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed()) return;
     if (!text) { win.webContents.stopFindInPage('clearSelection'); return; }
+    // found-in-page 결과를 렌더러로 한 번만 전송
+    win.webContents.once('found-in-page', (_e, result) => {
+      if (!win.isDestroyed()) {
+        win.webContents.send('find:result', result.activeMatchOrdinal, result.matches);
+      }
+    });
     win.webContents.findInPage(text, { forward: true, matchCase: false, ...options });
   });
   ipcMain.handle('window:stopFind', (event) => {
@@ -1100,10 +1106,11 @@ app.whenReady().then(async () => {
 
   // 주기적 자동 백업 (7일 간격, 앱 데이터 폴더에 저장)
   const AUTO_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
-  const lastAutoBackup = store.get('lastAutoBackup', 0);
-  if (Date.now() - lastAutoBackup > AUTO_BACKUP_INTERVAL_MS) {
+
+  function tryAutoBackup() {
+    if (Date.now() - store.get('lastAutoBackup', 0) < AUTO_BACKUP_INTERVAL_MS) return;
     try {
-      const backupDir  = path.join(app.getPath('userData'), 'auto-backups');
+      const backupDir = path.join(app.getPath('userData'), 'auto-backups');
       const fs2 = require('fs');
       if (!fs2.existsSync(backupDir)) fs2.mkdirSync(backupDir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -1119,6 +1126,10 @@ app.whenReady().then(async () => {
       files.slice(5).forEach(f => { try { fs2.unlinkSync(path.join(backupDir, f)); } catch {} });
     } catch { /* 자동 백업 실패는 조용히 무시 */ }
   }
+
+  tryAutoBackup(); // 앱 시작 시 즉시 체크
+  // 24시간마다 재확인 (앱 장기 실행 대응)
+  setInterval(tryAutoBackup, 24 * 60 * 60 * 1000);
 });
 
 // 모든 창이 닫혀도 트레이로 상주

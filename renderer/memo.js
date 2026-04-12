@@ -1203,8 +1203,9 @@ function handleAutoConvert(e) {
 }
 
 // ── 링크 삽입 (Ctrl+K / 우클릭 메뉴) ─────────
-let _linkSavedRange = null;
+let _linkSavedRange   = null;
 let _linkSelectedText = '';
+let _editingAnchor    = null; // 더블클릭으로 편집 중인 <a> 요소
 
 function insertLink() {
   const sel = window.getSelection();
@@ -1222,7 +1223,16 @@ function insertLink() {
 function _applyLink() {
   const url = linkDialogInput.value.trim();
   linkDialogOverlay.classList.remove('visible');
-  if (!url || url === 'https://') return;
+  if (!url || url === 'https://') { _editingAnchor = null; return; }
+
+  // 더블클릭 편집 모드: 기존 <a> href만 업데이트
+  if (_editingAnchor) {
+    _editingAnchor.href = url;
+    _editingAnchor = null;
+    memoContent.focus();
+    scheduleSave();
+    return;
+  }
 
   const text = _linkSelectedText || url;
 
@@ -1585,22 +1595,13 @@ function bindEvents() {
     if (!anchor) return;
     e.preventDefault();
     e.stopPropagation();
-    // 링크 편집: 기존 링크 다이얼로그를 재활용
+    // 더블클릭 편집 모드: _editingAnchor 설정 → _applyLink가 href 업데이트를 담당
+    _editingAnchor    = anchor;
+    _linkSavedRange   = null;   // 신규 삽입 경로 차단
     _linkSelectedText = anchor.textContent;
     linkDialogInput.value = anchor.getAttribute('href') || '';
     linkDialogOverlay.classList.add('visible');
     requestAnimationFrame(() => { linkDialogInput.select(); linkDialogInput.focus(); });
-    // 확인 시 기존 <a> 태그 업데이트
-    const onConfirm = () => {
-      const newUrl = linkDialogInput.value.trim();
-      if (newUrl && newUrl !== 'https://') {
-        anchor.href = newUrl;
-        scheduleSave();
-      }
-      linkDialogOverlay.classList.remove('visible');
-      linkDialogConfirm.removeEventListener('click', onConfirm);
-    };
-    linkDialogConfirm.addEventListener('click', onConfirm);
   });
 
   // ── 링크 호버 툴팁 ──────────────────────────────
@@ -1865,14 +1866,25 @@ function bindEvents() {
         if (li) {
           e.preventDefault();
           if (e.shiftKey) {
-            // 내어쓰기: 부모 li가 있으면 한 단계 올림
+            // 내어쓰기: 중첩 li면 한 단계 올림, 최상위면 리스트 탈출 → div로 변환
             const parentLi = li.parentElement?.closest('li');
             if (parentLi) {
               const subList = li.parentElement;
               parentLi.parentElement?.insertBefore(li, parentLi.nextSibling);
               if (!subList.children.length) subList.remove();
             } else {
-              document.execCommand('outdent', false);
+              // 최상위 리스트 항목 → 리스트에서 탈출하여 일반 div로 변환
+              const list = li.parentElement;
+              const div  = document.createElement('div');
+              div.innerHTML = li.innerHTML || '<br>';
+              if (list && list.parentNode) {
+                list.parentNode.insertBefore(div, list);
+                li.remove();
+                if (!list.children.length) list.remove();
+              }
+              const r = document.createRange();
+              r.setStart(div, 0); r.collapse(true);
+              tSel.removeAllRanges(); tSel.addRange(r);
             }
           } else {
             // 들여쓰기: 이전 형제 li 안에 중첩 리스트 생성
@@ -2715,10 +2727,13 @@ function bindEvents() {
 
   // 링크 다이얼로그 이벤트
   linkDialogConfirm?.addEventListener('click', _applyLink);
-  linkDialogCancel?.addEventListener('click', () => linkDialogOverlay.classList.remove('visible'));
+  linkDialogCancel?.addEventListener('click', () => {
+    _editingAnchor = null;
+    linkDialogOverlay.classList.remove('visible');
+  });
   linkDialogInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); _applyLink(); }
-    if (e.key === 'Escape') { e.preventDefault(); linkDialogOverlay.classList.remove('visible'); }
+    if (e.key === 'Enter')  { e.preventDefault(); _applyLink(); }
+    if (e.key === 'Escape') { e.preventDefault(); _editingAnchor = null; linkDialogOverlay.classList.remove('visible'); }
     e.stopPropagation();
   });
 
@@ -2751,23 +2766,34 @@ function bindEvents() {
         <button id="findClose" title="닫기">✕</button>
       `;
       document.body.appendChild(bar);
-      const input = bar.querySelector('#findInput');
-      bar.querySelector('#findClose').addEventListener('click', () => {
-        api.stopFind?.();
-        bar.remove();
+      const input    = bar.querySelector('#findInput');
+      const countEl  = bar.querySelector('#findCount');
+
+      // found-in-page 결과 수신 → 카운트 표시
+      const _unsubFind = api.onFindResult?.((active, total) => {
+        if (!document.getElementById('findBar')) return;
+        countEl.textContent = total > 0 ? `${active}/${total}` : '없음';
       });
+
+      function _closeBar() {
+        api.stopFind?.();
+        _unsubFind?.();
+        bar.remove();
+      }
+
+      bar.querySelector('#findClose').addEventListener('click', _closeBar);
       bar.querySelector('#findNext').addEventListener('click', () => {
-        api.findInPage?.(input.value, { forward: true });
+        if (input.value) api.findInPage?.(input.value, { forward: true });
       });
       bar.querySelector('#findPrev').addEventListener('click', () => {
-        api.findInPage?.(input.value, { forward: false });
+        if (input.value) api.findInPage?.(input.value, { forward: false });
       });
       input.addEventListener('input', () => {
-        if (input.value) api.findInPage?.(input.value, { forward: true });
-        else api.stopFind?.();
+        if (input.value) { countEl.textContent = ''; api.findInPage?.(input.value, { forward: true }); }
+        else { countEl.textContent = ''; api.stopFind?.(); }
       });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') { api.stopFind?.(); bar.remove(); }
+        if (e.key === 'Escape') { _closeBar(); }
         if (e.key === 'Enter')  api.findInPage?.(input.value, { forward: !e.shiftKey });
         e.stopPropagation();
       });
