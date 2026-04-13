@@ -32,12 +32,22 @@ async function initStore() {
         accentColor:    null,
         font:           { family: 'system-ui', size: 14 },
         savedProfiles:  [],
-        stickyNotesMode: false
+        stickyNotesMode: false,
+        sidebarWidth:   240
       }
     }
   });
   // 앱 시작 시 영속된 휴지통 복원
   trash = store.get('trash', []);
+  // 30일 지난 휴지통 항목 자동 정리
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const before = trash.length;
+  trash = trash.filter(m => {
+    const deleted = m.deletedAt ? new Date(m.deletedAt).getTime() : 0;
+    return now - deleted < THIRTY_DAYS;
+  });
+  if (trash.length !== before) saveTrash();
 }
 
 // 휴지통 store 동기화 헬퍼
@@ -81,6 +91,36 @@ function buildNewMemo(overrides = {}) {
 }
 
 // ──────────────────────────────────────────
+// 메모 목록 창 열기 (트레이 메뉴 / IPC 공용)
+// ──────────────────────────────────────────
+function openListWindow() {
+  if (listWindow && !listWindow.isDestroyed()) {
+    if (!listWindow.isVisible()) listWindow.show();
+    listWindow.focus();
+    return;
+  }
+  listWindow = new BrowserWindow({
+    width:     600,
+    height:    440,
+    minWidth:  480,
+    minHeight: 320,
+    frame:     false,
+    transparent: false,
+    resizable: true,
+    show:      false,
+    skipTaskbar: false,
+    webPreferences: {
+      preload:         path.join(__dirname, 'preload.js'),
+      contextIsolation:true,
+      nodeIntegration: false,
+    }
+  });
+  listWindow.loadFile(path.join(__dirname, 'renderer', 'list.html'));
+  listWindow.once('ready-to-show', () => listWindow.show());
+  listWindow.on('closed', () => { listWindow = null; });
+}
+
+// ──────────────────────────────────────────
 // 메모 윈도우 생성
 // ──────────────────────────────────────────
 function createMemoWindow(memoData, options = {}) {
@@ -97,12 +137,29 @@ function createMemoWindow(memoData, options = {}) {
   const winWidth  = minimized ? BUBBLE_SIZE : (bounds.width  || 320);
   const winHeight = minimized ? BUBBLE_SIZE : (bounds.height || 420);
 
-  // Linux에서는 type:'desktop'으로 생성 → 데스크탑 레이어에 위치,
-  // OS 드래그 선택 박스(rubber band)가 메모 위에 표시됨.
-  // 핀 시 setAlwaysOnTop(true)로 정상 앱 레이어로 올라옴.
+  // 멀티모니터: 저장된 좌표가 현재 디스플레이 영역 밖이면 보정
+  let safeX = bounds.x, safeY = bounds.y;
+  if (safeX !== undefined && safeY !== undefined) {
+    const { screen } = require('electron');
+    const displays = screen.getAllDisplays();
+    const visible = displays.some(d => {
+      const { x: dx, y: dy, width: dw, height: dh } = d.workArea;
+      return safeX + 40 > dx && safeX < dx + dw && safeY + 40 > dy && safeY < dy + dh;
+    });
+    if (!visible) {
+      const primary = screen.getPrimaryDisplay().workArea;
+      safeX = primary.x + Math.floor((primary.width  - winWidth)  / 2);
+      safeY = primary.y + Math.floor((primary.height - winHeight) / 2);
+    }
+  }
+
+  // Linux에서는 설정(linuxDesktopType)이 켜진 경우만 type:'desktop' 사용
+  // 기본 OFF: 일반 창처럼 동작 (다른 앱 뒤로 숨지 않음)
+  const useLinuxDesktop = process.platform === 'linux' &&
+    store.get('globalSettings.linuxDesktopType', false);
   const win = new BrowserWindow({
-    x: bounds.x,
-    y: bounds.y,
+    x: safeX,
+    y: safeY,
     width:     winWidth,
     height:    winHeight,
     minWidth:  minimized ? BUBBLE_SIZE : 260,
@@ -114,7 +171,7 @@ function createMemoWindow(memoData, options = {}) {
     opacity,
     show: false,
     skipTaskbar: true,
-    ...(process.platform === 'linux' ? { type: 'desktop' } : {}),
+    ...(useLinuxDesktop ? { type: 'desktop' } : {}),
     webPreferences: {
       preload:         path.join(__dirname, 'preload.js'),
       contextIsolation:true,
@@ -220,8 +277,20 @@ function createMemoWindow(memoData, options = {}) {
 // ──────────────────────────────────────────
 // Store 헬퍼
 // ──────────────────────────────────────────
-const getMemos      = ()          => store.get('memos', []);
-const saveMemos     = (memos)     => store.set('memos', memos);
+// 인메모리 캐시로 동시 쓰기 경쟁 방지 (read-modify-write 일관성 보장)
+let _memosCache = null;
+function getMemos() {
+  if (!_memosCache) _memosCache = store.get('memos', []);
+  return _memosCache;
+}
+let _savePending = null;
+function saveMemos(memos) {
+  _memosCache = memos;
+  // 디바운스 저장 (10ms) — 연속 호출 시 마지막 상태만 디스크에 기록
+  clearTimeout(_savePending);
+  _savePending = setTimeout(() => store.set('memos', memos), 10);
+}
+function saveMemosSync(memos) { _memosCache = memos; store.set('memos', memos); }
 const getMemoById   = (id)        => getMemos().find(m => m.id === id) || null;
 
 function updateMemoField(id, field, value) {
@@ -295,6 +364,20 @@ function registerIpcHandlers() {
   ipcMain.handle('memo:create', () => {
     const memo = buildNewMemo();
     const memos = getMemos();
+    memos.push(memo);
+    saveMemos(memos);
+    createMemoWindow(memo);
+    updateTrayMenu();
+    broadcastListUpdate();
+    return memo.id;
+  });
+
+  // 답글(스레드) 메모 생성
+  ipcMain.handle('memo:createReply', (_e, parentId) => {
+    const memos = getMemos();
+    const parent = memos.find(m => m.id === parentId);
+    if (!parent) return null;
+    const memo = buildNewMemo({ parentId });
     memos.push(memo);
     saveMemos(memos);
     createMemoWindow(memo);
@@ -486,33 +569,8 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 메모 목록 창 열기 (숨겨진 상태면 show)
-  ipcMain.handle('memo:openList', () => {
-    if (listWindow && !listWindow.isDestroyed()) {
-      if (!listWindow.isVisible()) listWindow.show();
-      listWindow.focus();
-      return;
-    }
-    listWindow = new BrowserWindow({
-      width:     600,
-      height:    440,
-      minWidth:  480,
-      minHeight: 320,
-      frame:     false,
-      transparent: false,
-      resizable: true,
-      show:      false,
-      skipTaskbar: false,
-      webPreferences: {
-        preload:         path.join(__dirname, 'preload.js'),
-        contextIsolation:true,
-        nodeIntegration: false,
-      }
-    });
-    listWindow.loadFile(path.join(__dirname, 'renderer', 'list.html'));
-    listWindow.once('ready-to-show', () => listWindow.show());
-    listWindow.on('closed', () => { listWindow = null; });
-  });
+  // 메모 목록 창 열기 (숨겨진 상태면 show) — 트레이/IPC 공용
+  ipcMain.handle('memo:openList', () => openListWindow());
 
   // 메모 목록 창 트레이로 숨기기
   ipcMain.handle('list:hide', () => {
@@ -743,6 +801,35 @@ function registerIpcHandlers() {
     return true;
   });
 
+  // 데이터 저장 경로 반환
+  ipcMain.handle('app:getDataPath', () => store.path);
+
+  // 사이드바 너비 저장/불러오기
+  ipcMain.handle('settings:getSidebarWidth', () => store.get('globalSettings.sidebarWidth', 240));
+  ipcMain.handle('settings:setSidebarWidth', (_e, width) => {
+    store.set('globalSettings.sidebarWidth', Math.max(140, Math.min(440, width)));
+    return true;
+  });
+
+  // 메모 창 내 텍스트 검색 (Ctrl+F)
+  ipcMain.handle('window:findInPage', (event, text, options) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return;
+    if (!text) { win.webContents.stopFindInPage('clearSelection'); return; }
+    // found-in-page 결과를 렌더러로 한 번만 전송
+    win.webContents.once('found-in-page', (_e, result) => {
+      if (!win.isDestroyed()) {
+        win.webContents.send('find:result', result.activeMatchOrdinal, result.matches);
+      }
+    });
+    win.webContents.findInPage(text, { forward: true, matchCase: false, ...options });
+  });
+  ipcMain.handle('window:stopFind', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return;
+    win.webContents.stopFindInPage('clearSelection');
+  });
+
   // 커스텀 앱 아이콘 설정 (트레이 + 심볼 버튼)
   // opts: { dataUrl, svgText } 또는 null (초기화)
   ipcMain.handle('settings:setCustomIcon', (_e, opts) => {
@@ -938,18 +1025,21 @@ function updateTrayMenu() {
   if (!tray) return;
   const memos = getMemos();
 
-  const hiddenItems = memos
-    .filter(m => {
+  const allHidden = memos.filter(m => {
+    const win = memoWindows.get(m.id);
+    return win && !win.isDestroyed() && !win.isVisible();
+  });
+  const MAX_TRAY_ITEMS = 10;
+  const hiddenItems = allHidden.slice(0, MAX_TRAY_ITEMS).map(m => ({
+    label: (m.profile?.name || m.content?.slice(0, 24) || '(빈 메모)').slice(0, 30),
+    click: () => {
       const win = memoWindows.get(m.id);
-      return win && !win.isDestroyed() && !win.isVisible();
-    })
-    .map(m => ({
-      label: (m.profile?.name || m.content?.slice(0, 24) || '(빈 메모)'),
-      click: () => {
-        const win = memoWindows.get(m.id);
-        if (win && !win.isDestroyed()) { win.show(); win.focus(); }
-      }
-    }));
+      if (win && !win.isDestroyed()) { win.show(); win.focus(); }
+    }
+  }));
+  if (allHidden.length > MAX_TRAY_ITEMS) {
+    hiddenItems.push({ label: `… ${allHidden.length - MAX_TRAY_ITEMS}개 더 (목록에서 확인)`, enabled: false });
+  }
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -968,7 +1058,7 @@ function updateTrayMenu() {
     ...(hiddenItems.length > 0
       ? [{ label: '숨겨진 메모', enabled: false }, ...hiddenItems, { type: 'separator' }]
       : []),
-    { label: '메모 목록 열기', click: () => ipcMain.emit('open-list') },
+    { label: '메모 목록 열기', click: () => openListWindow() },
     {
       label: '모든 창 숨기기 (트레이 최소화)',
       click: () => {
@@ -1013,6 +1103,33 @@ app.whenReady().then(async () => {
   // (자식 창은 createMemoWindow 내의 snap 동작으로 자유롭게 이동 가능)
 
   updateTrayMenu();
+
+  // 주기적 자동 백업 (7일 간격, 앱 데이터 폴더에 저장)
+  const AUTO_BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function tryAutoBackup() {
+    if (Date.now() - store.get('lastAutoBackup', 0) < AUTO_BACKUP_INTERVAL_MS) return;
+    try {
+      const backupDir = path.join(app.getPath('userData'), 'auto-backups');
+      const fs2 = require('fs');
+      if (!fs2.existsSync(backupDir)) fs2.mkdirSync(backupDir, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const backupPath = path.join(backupDir, `nagi-memo-auto-${stamp}.json`);
+      const data = JSON.stringify({ version: 1, memos: getMemos(), exportedAt: new Date().toISOString() }, null, 2);
+      fs2.writeFileSync(backupPath, data, 'utf8');
+      store.set('lastAutoBackup', Date.now());
+      // 오래된 자동 백업 5개 초과분 정리
+      const files = fs2.readdirSync(backupDir)
+        .filter(f => f.startsWith('nagi-memo-auto-'))
+        .sort()
+        .reverse();
+      files.slice(5).forEach(f => { try { fs2.unlinkSync(path.join(backupDir, f)); } catch {} });
+    } catch { /* 자동 백업 실패는 조용히 무시 */ }
+  }
+
+  tryAutoBackup(); // 앱 시작 시 즉시 체크
+  // 24시간마다 재확인 (앱 장기 실행 대응)
+  setInterval(tryAutoBackup, 24 * 60 * 60 * 1000);
 });
 
 // 모든 창이 닫혀도 트레이로 상주
@@ -1033,4 +1150,7 @@ app.on('before-quit', () => {
       updateMemoField(id, 'window', win.getBounds());
     }
   }
+  // 디바운스 중인 저장을 즉시 플러시
+  clearTimeout(_savePending);
+  if (_memosCache) store.set('memos', _memosCache);
 });

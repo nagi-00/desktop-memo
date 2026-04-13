@@ -18,9 +18,14 @@
   --color-border:        #3A3A3C;
   --color-border-hover:  #48484A;
 
+  /* Dim / Hover */
+  --color-text-dim:  #636366;
+  --color-hover:     rgba(255, 255, 255, 0.08);
+
   /* Shadows */
   --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.32);
   --shadow-float: 0 2px 8px  rgba(0, 0, 0, 0.30);
+  --shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.40);
 
   /* Radii */
   --radius-card: 16px;
@@ -47,8 +52,11 @@
   --color-text-placeholder: #9CA3AF;
   --color-border:        #E5E7EB;
   --color-border-hover:  #D1D5DB;
+  --color-text-dim:      #9CA3AF;
+  --color-hover:         rgba(0, 0, 0, 0.06);
   --shadow-card:  0 2px 12px rgba(0, 0, 0, 0.08);
   --shadow-float: 0 2px 8px  rgba(0, 0, 0, 0.06);
+  --shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.16);
 }
 
 /* ── Reset & Base ── */

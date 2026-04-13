@@ -10,6 +10,7 @@ let trashMemos     = [];
 let selectedId     = null;
 let currentFilter  = 'all';
 let searchQuery    = '';
+let currentSort    = 'updatedAt'; // 정렬 기준
 
 // 다중 선택 삭제 모드
 let isMultiSelectMode = false;
@@ -31,6 +32,8 @@ const btnSettings     = document.getElementById('btnSettings');
 const resizeHandle    = document.getElementById('listResizeHandle');
 const tagFilterChips  = document.getElementById('tagFilterChips');
 const btnStickyNotes  = document.getElementById('btnStickyNotes');
+const btnEmptyTrash   = document.getElementById('btnEmptyTrash');
+const sortSelect      = document.getElementById('sortSelect');
 
 let isStickyNotesMode = false;
 const tagAddBar       = document.getElementById('tagAddBar');
@@ -107,6 +110,10 @@ async function init() {
   isStickyNotesMode = settings?.stickyNotesMode || false;
   applyListSymbolIcon(settings?.symbolIcon || 'clover');
   if (settings?.customAppIcon) applyListCloverCustomIcon(settings.customAppIcon);
+
+  // 사이드바 너비 복원
+  const savedWidth = await api.getSidebarWidth?.();
+  if (savedWidth) document.documentElement.style.setProperty('--list-sidebar-width', `${savedWidth}px`);
 
   await loadMemos();
   bindEvents();
@@ -211,7 +218,15 @@ function renderTagFilterChips() {
 
 // ── 필터링 ──
 function getFilteredMemos() {
-  if (currentFilter === 'trash') return trashMemos;
+  if (currentFilter === 'trash') {
+    if (!searchQuery) return trashMemos;
+    const q = searchQuery.toLowerCase();
+    return trashMemos.filter(m =>
+      (m.content || '').toLowerCase().includes(q) ||
+      (m.profile?.name || '').toLowerCase().includes(q) ||
+      (m.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
 
   let list = allMemos;
 
@@ -252,10 +267,16 @@ function renderList() {
   }
   emptyList.style.display = 'none';
 
-  const sortKey = isTrash ? 'deletedAt' : 'updatedAt';
-  const sorted = memos
-    .slice()
-    .sort((a, b) => new Date(b[sortKey] || b.updatedAt) - new Date(a[sortKey] || a.updatedAt));
+  // 휴지통 전체 비우기 버튼 표시/숨김
+  if (btnEmptyTrash) btnEmptyTrash.style.display = isTrash && trashMemos.length > 0 ? '' : 'none';
+
+  const sortKey = isTrash ? 'deletedAt' : currentSort;
+  const sorted = memos.slice().sort((a, b) => {
+    if (currentSort === 'name') {
+      return (a.profile?.name || '').localeCompare(b.profile?.name || '', 'ko');
+    }
+    return new Date(b[sortKey] || b.updatedAt) - new Date(a[sortKey] || a.updatedAt);
+  });
 
   sorted.forEach(memo => sidebar.appendChild(buildListItem(memo, { isTrashItem: isTrash })));
 
@@ -279,8 +300,10 @@ function buildListItem(memo, { isTrashItem = false } = {}) {
   const initial = (memo.profile?.name || '메')[0].toUpperCase();
   const accentBg = memo.theme?.accent || 'var(--color-accent)';
 
+  const hasAnnotations = (memo.annotations || []).length > 0;
   const badgesHtml = [
     memo.liked ? '<span class="item-badge">♥ 좋아요</span>' : '',
+    hasAnnotations ? `<span class="item-badge annotation-badge" title="주석 ${memo.annotations.length}개">💬 ${memo.annotations.length}</span>` : '',
     ...(memo.tags || []).slice(0, 2).map(t => `<span class="item-badge">#${escHtml(t)}</span>`)
   ].filter(Boolean).join('');
 
@@ -403,18 +426,54 @@ function renderTagChips(memo) {
   });
 }
 
+/** 태그 정규화: 소문자, 한글/영문/숫자/_만 허용, 최대 20자 */
+function normalizeTag(raw) {
+  return raw.trim()
+    .replace(/^#+/, '')                    // 앞의 # 제거
+    .toLowerCase()
+    .replace(/[^\uAC00-\uD7A3a-z0-9_]/g, '') // 허용 문자 외 제거
+    .slice(0, 20);
+}
+
 // ── 태그 입력 처리 ──
 function bindTagInput() {
+  // 자동완성 드롭다운
+  const autocompleteList = document.createElement('div');
+  autocompleteList.className = 'tag-autocomplete';
+  tagAddInput.parentNode?.appendChild(autocompleteList);
+
+  function updateAutocomplete() {
+    const raw = tagAddInput.value.trim().replace(/^#/, '');
+    if (!raw) { autocompleteList.innerHTML = ''; autocompleteList.style.display = 'none'; return; }
+    const allTags = [...new Set(allMemos.flatMap(m => m.tags || []))];
+    const matches = allTags.filter(t => t.includes(raw.toLowerCase()) && t !== raw.toLowerCase()).slice(0, 6);
+    if (!matches.length) { autocompleteList.innerHTML = ''; autocompleteList.style.display = 'none'; return; }
+    autocompleteList.innerHTML = '';
+    matches.forEach(tag => {
+      const item = document.createElement('button');
+      item.className = 'tag-ac-item';
+      item.textContent = `#${tag}`;
+      item.addEventListener('mousedown', (e) => { e.preventDefault(); tagAddInput.value = tag; autocompleteList.style.display = 'none'; });
+      autocompleteList.appendChild(item);
+    });
+    autocompleteList.style.display = '';
+  }
+
+  tagAddInput.addEventListener('input', updateAutocomplete);
+  tagAddInput.addEventListener('blur', () => setTimeout(() => { autocompleteList.style.display = 'none'; }, 150));
+  tagAddInput.addEventListener('focus', updateAutocomplete);
+
   tagAddInput.addEventListener('keydown', async (e) => {
     if (e.key !== 'Enter') return;
-    const value = tagAddInput.value.trim().replace(/^#/, '').toLowerCase();
+    const value = normalizeTag(tagAddInput.value);
     if (!value) return;
     tagAddInput.value = '';
+    autocompleteList.style.display = 'none';
     if (!selectedId) return;
     const memo = allMemos.find(m => m.id === selectedId);
     if (!memo) return;
     const tags = memo.tags || [];
-    if (tags.includes(value)) return;
+    if (tags.includes(value)) return; // 중복 방지
     memo.tags = [...tags, value];
     await api.updateById(memo.id, { tags: memo.tags });
     renderTagChips(memo);
@@ -510,6 +569,10 @@ function renderPreview(memo, isTrash = false) {
     imgGrid.setAttribute('data-count', Math.min(memo.images.length, 4));
     memo.images.slice(0, 4).forEach(src => {
       const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      // 미리보기용으로 최대 400px로 CSS 축소 (메모리 절약)
+      img.style.maxWidth = '400px';
       img.src = src;
       imgGrid.appendChild(img);
     });
@@ -593,7 +656,7 @@ function renderPreview(memo, isTrash = false) {
 
 // ── 웰컴 오버레이 (캐러셀) ──
 let _wcPage = 0;
-const WC_TOTAL = 4;
+const WC_TOTAL = 8;
 let _popupPrevBounds = null; // 팝업 표시 전 창 크기 저장
 
 function _wcGoTo(n) {
@@ -934,12 +997,46 @@ function bindEvents() {
   btnClose.addEventListener('click', () => window.close());
   btnTrayList?.addEventListener('click', () => api.hideList());
 
-  // 내보내기
+  // 정렬 변경
+  sortSelect?.addEventListener('change', () => {
+    currentSort = sortSelect.value;
+    renderList();
+  });
+
+  // 휴지통 전체 비우기
+  btnEmptyTrash?.addEventListener('click', async () => {
+    if (!trashMemos.length) return;
+    if (!confirm(`휴지통의 메모 ${trashMemos.length}개를 모두 영구 삭제할까요? 복구할 수 없습니다.`)) return;
+    await api.emptyTrash();
+    trashMemos = [];
+    selectedId = null;
+    renderList();
+    renderPreview(null);
+    btnEmptyTrash.style.display = 'none';
+    showToast('휴지통을 비웠습니다.');
+  });
+
+  // 내보내기: 검색/필터 활성 시 현재 보이는 메모만, 아닐 때는 전체 백업
   btnExport?.addEventListener('click', async () => {
-    const result = await api.exportMemos();
-    if (result?.success) {
-      const fname = result.filePath.split(/[\\/]/).pop();
-      showToast(`백업 저장 완료: ${fname}`);
+    const isFiltered = searchQuery || (currentFilter !== 'all' && currentFilter !== 'trash');
+    if (isFiltered) {
+      const filtered = getFilteredMemos();
+      if (filtered.length === 0) { showToast('내보낼 메모가 없습니다'); return; }
+      const data = JSON.stringify({ version: 1, memos: filtered, exportedAt: new Date().toISOString() }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `nagi-memo-filtered-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`${filtered.length}개 메모를 내보냈습니다.`);
+    } else {
+      const result = await api.exportMemos();
+      if (result?.success) {
+        const fname = result.filePath.split(/[\\/]/).pop();
+        showToast(`백업 저장 완료: ${fname}`);
+      }
     }
   });
 
@@ -993,6 +1090,20 @@ function bindEvents() {
       hideShortcutOverlay();
       hideSettingsOverlay();
       hideWelcomeOverlay();
+      return;
+    }
+    // ↑↓ 화살표: 목록 항목 이동 (검색/입력 중 제외)
+    const activeTag = document.activeElement?.tagName;
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && activeTag !== 'INPUT' && activeTag !== 'SELECT') {
+      e.preventDefault();
+      const items = [...sidebar.querySelectorAll('.memo-list-item')];
+      if (!items.length) return;
+      const cur = items.findIndex(el => el.dataset.id === selectedId);
+      const next = e.key === 'ArrowDown'
+        ? Math.min(cur + 1, items.length - 1)
+        : Math.max(cur - 1, 0);
+      const nextId = items[next]?.dataset.id;
+      if (nextId) { selectMemo(nextId); items[next].scrollIntoView({ block: 'nearest' }); }
     }
   });
 
@@ -1025,6 +1136,9 @@ function bindEvents() {
       resizeHandle.classList.remove('dragging');
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      // 너비 영속화
+      const w = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--list-sidebar-width'), 10);
+      if (w) api.setSidebarWidth?.(w);
     });
   }
 }
@@ -1099,12 +1213,27 @@ function _showMultiSelectBar() {
     <span class="ms-count">0개 선택됨</span>
     <div class="ms-actions">
       <button class="ms-cancel-btn">취소</button>
+      <button class="ms-export-btn" disabled title="선택한 메모 내보내기">내보내기</button>
       <button class="ms-delete-btn" disabled>삭제</button>
     </div>
   `;
   sidebar.insertBefore(bar, sidebar.firstChild);
 
   bar.querySelector('.ms-cancel-btn').addEventListener('click', exitMultiSelectMode);
+  bar.querySelector('.ms-export-btn').addEventListener('click', async () => {
+    if (!multiSelectIds.size) return;
+    const ids = [...multiSelectIds];
+    const selected = allMemos.filter(m => ids.includes(m.id));
+    const data = JSON.stringify({ version: 1, memos: selected, exportedAt: new Date().toISOString() }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nagi-memo-selected-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${selected.length}개 메모를 내보냈습니다.`);
+  });
   bar.querySelector('.ms-delete-btn').addEventListener('click', async () => {
     if (!multiSelectIds.size) return;
     if (!confirm(`선택한 ${multiSelectIds.size}개의 메모를 삭제할까요?`)) return;
@@ -1120,7 +1249,8 @@ function _updateMultiSelectBar() {
   const bar = document.getElementById('multiSelectBar');
   if (!bar) return;
   bar.querySelector('.ms-count').textContent = `${multiSelectIds.size}개 선택됨`;
-  bar.querySelector('.ms-delete-btn').disabled = multiSelectIds.size === 0;
+  bar.querySelector('.ms-delete-btn').disabled  = multiSelectIds.size === 0;
+  bar.querySelector('.ms-export-btn').disabled  = multiSelectIds.size === 0;
 }
 
 function showToast(msg) {

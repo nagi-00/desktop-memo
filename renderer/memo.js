@@ -139,13 +139,17 @@ function createAnnotation(selectedText, range) {
   span.className = 'annotation-ref';
   span.dataset.annotationId = id;
   try {
-    range.surroundContents(span);
-  } catch {
-    try {
+    // surroundContents는 멀티노드 선택 시 실패 → extractContents로 대체
+    if (range.startContainer === range.endContainer) {
+      range.surroundContents(span);
+    } else {
       const frag = range.extractContents();
       span.appendChild(frag);
       range.insertNode(span);
-    } catch { return; }
+    }
+  } catch {
+    // 두 방법 모두 실패하면 조용히 무시
+    return;
   }
   const ann = { id, quote: selectedText.trim().slice(0, 120), note: '', createdAt: new Date().toISOString() };
   annotations.push(ann);
@@ -452,8 +456,21 @@ async function init() {
   }
 
   // 콘텐츠 복원 (HTML 우선, fallback 플레인텍스트)
+  // XSS 방지: script/iframe/on* 핸들러 제거
   if (memoData.contentHtml) {
-    memoContent.innerHTML = memoData.contentHtml;
+    const _sanitize = (html) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      doc.querySelectorAll('script,iframe,object,embed,form').forEach(el => el.remove());
+      doc.querySelectorAll('*').forEach(el => {
+        for (const attr of [...el.attributes]) {
+          if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
+            el.removeAttribute(attr.name);
+          }
+        }
+      });
+      return doc.body.innerHTML;
+    };
+    memoContent.innerHTML = _sanitize(memoData.contentHtml);
   } else if (memoData.content) {
     memoContent.textContent = memoData.content;
   }
@@ -696,12 +713,12 @@ function insertToggleBlock(range, textNode) {
   const beforeText = fullText.slice(0, offset).trimStart();
   if (beforeText !== '>>') return false;
 
-  // 현재 블록 요소 찾기
-  let block = range.startContainer;
-  while (block && block !== memoContent && !['P','DIV'].includes(block.nodeName)) {
-    block = block.parentNode;
-  }
-  if (!block || block === memoContent) return false;
+  // toggle-header 안에서는 중첩 토글 생성 차단
+  if (textNode.parentNode?.closest?.('.toggle-header')) return false;
+
+  // _currentBlock과 동일한 로컬 루트 인식 로직 (toggle-body를 로컬 루트로 취급)
+  let block = _currentBlock(textNode);
+  if (!block) return false;
 
   // 블록 내 >> 이후 텍스트를 title로 사용
   const titleText = fullText.slice(offset).replace(/^\s/, ''); // >> 뒤 텍스트
@@ -817,6 +834,18 @@ function saveMemoChanges(changes) {
     .then(() => _showSaveIndicator('saved'))
     .catch(console.error);
 }
+
+// 앱 종료 직전 미저장 변경분 즉시 저장 (500ms 디바운스 유실 방지)
+function flushSave() {
+  if (!memoData || !saveTimer) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const contentHtml = memoContent.innerHTML;
+  const content     = memoContent.textContent;
+  const images      = getMediaImages();
+  api.updateMemo({ contentHtml, content, images }).catch(() => {});
+}
+window.addEventListener('beforeunload', flushSave);
 
 // ── 미디어 그리드 (트위터 스타일 — mediaArea에 고정) ──
 function getOrCreateGrid() {
@@ -942,14 +971,47 @@ function setupImgWrap(wrap, grid) {
   });
 }
 
+// 이미지 리사이즈 + 압축 (최대 1920px, JPEG 0.85 품질 — base64 크기 절감)
+const MAX_IMG_DIM = 1920;
+const IMG_QUALITY = 0.85;
+function _compressImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let { width: w, height: h } = img;
+      if (w <= MAX_IMG_DIM && h <= MAX_IMG_DIM && dataUrl.length < 500_000) {
+        resolve(dataUrl); // 이미 작음 → 그대로 사용
+        return;
+      }
+      if (w > MAX_IMG_DIM || h > MAX_IMG_DIM) {
+        const ratio = Math.min(MAX_IMG_DIM / w, MAX_IMG_DIM / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // PNG 투명 이미지면 PNG 유지, 아니면 JPEG로 압축
+      const isPng = dataUrl.startsWith('data:image/png');
+      resolve(isPng ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', IMG_QUALITY));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function addImageToGrid(grid, src) {
-  const wrap = document.createElement('div');
-  wrap.className = 'img-wrap';
-  const img = document.createElement('img');
-  img.src = src;
-  wrap.appendChild(img);
-  grid.appendChild(wrap);
-  setupImgWrap(wrap, grid);
+  _compressImage(src).then(compressed => {
+    const wrap = document.createElement('div');
+    wrap.className = 'img-wrap';
+    const img = document.createElement('img');
+    img.src = compressed;
+    wrap.appendChild(img);
+    grid.appendChild(wrap);
+    setupImgWrap(wrap, grid);
+    scheduleSave();
+  });
 }
 
 /** 저장된 이미지 복원: memoData.images → mediaArea, 인라인 이미지 마이그레이션 */
@@ -1001,14 +1063,31 @@ function fmt(command, value = null) {
  */
 // ── 자동 변환 공통 헬퍼 ─────────────────────────
 /**
- * 커서가 있는 memoContent 직접 자식 블록을 반환.
- * execCommand('insertOrderedList') 는 빈 블록에서 윗줄 내용을 흡수하는 버그가
- * 있으므로, 직접 <ol>/<ul>을 생성해 블록을 교체한다.
+ * 커서가 있는 "로컬 루트"의 직접 자식 블록을 반환.
+ * memoContent 뿐만 아니라 .toggle-body도 로컬 루트로 취급하여
+ * 토글 내부에서 리스트/체크박스 변환 시 토글 구조를 보존한다.
  */
 function _currentBlock(node) {
   let el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-  while (el && el.parentNode !== memoContent) el = el.parentNode;
-  return el ?? null;
+  while (el) {
+    const parent = el.parentNode;
+    if (!parent) return null;
+    // memoContent 또는 toggle-body의 직접 자식이면 반환
+    if (parent === memoContent || parent.classList?.contains('toggle-body')) return el;
+    el = parent;
+  }
+  return null;
+}
+
+/** 주어진 노드를 감싸는 가장 가까운 로컬 루트(memoContent 또는 .toggle-body) 반환 */
+function _localRoot(node) {
+  let el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+  while (el) {
+    if (el === memoContent) return el;
+    if (el.classList?.contains('toggle-body')) return el;
+    el = el.parentNode;
+  }
+  return memoContent;
 }
 
 function _replaceBlockWithList(blockEl, listTag, node) {
@@ -1016,14 +1095,15 @@ function _replaceBlockWithList(blockEl, listTag, node) {
   const li   = document.createElement('li');
   list.appendChild(li);
 
-  if (blockEl && blockEl !== memoContent) {
+  if (blockEl && blockEl !== memoContent && !blockEl.classList?.contains('toggle-body')) {
     // 블록 안에 트리거 이외의 텍스트가 있으면 li 안으로 이동
     const remaining = blockEl.textContent.trim();
     if (remaining) li.textContent = remaining;
     blockEl.replaceWith(list);
   } else {
-    // 직접 자식이 아닌 경우(드문 케이스) — 커서 위치에 삽입
-    memoContent.appendChild(list);
+    // 직접 자식이 아닌 경우(드문 케이스) — 로컬 루트 끝에 삽입
+    const root = blockEl?.classList?.contains('toggle-body') ? blockEl : memoContent;
+    root.appendChild(list);
   }
 
   const nr = document.createRange();
@@ -1044,6 +1124,10 @@ function handleAutoConvert(e) {
   const node  = range.startContainer;
   if (node.nodeType !== Node.TEXT_NODE) return;
 
+  // toggle-header, cb-item, li 내부에서는 자동 변환 차단
+  const ctx = node.parentNode;
+  if (ctx?.closest?.('.toggle-header') || ctx?.closest?.('.cb-item') || ctx?.closest?.('li')) return;
+
   const textBefore = node.textContent.slice(0, range.startOffset);
 
   // 불릿 리스트: `- ` or `* `
@@ -1061,6 +1145,26 @@ function handleAutoConvert(e) {
     e.preventDefault();
     node.textContent = ''; // 트리거 전체 제거
     _replaceBlockWithList(_currentBlock(node), 'ol', node);
+    return;
+  }
+
+  // 코드 블록: ` ``` ` + Space → <pre><code> 블록
+  if (textBefore === '```') {
+    e.preventDefault();
+    const block = _currentBlock(node);
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.textContent = '\n'; // 빈 줄 하나
+    pre.appendChild(code);
+    if (block) {
+      block.replaceWith(pre);
+    } else {
+      memoContent.appendChild(pre);
+    }
+    const r = document.createRange();
+    r.setStart(code, 0); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+    scheduleSave();
     return;
   }
 
@@ -1099,8 +1203,9 @@ function handleAutoConvert(e) {
 }
 
 // ── 링크 삽입 (Ctrl+K / 우클릭 메뉴) ─────────
-let _linkSavedRange = null;
+let _linkSavedRange   = null;
 let _linkSelectedText = '';
+let _editingAnchor    = null; // 더블클릭으로 편집 중인 <a> 요소
 
 function insertLink() {
   const sel = window.getSelection();
@@ -1118,7 +1223,16 @@ function insertLink() {
 function _applyLink() {
   const url = linkDialogInput.value.trim();
   linkDialogOverlay.classList.remove('visible');
-  if (!url || url === 'https://') return;
+  if (!url || url === 'https://') { _editingAnchor = null; return; }
+
+  // 더블클릭 편집 모드: 기존 <a> href만 업데이트
+  if (_editingAnchor) {
+    _editingAnchor.href = url;
+    _editingAnchor = null;
+    memoContent.focus();
+    scheduleSave();
+    return;
+  }
 
   const text = _linkSelectedText || url;
 
@@ -1459,19 +1573,35 @@ function bindEvents() {
   });
 
   // 콘텐츠 입력
+  let _syncAnnTimer = null;
   memoContent.addEventListener('input', () => {
     scheduleSave();
     requestAnimationFrame(scrollToCursor);
-    syncAnnotationQuotes();
+    // syncAnnotationQuotes는 200ms 디바운스 (매 입력마다 전체 주석 순회 방지)
+    clearTimeout(_syncAnnTimer);
+    _syncAnnTimer = setTimeout(syncAnnotationQuotes, 200);
   });
 
-  // 본문 내 링크 클릭 → 외부 브라우저 열기
+  // 본문 내 링크 클릭 → 외부 브라우저 열기, 더블클릭 → URL 편집
   memoContent.addEventListener('click', (e) => {
     const anchor = e.target.closest('a[href]');
-    if (anchor) {
+    if (anchor && !e.detail > 1) {
       e.preventDefault();
       api.openExternal(anchor.href);
     }
+  });
+  memoContent.addEventListener('dblclick', (e) => {
+    const anchor = e.target.closest('a[href]');
+    if (!anchor) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // 더블클릭 편집 모드: _editingAnchor 설정 → _applyLink가 href 업데이트를 담당
+    _editingAnchor    = anchor;
+    _linkSavedRange   = null;   // 신규 삽입 경로 차단
+    _linkSelectedText = anchor.textContent;
+    linkDialogInput.value = anchor.getAttribute('href') || '';
+    linkDialogOverlay.classList.add('visible');
+    requestAnimationFrame(() => { linkDialogInput.select(); linkDialogInput.focus(); });
   });
 
   // ── 링크 호버 툴팁 ──────────────────────────────
@@ -1585,20 +1715,30 @@ function bindEvents() {
     else if (mod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); document.execCommand('redo');
     } else if (e.key === ' ' && !mod && !e.shiftKey) {
-      // >> + Space → 토글 블록 변환
+      // Space 키 통합 처리: 토글/자동변환 충돌 방지
       const sel = window.getSelection();
       if (sel?.rangeCount && sel.isCollapsed) {
         const range = sel.getRangeAt(0);
         const node = range.startContainer;
+        const contextEl = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+        // toggle-header / cb-item / li 내부: 모든 자동 변환 차단 (기본 space 동작만)
+        if (contextEl.closest?.('.toggle-header') ||
+            contextEl.closest?.('.cb-item') ||
+            contextEl.closest?.('li')) {
+          return; // handleAutoConvert 실행 전에 리스너 탈출
+        }
+        // >> + Space → 토글 블록 변환 (보호 영역 외부에서만)
         if (node.nodeType === Node.TEXT_NODE) {
           const before = node.textContent.slice(0, range.startOffset).trimStart();
           if (before === '>>') {
             e.preventDefault();
             insertToggleBlock(range, node);
             scheduleSave();
+            return;
           }
         }
       }
+      // 그 외: handleAutoConvert가 아래에서 처리 (- , * , 1. , [] 등)
     } else if (e.key === 'Enter' && !e.shiftKey && !mod) {
       // toggle-header에서 Enter → toggle-body로 이동
       {
@@ -1629,11 +1769,12 @@ function bindEvents() {
         const markEl = node.closest?.('mark');
         if (markEl && memoContent.contains(markEl)) {
           e.preventDefault();
+          const root = _localRoot(markEl);
           let topEl = markEl;
-          while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+          while (topEl.parentNode && topEl.parentNode !== root) topEl = topEl.parentNode;
           const newDiv = document.createElement('div');
           newDiv.innerHTML = '<br>';
-          memoContent.insertBefore(newDiv, topEl.nextSibling);
+          root.insertBefore(newDiv, topEl.nextSibling);
           const r = document.createRange();
           r.setStart(newDiv, 0);
           r.collapse(true);
@@ -1651,9 +1792,10 @@ function bindEvents() {
           const span = cbItem.querySelector('span');
           const text = span ? span.textContent.replace(/\u00A0/g, '').trim() : '';
 
-          // memoContent 직계 자식 레벨까지 올라가서 삽입 (들여쓰기 방지)
+          // 로컬 루트(memoContent 또는 toggle-body)의 직계 자식 레벨까지 올라가서 삽입
+          const cbRoot = _localRoot(cbItem);
           let insertRef = cbItem;
-          while (insertRef.parentNode && insertRef.parentNode !== memoContent) {
+          while (insertRef.parentNode && insertRef.parentNode !== cbRoot) {
             insertRef = insertRef.parentNode;
           }
 
@@ -1661,7 +1803,7 @@ function bindEvents() {
             // 빈 체크박스에서 Enter → 체크박스 삭제, 일반 텍스트로 전환
             const newP = document.createElement('div');
             newP.innerHTML = '<br>';
-            memoContent.insertBefore(newP, insertRef.nextSibling);
+            cbRoot.insertBefore(newP, insertRef.nextSibling);
             cbItem.remove();
             const r = document.createRange();
             r.setStart(newP, 0);
@@ -1680,7 +1822,7 @@ function bindEvents() {
             newSpan.textContent = '\u00A0';
             newCb.appendChild(newInput);
             newCb.appendChild(newSpan);
-            memoContent.insertBefore(newCb, insertRef.nextSibling);
+            cbRoot.insertBefore(newCb, insertRef.nextSibling);
             const r = document.createRange();
             r.selectNodeContents(newSpan);
             r.collapse(false);
@@ -1691,37 +1833,76 @@ function bindEvents() {
           return;
         }
 
-        // 빈 리스트 항목에서 엔터 → 리스트 서식 해제
+        // 빈 리스트 항목에서 엔터 → 리스트 서식 해제 (로컬 루트 경계 보호)
         const li = node.closest?.('li');
         if (li && li.textContent.trim() === '') {
           e.preventDefault();
-          document.execCommand('outdent', false);
+          const liList = li.parentElement;
+          const liRoot = _localRoot(li);
+          li.remove();
+          const newDiv = document.createElement('div');
+          newDiv.innerHTML = '<br>';
+          if (liList && liList.children.length === 0) {
+            liRoot.insertBefore(newDiv, liList);
+            liList.remove();
+          } else if (liList) {
+            liRoot.insertBefore(newDiv, liList.nextSibling);
+          } else {
+            liRoot.appendChild(newDiv);
+          }
+          const r = document.createRange();
+          r.setStart(newDiv, 0); r.collapse(true);
+          sel.removeAllRanges(); sel.addRange(r);
           scheduleSave();
         }
       }
     } else if (e.key === 'Tab') {
-      // Tab: cb-item span 또는 li 안에서 공백 삽입 (들여쓰기/포커스 이동 방지)
+      // Tab: li 안에서 → 중첩 리스트 들여쓰기 / Shift+Tab → 내어쓰기
       const tSel = window.getSelection();
       if (tSel?.rangeCount) {
         let tNode = tSel.getRangeAt(0).startContainer;
         if (tNode.nodeType === Node.TEXT_NODE) tNode = tNode.parentNode;
-        if (tNode.closest?.('.cb-item') || tNode.closest?.('li')) {
+        const li = tNode.closest?.('li');
+        if (li) {
+          e.preventDefault();
+          if (e.shiftKey) {
+            // 내어쓰기: 중첩 li면 한 단계 올림, 최상위면 리스트 탈출 → div로 변환
+            const parentLi = li.parentElement?.closest('li');
+            if (parentLi) {
+              const subList = li.parentElement;
+              parentLi.parentElement?.insertBefore(li, parentLi.nextSibling);
+              if (!subList.children.length) subList.remove();
+            } else {
+              // 최상위 리스트 항목 → 리스트에서 탈출하여 일반 div로 변환
+              const list = li.parentElement;
+              const div  = document.createElement('div');
+              div.innerHTML = li.innerHTML || '<br>';
+              if (list && list.parentNode) {
+                list.parentNode.insertBefore(div, list);
+                li.remove();
+                if (!list.children.length) list.remove();
+              }
+              const r = document.createRange();
+              r.setStart(div, 0); r.collapse(true);
+              tSel.removeAllRanges(); tSel.addRange(r);
+            }
+          } else {
+            // 들여쓰기: 이전 형제 li 안에 중첩 리스트 생성
+            const prevLi = li.previousElementSibling;
+            if (prevLi) {
+              const subTag = li.parentElement?.tagName || 'UL';
+              let sub = prevLi.querySelector(subTag);
+              if (!sub) { sub = document.createElement(subTag); prevLi.appendChild(sub); }
+              sub.appendChild(li);
+            }
+          }
+          scheduleSave();
+          return;
+        }
+        if (tNode.closest?.('.cb-item')) {
           e.preventDefault();
           document.execCommand('insertText', false, '    ');
           scheduleSave();
-        }
-      }
-    } else if (e.key === ' ') {
-      // Space: cb-item span 또는 li 안에서는 handleAutoConvert 전에 기본 동작 허용
-      // (autoConvert가 내부 패턴을 오감지할 경우에만 방어)
-      const sSel = window.getSelection();
-      if (sSel?.rangeCount) {
-        let sNode = sSel.getRangeAt(0).startContainer;
-        if (sNode.nodeType === Node.TEXT_NODE) sNode = sNode.parentNode;
-        if (sNode.closest?.('.cb-item') || sNode.closest?.('li')) {
-          // autoConvert 건너뜀 — return으로 handleAutoConvert 호출 전에 빠져나감
-          // 브라우저 기본 space 삽입에 맡김
-          return;
         }
       }
     } else if (e.key === 'Backspace') {
@@ -1741,11 +1922,12 @@ function bindEvents() {
           if (atStart) {
             e.preventDefault();
             const text = cbSpan?.textContent.replace(/\u00A0/g, '').trim() || '';
+            const bsRoot = _localRoot(cbItem);
             let ref = cbItem;
-            while (ref.parentNode && ref.parentNode !== memoContent) ref = ref.parentNode;
+            while (ref.parentNode && ref.parentNode !== bsRoot) ref = ref.parentNode;
             const newDiv = document.createElement('div');
             if (text) newDiv.textContent = text; else newDiv.innerHTML = '<br>';
-            memoContent.insertBefore(newDiv, ref.nextSibling);
+            bsRoot.insertBefore(newDiv, ref.nextSibling);
             ref.remove();
             const r = document.createRange();
             r.setStart(newDiv, 0); r.collapse(true);
@@ -1757,7 +1939,7 @@ function bindEvents() {
 
         // 리스트 아이템 — 빈 li 또는 커서가 맨 앞인 li에서 백스페이스 → 리스트 탈출
         const li = bNode.closest?.('li');
-        if (li && memoContent.contains(li)) {
+        if (li && (memoContent.contains(li) || li.closest?.('.toggle-body'))) {
           const isEmpty = li.textContent.trim() === '';
           const atStart = !isEmpty && (() => {
             try {
@@ -1805,7 +1987,8 @@ function bindEvents() {
       if (sel?.rangeCount) {
         const range = sel.getRangeAt(0);
         const node  = range.startContainer;
-        if (node.nodeType === Node.TEXT_NODE) {
+        // toggle-header 내부에서는 변환 차단
+        if (node.nodeType === Node.TEXT_NODE && !node.parentNode?.closest?.('.toggle-header')) {
           const textBefore = node.textContent.slice(0, range.startOffset);
           if (textBefore === '--') {
             e.preventDefault();
@@ -1813,18 +1996,23 @@ function bindEvents() {
             node.textContent =
               node.textContent.slice(0, range.startOffset - 2) +
               node.textContent.slice(range.startOffset);
-            // 현재 블록의 최상위 요소 찾기
+            // 로컬 루트(memoContent 또는 toggle-body)의 직접 자식 찾기
             let topEl = node;
-            while (topEl.parentNode && topEl.parentNode !== memoContent) topEl = topEl.parentNode;
+            while (topEl.parentNode) {
+              const parent = topEl.parentNode;
+              if (parent === memoContent || parent.classList?.contains('toggle-body')) break;
+              topEl = parent;
+            }
+            const localRoot = topEl.parentNode || memoContent;
             // <hr> 삽입
             const hr = document.createElement('hr');
-            memoContent.insertBefore(hr, topEl.nextSibling);
+            localRoot.insertBefore(hr, topEl.nextSibling);
             // hr 뒤에 새 줄 (없으면 생성)
             let nextEl = hr.nextSibling;
             if (!nextEl) {
               nextEl = document.createElement('div');
               nextEl.innerHTML = '<br>';
-              memoContent.appendChild(nextEl);
+              localRoot.appendChild(nextEl);
             }
             // 커서를 hr 다음 줄로 이동
             try {
@@ -2503,8 +2691,9 @@ function bindEvents() {
     });
     window.addEventListener('mousemove', (e) => {
       if (!_drag) return;
-      imgEditorState.offsetX = e.clientX - _drag.x;
-      imgEditorState.offsetY = e.clientY - _drag.y;
+      const CANVAS_W = 380, CANVAS_H = 260, MARGIN = 40;
+      imgEditorState.offsetX = Math.max(-(CANVAS_W / 2 - MARGIN), Math.min(CANVAS_W / 2 - MARGIN, e.clientX - _drag.x));
+      imgEditorState.offsetY = Math.max(-(CANVAS_H / 2 - MARGIN), Math.min(CANVAS_H / 2 - MARGIN, e.clientY - _drag.y));
       redrawEditorCanvas();
     });
     window.addEventListener('mouseup', () => {
@@ -2538,20 +2727,80 @@ function bindEvents() {
 
   // 링크 다이얼로그 이벤트
   linkDialogConfirm?.addEventListener('click', _applyLink);
-  linkDialogCancel?.addEventListener('click', () => linkDialogOverlay.classList.remove('visible'));
+  linkDialogCancel?.addEventListener('click', () => {
+    _editingAnchor = null;
+    linkDialogOverlay.classList.remove('visible');
+  });
   linkDialogInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); _applyLink(); }
-    if (e.key === 'Escape') { e.preventDefault(); linkDialogOverlay.classList.remove('visible'); }
+    if (e.key === 'Enter')  { e.preventDefault(); _applyLink(); }
+    if (e.key === 'Escape') { e.preventDefault(); _editingAnchor = null; linkDialogOverlay.classList.remove('visible'); }
     e.stopPropagation();
   });
 
   // 전역 단축키
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key === 'n') { e.preventDefault(); api.createMemo(); return; }
+    // Ctrl+L: 잠금 토글 (SN 잠금 상태에서 상태바 없어도 해제 가능)
+    if (mod && e.key === 'l') { e.preventDefault(); applyLock(!isLocked); return; }
+    // Ctrl+F: 메모 내 텍스트 검색
+    if (mod && e.key === 'f') {
       e.preventDefault();
-      api.createMemo();
+      _openFindBar();
+      return;
     }
   });
+
+  // ── 메모 내 검색 바 (Ctrl+F) ──
+  function _openFindBar() {
+    let bar = document.getElementById('findBar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'findBar';
+      bar.className = 'find-bar';
+      bar.innerHTML = `
+        <input type="search" id="findInput" placeholder="검색..." autocomplete="off" spellcheck="false"/>
+        <span id="findCount" class="find-count"></span>
+        <button id="findPrev" title="이전">&#8593;</button>
+        <button id="findNext" title="다음">&#8595;</button>
+        <button id="findClose" title="닫기">✕</button>
+      `;
+      document.body.appendChild(bar);
+      const input    = bar.querySelector('#findInput');
+      const countEl  = bar.querySelector('#findCount');
+
+      // found-in-page 결과 수신 → 카운트 표시
+      const _unsubFind = api.onFindResult?.((active, total) => {
+        if (!document.getElementById('findBar')) return;
+        countEl.textContent = total > 0 ? `${active}/${total}` : '없음';
+      });
+
+      function _closeBar() {
+        api.stopFind?.();
+        _unsubFind?.();
+        bar.remove();
+      }
+
+      bar.querySelector('#findClose').addEventListener('click', _closeBar);
+      bar.querySelector('#findNext').addEventListener('click', () => {
+        if (input.value) api.findInPage?.(input.value, { forward: true });
+      });
+      bar.querySelector('#findPrev').addEventListener('click', () => {
+        if (input.value) api.findInPage?.(input.value, { forward: false });
+      });
+      input.addEventListener('input', () => {
+        if (input.value) { countEl.textContent = ''; api.findInPage?.(input.value, { forward: true }); }
+        else { countEl.textContent = ''; api.stopFind?.(); }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { _closeBar(); }
+        if (e.key === 'Enter')  api.findInPage?.(input.value, { forward: !e.shiftKey });
+        e.stopPropagation();
+      });
+    }
+    bar.querySelector('#findInput').select();
+    bar.querySelector('#findInput').focus();
+  }
 
   // 반응형 액션바: 너비에 따라 낮은 우선순위 버튼부터 동적 숨김
   {
