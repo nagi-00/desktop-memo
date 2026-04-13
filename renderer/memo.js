@@ -1095,14 +1095,20 @@ function _replaceBlockWithList(blockEl, listTag, node) {
   const li   = document.createElement('li');
   list.appendChild(li);
 
-  if (blockEl && blockEl !== memoContent && !blockEl.classList?.contains('toggle-body')) {
-    // 블록 안에 트리거 이외의 텍스트가 있으면 li 안으로 이동
+  if (blockEl?.classList?.contains('memo-toggle')) {
+    // _currentBlock이 .memo-toggle을 반환한 경우:
+    // 텍스트가 toggle-body에 직접 있는 상황 → toggle 전체를 교체하지 않고 toggle-body 안에 삽입
+    const body = blockEl.querySelector(':scope > .toggle-body');
+    const root = body || _localRoot(node);
+    root.insertBefore(list, root.firstChild);
+  } else if (blockEl && blockEl !== memoContent && !blockEl.classList?.contains('toggle-body')) {
+    // 일반 블록 → 리스트로 교체
     const remaining = blockEl.textContent.trim();
     if (remaining) li.textContent = remaining;
     blockEl.replaceWith(list);
   } else {
-    // 직접 자식이 아닌 경우(드문 케이스) — 로컬 루트 끝에 삽입
-    const root = blockEl?.classList?.contains('toggle-body') ? blockEl : memoContent;
+    // toggle-body 또는 memoContent 직접 자식 → 로컬 루트에 삽입
+    const root = _localRoot(node);
     root.appendChild(list);
   }
 

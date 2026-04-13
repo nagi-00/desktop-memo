@@ -301,10 +301,11 @@ function buildListItem(memo, { isTrashItem = false } = {}) {
   const accentBg = memo.theme?.accent || 'var(--color-accent)';
 
   const hasAnnotations = (memo.annotations || []).length > 0;
+  const annBadgeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10" style="vertical-align:-1px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
   const badgesHtml = [
     memo.liked ? '<span class="item-badge">♥ 좋아요</span>' : '',
-    hasAnnotations ? `<span class="item-badge annotation-badge" title="주석 ${memo.annotations.length}개">💬 ${memo.annotations.length}</span>` : '',
-    ...(memo.tags || []).slice(0, 2).map(t => `<span class="item-badge">#${escHtml(t)}</span>`)
+    hasAnnotations ? `<span class="item-badge annotation-badge" title="주석 ${memo.annotations.length}개">${annBadgeSvg} ${memo.annotations.length}</span>` : '',
+    ...(memo.tags || []).filter(Boolean).slice(0, 2).map(t => `<span class="item-badge">#${escHtml(t)}</span>`)
   ].filter(Boolean).join('');
 
   const preview = (memo.content || '').slice(0, 40) || '(내용 없음)';

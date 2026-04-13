@@ -1731,7 +1731,9 @@ body.popup-mode .welcome-card {
 
 /* ── 주석 배지 ── */
 .item-badge.annotation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   background: color-mix(in srgb, #a78bfa 15%, transparent);
   color: #a78bfa;
-  border-color: color-mix(in srgb, #a78bfa 30%, transparent);
 }
