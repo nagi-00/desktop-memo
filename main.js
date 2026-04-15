@@ -850,9 +850,12 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 외부 URL 열기
+  // 외부 URL 열기 — http/https/mailto/tel 허용, javascript:/file: 등은 차단
   ipcMain.handle('shell:openExternal', (_e, url) => {
-    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+    if (!url || typeof url !== 'string') return;
+    const lower = url.trim().toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://') ||
+        lower.startsWith('mailto:') || lower.startsWith('tel:')) {
       shell.openExternal(url);
     }
   });

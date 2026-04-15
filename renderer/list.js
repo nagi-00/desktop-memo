@@ -195,7 +195,16 @@ async function loadMemos() {
 // ── 태그 필터 칩 렌더링 ──
 function renderTagFilterChips() {
   tagFilterChips.innerHTML = '';
-  const allTags = [...new Set(allMemos.flatMap(m => m.tags || []))].sort();
+  const allTags = [...new Set(allMemos.flatMap(m => m.tags || []).filter(Boolean))].sort();
+  // 현재 필터가 삭제된 태그를 가리키고 있으면 전체로 복귀
+  if (currentFilter?.startsWith('tag:')) {
+    const activeTag = currentFilter.slice(4);
+    if (!allTags.includes(activeTag)) {
+      currentFilter = 'all';
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      document.querySelector('.filter-chip[data-filter="all"]')?.classList.add('active');
+    }
+  }
   allTags.forEach(tag => {
     const chip = document.createElement('button');
     chip.className = 'filter-chip tag-chip';
@@ -298,7 +307,8 @@ function buildListItem(memo, { isTrashItem = false } = {}) {
   }
 
   const initial = (memo.profile?.name || '메')[0].toUpperCase();
-  const accentBg = memo.theme?.accent || 'var(--color-accent)';
+  const accentRaw = memo.theme?.accent || 'var(--color-accent)';
+  const accentBg = (/^#[0-9a-f]{3,8}$/i.test(accentRaw) || accentRaw === 'var(--color-accent)') ? accentRaw : 'var(--color-accent)';
 
   const hasAnnotations = (memo.annotations || []).length > 0;
   const annBadgeSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="10" height="10" style="vertical-align:-1px;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
@@ -313,18 +323,21 @@ function buildListItem(memo, { isTrashItem = false } = {}) {
     ? new Date(memo.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
     : '';
 
+  const safeAvatarItem = (memo.profile?.avatarDataUrl && /^data:image\//i.test(memo.profile.avatarDataUrl))
+    ? memo.profile.avatarDataUrl
+    : null;
   el.innerHTML = `
     <div class="item-avatar" style="background:${accentBg}">
-      ${memo.profile?.avatarDataUrl
-        ? `<img src="${memo.profile.avatarDataUrl}" alt="">`
-        : initial}
+      ${safeAvatarItem
+        ? `<img src="${escHtml(safeAvatarItem)}" alt="">`
+        : escHtml(initial)}
     </div>
     <div class="item-info">
       <div class="item-name">
         ${escHtml(memo.profile?.name || '메모')}
       </div>
       <div class="item-preview">${escHtml(preview)}</div>
-      <div class="item-date">${dateStr}</div>
+      <div class="item-date">${escHtml(dateStr)}</div>
       ${badgesHtml ? `<div class="item-badges">${badgesHtml}</div>` : ''}
     </div>
   `;
@@ -514,8 +527,9 @@ function renderPreview(memo, isTrash = false) {
     .filter(m => m.parentId === memo.id)
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
+  // contentHtml은 백업 import 등 외부 유입 가능 → 미리보기에서도 sanitize
   const content  = memo.contentHtml
-    ? memo.contentHtml
+    ? sanitizeHtml(memo.contentHtml)
     : escHtml(memo.content || '(내용 없음)');
 
   const dateStr = memo.createdAt
@@ -543,16 +557,21 @@ function renderPreview(memo, isTrash = false) {
   // 헤더
   const header = document.createElement('div');
   header.className = 'preview-header';
+  // avatarDataUrl은 data: 스킴만 허용 (backup import 등 외부 데이터 방어)
+  const safeAvatar = (memo.profile?.avatarDataUrl && /^data:image\//i.test(memo.profile.avatarDataUrl))
+    ? memo.profile.avatarDataUrl
+    : null;
+  const safeAccent = (/^#[0-9a-f]{3,8}$/i.test(accentBg) || accentBg === 'var(--color-accent)') ? accentBg : 'var(--color-accent)';
   header.innerHTML = `
-    <div class="preview-avatar" style="background:${accentBg}">
-      ${memo.profile?.avatarDataUrl
-        ? `<img src="${memo.profile.avatarDataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-        : initial}
+    <div class="preview-avatar" style="background:${safeAccent}">
+      ${safeAvatar
+        ? `<img src="${escHtml(safeAvatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+        : escHtml(initial)}
     </div>
     <div class="preview-profile">
       <div class="preview-name">${escHtml(memo.profile?.name || '메모')}</div>
       <div class="preview-handle">${escHtml(memo.profile?.handle ? '@' + memo.profile.handle : '@note')}</div>
-      <div style="font-size:11px;color:var(--color-text-placeholder);margin-top:2px">${dateStr}</div>
+      <div style="font-size:11px;color:var(--color-text-placeholder);margin-top:2px">${escHtml(dateStr)}</div>
     </div>
   `;
 
@@ -593,21 +612,25 @@ function renderPreview(memo, isTrash = false) {
       const replyEl = document.createElement('div');
       replyEl.className = 'preview-thread-item';
       const rInitial = (reply.profile?.name || '메')[0].toUpperCase();
-      const rAccent = reply.theme?.accent || 'var(--color-accent)';
+      const rAccentRaw = reply.theme?.accent || 'var(--color-accent)';
+      const rAccent = (/^#[0-9a-f]{3,8}$/i.test(rAccentRaw) || rAccentRaw === 'var(--color-accent)') ? rAccentRaw : 'var(--color-accent)';
       const rPreview = (reply.content || '').slice(0, 60) || '(내용 없음)';
       const rDate = reply.updatedAt
         ? new Date(reply.updatedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })
         : '';
+      const rSafeAvatar = (reply.profile?.avatarDataUrl && /^data:image\//i.test(reply.profile.avatarDataUrl))
+        ? reply.profile.avatarDataUrl
+        : null;
       replyEl.innerHTML = `
         <div class="thread-item-line"></div>
         <div class="thread-item-avatar" style="background:${rAccent}">
-          ${reply.profile?.avatarDataUrl
-            ? `<img src="${reply.profile.avatarDataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
-            : rInitial}
+          ${rSafeAvatar
+            ? `<img src="${escHtml(rSafeAvatar)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : escHtml(rInitial)}
         </div>
         <div class="thread-item-body">
           <span class="thread-item-name">${escHtml(reply.profile?.name || '메모')}</span>
-          <span class="thread-item-date">${rDate}</span>
+          <span class="thread-item-date">${escHtml(rDate)}</span>
           <div class="thread-item-text">${escHtml(rPreview)}</div>
         </div>
       `;
@@ -1188,6 +1211,26 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// 미리보기에 삽입하기 전 HTML sanitize — 외부 백업 import 방어
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(html || '', 'text/html');
+  doc.querySelectorAll('script,iframe,object,embed,form,link,meta,base').forEach(el => el.remove());
+  const URL_ATTRS = ['href', 'src', 'xlink:href', 'formaction', 'action', 'srcset'];
+  doc.querySelectorAll('*').forEach(el => {
+    for (const attr of [...el.attributes]) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on')) { el.removeAttribute(attr.name); continue; }
+      if (URL_ATTRS.includes(name)) {
+        const v = (attr.value || '').trim().toLowerCase();
+        if (v.startsWith('javascript:') || v.startsWith('vbscript:') || v.startsWith('data:text/html')) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 // ── 다중 선택 모드 ──
 function enterMultiSelectMode() {
   isMultiSelectMode = true;
@@ -1238,10 +1281,11 @@ function _showMultiSelectBar() {
   bar.querySelector('.ms-delete-btn').addEventListener('click', async () => {
     if (!multiSelectIds.size) return;
     if (!confirm(`선택한 ${multiSelectIds.size}개의 메모를 삭제할까요?`)) return;
-    for (const id of multiSelectIds) {
-      await api.deleteById(id);
-    }
-    if (multiSelectIds.has(selectedId)) selectedId = null;
+    // 병렬 삭제 + selectedId 사전 체크 (exitMultiSelectMode가 IDs를 비우기 전에)
+    const ids = [...multiSelectIds];
+    const wasSelectedDeleted = ids.includes(selectedId);
+    await Promise.all(ids.map(id => api.deleteById(id)));
+    if (wasSelectedDeleted) { selectedId = null; renderPreview(null); }
     exitMultiSelectMode();
   });
 }

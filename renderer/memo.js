@@ -460,11 +460,19 @@ async function init() {
   if (memoData.contentHtml) {
     const _sanitize = (html) => {
       const doc = new DOMParser().parseFromString(html, 'text/html');
-      doc.querySelectorAll('script,iframe,object,embed,form').forEach(el => el.remove());
+      doc.querySelectorAll('script,iframe,object,embed,form,link,meta,base').forEach(el => el.remove());
+      const URL_ATTRS = ['href', 'src', 'xlink:href', 'formaction', 'action', 'srcset'];
       doc.querySelectorAll('*').forEach(el => {
         for (const attr of [...el.attributes]) {
-          if (attr.name.startsWith('on') || (attr.name === 'href' && attr.value.trim().toLowerCase().startsWith('javascript:'))) {
-            el.removeAttribute(attr.name);
+          const name = attr.name.toLowerCase();
+          // on* 이벤트 핸들러 속성 전부 제거
+          if (name.startsWith('on')) { el.removeAttribute(attr.name); continue; }
+          // URL 계열 속성에서 javascript:/vbscript:/data:text/html 스킴 제거
+          if (URL_ATTRS.includes(name)) {
+            const v = (attr.value || '').trim().toLowerCase();
+            if (v.startsWith('javascript:') || v.startsWith('vbscript:') || v.startsWith('data:text/html')) {
+              el.removeAttribute(attr.name);
+            }
           }
         }
       });
@@ -830,6 +838,8 @@ function scheduleSave() {
 }
 
 function saveMemoChanges(changes) {
+  // memoData 초기화 전 호출되면 드롭 (이벤트 핸들러가 init 완료 전에 트리거되는 엣지 케이스)
+  if (!memoData) return;
   api.updateMemo(changes)
     .then(() => _showSaveIndicator('saved'))
     .catch(console.error);
@@ -843,7 +853,25 @@ function flushSave() {
   const contentHtml = memoContent.innerHTML;
   const content     = memoContent.textContent;
   const images      = getMediaImages();
-  api.updateMemo({ contentHtml, content, images }).catch(() => {});
+  memoData.contentHtml = contentHtml;
+  memoData.content     = content;
+  memoData.images      = images;
+
+  // 해시태그 재계산 (scheduleSave와 동일 로직)
+  const hashMatches = content.match(/#([가-힣a-zA-Z0-9_]+)/g) || [];
+  const detectedTags = new Set(hashMatches.map(t => t.slice(1)));
+  const existing = memoData.tags || [];
+  const manualTags = existing.filter(tag => !memoData._detectedTags?.includes(tag));
+  const merged = [...new Set([...manualTags, ...detectedTags])];
+  const changes = { contentHtml, content, images };
+  const tagsChanged = JSON.stringify(merged.sort()) !== JSON.stringify([...(memoData.tags || [])].sort());
+  if (tagsChanged) {
+    memoData.tags = merged;
+    memoData._detectedTags = [...detectedTags];
+    changes.tags = merged;
+    changes._detectedTags = [...detectedTags];
+  }
+  api.updateMemo(changes).catch(() => {});
 }
 window.addEventListener('beforeunload', flushSave);
 
@@ -1226,10 +1254,35 @@ function insertLink() {
   });
 }
 
+function _isSafeLinkUrl(u) {
+  // javascript:, data:, vbscript: 등 잠재적으로 위험한 스킴 차단
+  if (!u) return false;
+  const lower = u.trim().toLowerCase();
+  // 상대 경로나 앵커(#), 메일/전화는 허용
+  if (lower.startsWith('#') || lower.startsWith('/') || lower.startsWith('./') || lower.startsWith('../')) return true;
+  if (lower.startsWith('mailto:') || lower.startsWith('tel:')) return true;
+  // http/https만 허용
+  if (lower.startsWith('http://') || lower.startsWith('https://')) return true;
+  // 프로토콜 미지정 (예: "example.com") 은 https로 간주해 허용
+  if (!/^[a-z][a-z0-9+.-]*:/.test(lower)) return true;
+  return false;
+}
+
 function _applyLink() {
-  const url = linkDialogInput.value.trim();
+  let url = linkDialogInput.value.trim();
   linkDialogOverlay.classList.remove('visible');
   if (!url || url === 'https://') { _editingAnchor = null; return; }
+
+  if (!_isSafeLinkUrl(url)) {
+    alert('지원하지 않는 URL 형식입니다. (http/https, mailto, tel만 허용)');
+    _editingAnchor = null;
+    return;
+  }
+
+  // 프로토콜 미지정 시 https 자동 추가
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith('#') && !url.startsWith('/')) {
+    url = 'https://' + url;
+  }
 
   // 더블클릭 편집 모드: 기존 <a> href만 업데이트
   if (_editingAnchor) {
@@ -1591,7 +1644,8 @@ function bindEvents() {
   // 본문 내 링크 클릭 → 외부 브라우저 열기, 더블클릭 → URL 편집
   memoContent.addEventListener('click', (e) => {
     const anchor = e.target.closest('a[href]');
-    if (anchor && !e.detail > 1) {
+    // e.detail === 1 : 단일 클릭만 외부 브라우저로 열기 (더블클릭은 편집 모드)
+    if (anchor && e.detail === 1) {
       e.preventDefault();
       api.openExternal(anchor.href);
     }
@@ -2172,6 +2226,8 @@ function bindEvents() {
     const range = savedTextRange;
     savedTextRange = null;
     if (!range || range.collapsed) return;
+    // 저장된 range의 노드들이 DOM 분리된 경우 중단 (stale range 보호)
+    if (!memoContent.contains(range.startContainer) || !memoContent.contains(range.endContainer)) return;
 
     // 기존 color span 중첩 제거 — 같은 범위 안의 기존 색상 span을 unwrap
     const fragment = range.extractContents();
@@ -2387,13 +2443,13 @@ function bindEvents() {
     const statusBar = document.getElementById('statusBar');
     const sbRect   = statusBar.getBoundingClientRect();
     const cardRect = memoCard.getBoundingClientRect();
-    const dpr      = window.devicePixelRatio || 1;
-    const pad      = Math.round(6 * dpr); // 투명 여백
+    // Electron capturePage(rect)는 CSS(논리) 픽셀을 받으며 DPR은 내부에서 자동 적용됨
+    const pad = 6; // 투명 여백 (CSS px)
     const captureRect = {
-      x:      Math.max(0, Math.floor(cardRect.x * dpr) - pad),
-      y:      Math.max(0, Math.floor(cardRect.y * dpr) - pad),
-      width:  Math.ceil(cardRect.width * dpr) + pad * 2,
-      height: Math.ceil(cardRect.height * dpr) + pad * 2,
+      x:      Math.max(0, Math.floor(cardRect.x) - pad),
+      y:      Math.max(0, Math.floor(cardRect.y) - pad),
+      width:  Math.ceil(cardRect.width) + pad * 2,
+      height: Math.ceil(cardRect.height) + pad * 2,
     };
     try {
       await api.captureCard({ rect: captureRect, action });
