@@ -1,10 +1,22 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, clipboard, nativeImage, shell, screen, session } = require('electron');
 app.setName('nagi memo');
 // GPU 캐시 에러 메시지 억제 (기능에 영향 없는 Chromium 내부 노이즈)
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const { v4: uuidv4 } = require('uuid');
+
+// CRC32 룩업 테이블 — 모듈 로드 시 1회 생성 (트레이 아이콘 갱신마다 재계산 방지)
+const CRC32_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c;
+  }
+  return t;
+})();
 
 let Store;
 let store;
@@ -140,7 +152,6 @@ function createMemoWindow(memoData, options = {}) {
   // 멀티모니터: 저장된 좌표가 현재 디스플레이 영역 밖이면 보정
   let safeX = bounds.x, safeY = bounds.y;
   if (safeX !== undefined && safeY !== undefined) {
-    const { screen } = require('electron');
     const displays = screen.getAllDisplays();
     const visible = displays.some(d => {
       const { x: dx, y: dy, width: dw, height: dh } = d.workArea;
@@ -178,12 +189,6 @@ function createMemoWindow(memoData, options = {}) {
       nodeIntegration: false,
       webSecurity:     true,
     }
-  });
-
-  // local-fonts 퍼미션 자동 허용 (폰트 선택기용)
-  win.webContents.session.setPermissionRequestHandler((wc, permission, callback) => {
-    if (permission === 'local-fonts') return callback(true);
-    callback(false);
   });
 
   win.loadFile(path.join(__dirname, 'renderer', 'memo.html'), {
@@ -545,8 +550,12 @@ function registerIpcHandlers() {
         filters: [{ name: 'PNG 이미지', extensions: ['png'] }],
       });
       if (filePath) {
-        fs.writeFileSync(filePath, image.toPNG());
-        return { success: true, filePath };
+        try {
+          fs.writeFileSync(filePath, image.toPNG());
+          return { success: true, filePath };
+        } catch (e) {
+          return { success: false, error: e.message };
+        }
       }
       return { success: false };
     }
@@ -559,10 +568,14 @@ function registerIpcHandlers() {
     return true;
   });
 
-  // 특정 메모 포커스 (목록 뷰에서 클릭)
+  // 특정 메모 포커스 (목록 뷰에서 클릭) — 윈도우가 없으면 lazy 생성 (import 직후 등)
   ipcMain.handle('memo:focus', (_e, memoId) => {
-    const win = memoWindows.get(memoId);
-    if (win && !win.isDestroyed()) {
+    let win = memoWindows.get(memoId);
+    if (!win || win.isDestroyed()) {
+      const memo = getMemoById(memoId);
+      if (!memo) return false;
+      win = createMemoWindow(memo);
+    } else {
       if (!win.isVisible()) win.show();
       win.focus();
     }
@@ -622,8 +635,12 @@ function registerIpcHandlers() {
       memos,
     }, null, 2);
 
-    fs.writeFileSync(filePath, data, 'utf8');
-    return { success: true, filePath };
+    try {
+      fs.writeFileSync(filePath, data, 'utf8');
+      return { success: true, filePath };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   });
 
   // 서브 메모(답글) 일괄 잠금 — 부모 잠금 시 자식 창에 전파
@@ -734,7 +751,6 @@ function registerIpcHandlers() {
 
   // 팝업 전용 투명 창 열기 (list.html?popup=TYPE)
   ipcMain.handle('popup:open', (event, { type, width, height }) => {
-    const { screen } = require('electron');
     const senderWin = BrowserWindow.fromWebContents(event.sender);
     const display   = senderWin
       ? screen.getDisplayNearestPoint(senderWin.getBounds())
@@ -758,7 +774,6 @@ function registerIpcHandlers() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win || win.isDestroyed()) return null;
     const prev = win.getBounds();
-    const { screen } = require('electron');
     const display = screen.getDisplayNearestPoint({ x: prev.x + Math.floor(prev.width / 2), y: prev.y + Math.floor(prev.height / 2) });
     const { workArea } = display;
     const newW = Math.min(width,  workArea.width  - 40);
@@ -873,7 +888,6 @@ function broadcastListUpdate() {
 // 트레이 아이콘 동적 생성 (순수 PNG 픽셀 렌더링 — SVG 미사용)
 // ──────────────────────────────────────────
 function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
-  const zlib = require('zlib');
   const W = 32, H = 32;
   let hex = (color || '#8fbc8f').replace('#', '');
   if (!/^[0-9a-fA-F]{6}$/.test(hex)) hex = '8fbc8f';
@@ -938,9 +952,7 @@ function buildTrayIcon(symbolId = 'clover', color = '#8fbc8f') {
   // ── PNG 인코딩 ──
   function crc32(b) {
     let crc = 0xffffffff;
-    const t = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) { let c = i; for (let j = 0; j < 8; j++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1); t[i] = c; }
-    for (let i = 0; i < b.length; i++) crc = t[(crc ^ b[i]) & 0xff] ^ (crc >>> 8);
+    for (let i = 0; i < b.length; i++) crc = CRC32_TABLE[(crc ^ b[i]) & 0xff] ^ (crc >>> 8);
     return (crc ^ 0xffffffff) >>> 0;
   }
   function chunk(type, data) {
@@ -1082,6 +1094,12 @@ function updateTrayMenu() {
 // ──────────────────────────────────────────
 app.whenReady().then(async () => {
   await initStore();
+
+  // local-fonts 퍼미션 자동 허용 (폰트 선택기용) — default session에 1회만 등록
+  session.defaultSession.setPermissionRequestHandler((wc, permission, callback) => {
+    callback(permission === 'local-fonts');
+  });
+
   registerIpcHandlers();
   setupTray();
 
@@ -1114,19 +1132,18 @@ app.whenReady().then(async () => {
     if (Date.now() - store.get('lastAutoBackup', 0) < AUTO_BACKUP_INTERVAL_MS) return;
     try {
       const backupDir = path.join(app.getPath('userData'), 'auto-backups');
-      const fs2 = require('fs');
-      if (!fs2.existsSync(backupDir)) fs2.mkdirSync(backupDir, { recursive: true });
+      if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
       const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const backupPath = path.join(backupDir, `nagi-memo-auto-${stamp}.json`);
       const data = JSON.stringify({ version: 1, memos: getMemos(), exportedAt: new Date().toISOString() }, null, 2);
-      fs2.writeFileSync(backupPath, data, 'utf8');
+      fs.writeFileSync(backupPath, data, 'utf8');
       store.set('lastAutoBackup', Date.now());
       // 오래된 자동 백업 5개 초과분 정리
-      const files = fs2.readdirSync(backupDir)
+      const files = fs.readdirSync(backupDir)
         .filter(f => f.startsWith('nagi-memo-auto-'))
         .sort()
         .reverse();
-      files.slice(5).forEach(f => { try { fs2.unlinkSync(path.join(backupDir, f)); } catch {} });
+      files.slice(5).forEach(f => { try { fs.unlinkSync(path.join(backupDir, f)); } catch {} });
     } catch { /* 자동 백업 실패는 조용히 무시 */ }
   }
 
